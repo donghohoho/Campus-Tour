@@ -127,7 +127,22 @@ export function initMultiplayer(G) {
   $('#mpEmote').addEventListener('click', () => emotePop.classList.toggle('hidden'));
   emotePop.addEventListener('click', (e) => { const b = e.target.closest('button[data-e]'); if (b) { emote(Number(b.dataset.e)); emotePop.classList.add('hidden'); } });
   delBtn.addEventListener('click', () => removeNearSign());
+  // ── player list: hold Tab (or tap the player count) ──
+  const plist = $('#playerList'), plBody = $('#plBody');
+  const charName = (i) => { const el = document.querySelector(`.charBtn[data-i="${i}"] span`); return el ? el.textContent : '캐릭터 ' + (i + 1); };
+  function renderList() {
+    const p = G.player.pos, rows = [{ name: myName, char: G.charIndex(), d: -1, me: true }];
+    for (const av of avatars.values()) if (av.has || av.name !== '…') rows.push({ name: av.name, char: av.char, d: av.has ? Math.hypot(av.cur.x - p.x, av.cur.z - p.z) : null });
+    rows.sort((a, b) => (a.me ? -1 : b.me ? 1 : (a.d ?? 1e9) - (b.d ?? 1e9)));
+    $('#plTitle').textContent = `접속 중 ${rows.length}명` + (net ? '' : ' · 혼자 모드');
+    plBody.replaceChildren(...rows.map((r) => { const tr = document.createElement('tr'); if (r.me) tr.className = 'me'; for (const t of [r.name + (r.me ? ' (나)' : ''), charName(r.char), r.me ? '—' : r.d == null ? '…' : `${Math.round(r.d)}m`]) { const td = document.createElement('td'); td.textContent = t; tr.append(td); } return tr; }));
+  }
+  let listOpen = false, listT = 0;
+  const showList = (on) => { listOpen = on; plist.classList.toggle('hidden', !on); if (on) renderList(); };
+  countEl.addEventListener('click', () => showList(!listOpen));
+  window.addEventListener('keyup', (e) => { if (e.code === 'Tab' && listOpen) { e.preventDefault(); showList(false); } });
   window.addEventListener('keydown', (e) => {
+    if (e.code === 'Tab' && G.started() && !G.menuOpen() && !typing) { e.preventDefault(); if (!e.repeat) showList(true); return; }
     if (!G.started() || G.menuOpen() || typing || e.target instanceof HTMLInputElement) return;
     if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); openInput('chat'); }
     else if (e.code === 'KeyB') { e.preventDefault(); openInput('sign'); }
@@ -261,6 +276,7 @@ export function initMultiplayer(G) {
       if (av.plate) av.plate.visible = av.dist < 60;
       if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; av.mixer.update(dt); }
     });
+    if (listOpen && (listT -= dt) <= 0) { listT = 0.5; renderList(); }
     // own-sign delete button
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
