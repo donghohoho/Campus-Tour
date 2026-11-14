@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CAMPUSES, REGIONS, LIGHTING } from './campuses.js';
+import { initMultiplayer } from './multiplayer.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -340,7 +341,7 @@ const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 6.5, camDistCur = 6.5, dragging = false, ePressed = false;
 
 const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' }];
-const charModels = []; let charIndex = 0;
+const charModels = [], charSrc = []; let charIndex = 0; // charSrc: the loaded model + walk clip, cloned for other players
 function loadChar(i) {
   return new Promise((res) => new GLTFLoader().load(CHARS[i].url, (gltf) => {
     const m = gltf.scene; if (CHARS[i].yaw) { m.rotation.y = CHARS[i].yaw; m.updateMatrixWorld(true); }
@@ -352,6 +353,7 @@ function loadChar(i) {
       const clip = gltf.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.'));
       const mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
     }
+    charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null };
     holder.add(m); holder.visible = false; pModel.add(holder); charModels[i] = holder; res();
   }, undefined, () => { charModels[i] = null; res(); }));
 }
@@ -405,7 +407,7 @@ function switchCampus(id, force) {
   const c = CAMPUSES.find((x) => x.id === id); if (!c || c.status !== 'ready') return Promise.resolve(false);
   if (campus && campus.id === id && !force) return Promise.resolve(true);
   $('#loadingName').textContent = c.name; $('#loading').classList.remove('hidden');
-  return loadCampus(c).then((ok) => { $('#loading').classList.add('hidden'); if (ok && started) toast(`${c.name}에 들어왔어요`, 2.4); return ok; }, (e) => { $('#loading').classList.add('hidden'); showErr(e.message); return false; });
+  return loadCampus(c).then((ok) => { $('#loading').classList.add('hidden'); if (ok && started) mp.enter(c.id); if (ok && started) toast(`${c.name}에 들어왔어요`, 2.4); return ok; }, (e) => { $('#loading').classList.add('hidden'); showErr(e.message); return false; });
 }
 function showStep(which) { $('#campusStep').classList.toggle('hidden', which !== 'campus'); $('#charStep').classList.toggle('hidden', which !== 'char'); }
 campusButtons($('#startCampusList'), (c) => {
@@ -425,7 +427,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing())) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -459,7 +461,7 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   hold($('#tChar'), () => { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 가로등을 따라 별조각을 모아 보세요`, 3.6); });
+$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 가로등을 따라 별조각을 모아 보세요`, 3.6); });
 
 // ── simulation ─────────────────────────────────────────────────────────────
 function groundAt(x, z, feet) {
@@ -573,12 +575,13 @@ function updateWorld(dt, t) {
     lampLights.forEach((L, i) => { const c = cand[i]; if (!c) { L.intensity = 0; return; } L.position.set(c[1][0], c[1][1], c[1][2]); const f = Math.max(0, 1 - c[0] / 70); L.intensity = 70 * f * f * (3 - 2 * f); });
   }
 }
+const mp = initMultiplayer({ scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses
   const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; time += dt;
   if (started && rawDt < 0.5) { slowAcc += rawDt; if (++slowN >= 90) { if (slowAcc / slowN > 0.036 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight, false); } slowAcc = 0; slowN = 0; } }
-  if (started) updatePlayer(dt, time); else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
+  if (started) { updatePlayer(dt, time); mp.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { mp, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

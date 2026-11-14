@@ -94,6 +94,35 @@
       body.touch .campusBtn { min-height: 48px; }
       @media (max-height: 460px) { body.touch #loc { bottom: auto; top: 12px; } body.touch #mini { width: 80px; height: 80px; top: 52px; } #stick { width: 116px; height: 116px; } #tJump { width: 72px; height: 72px; } .tbtn { width: 56px; height: 56px; } #touchBtns { gap: 8px; } }
       .keysTouch { display: none; } body.touch .keysDesk { display: none; } body.touch .keysTouch { display: block; }
+      /* multiplayer */
+      .nickRow { display: flex; align-items: center; gap: 10px; color: #fdf8e8; font-weight: 700; }
+      #nick { font: 600 15px/1 inherit; width: 170px; padding: 9px 12px; border-radius: 10px; border: 2px solid rgba(255, 253, 246, 0.6); background: rgba(255, 253, 246, 0.92); color: #1d2a22; user-select: text; -webkit-user-select: text; }
+      #nick:focus-visible { outline: 3px solid #ffc83a; outline-offset: 1px; }
+      #mpBar { left: 16px; bottom: 34px; display: flex; align-items: center; gap: 6px; padding: 6px 8px; z-index: 6; }
+      #mpCount { font-weight: 700; font-size: 13px; padding: 0 6px; white-space: nowrap; }
+      .mpBtn { font: 700 13px/1 inherit; color: #1f2d25; background: #fff; border: 1px solid #c9d1c6; border-radius: 999px; padding: 7px 10px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; touch-action: manipulation; }
+      .mpBtn:hover { background: #fff7e3; }
+      .mpBtn kbd { min-width: 0; padding: 2px 5px; font-size: 11px; }
+      #emotePop { left: 16px; bottom: 84px; display: flex; gap: 4px; padding: 6px; z-index: 7; }
+      #emotePop button { font-size: 24px; line-height: 1; padding: 6px 8px; border-radius: 10px; border: 0; background: transparent; cursor: pointer; display: grid; justify-items: center; gap: 2px; }
+      #emotePop button:hover { background: #fff3d6; }
+      #emotePop small { font: 700 10px/1 ui-monospace, monospace; color: #5a6b5e; }
+      #chatLog { position: fixed; left: 16px; bottom: 84px; width: min(360px, calc(100vw - 32px)); max-height: 168px; overflow-y: auto; margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; align-content: end; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.6s; }
+      #chatLog.fresh, #chatLog.open { opacity: 1; }
+      #chatLog.open { pointer-events: auto; bottom: 132px; background: rgba(16, 22, 44, 0.55); border-radius: 10px; padding: 6px; }
+      #chatLog li { background: rgba(16, 22, 44, 0.62); color: #fdf8e8; border-radius: 8px; padding: 3px 9px; font-size: 13px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+      #chatLog li b { color: #ffd98a; }
+      #chatLog li.sys { color: #aeb8d2; background: rgba(16, 22, 44, 0.45); font-size: 12px; }
+      #chatForm { left: 16px; bottom: 84px; display: flex; gap: 6px; padding: 6px; width: min(420px, calc(100vw - 32px)); z-index: 8; }
+      #chatInput { flex: 1; min-width: 0; font: 500 15px/1 inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid #c9d1c6; user-select: text; -webkit-user-select: text; }
+      #chatSend { font: 700 14px/1 inherit; padding: 0 14px; border-radius: 8px; border: 0; background: #ffd98a; color: #1b2030; cursor: pointer; }
+      body:not(.touch) #controls { max-height: calc(100vh - 250px); overflow-y: auto; }
+      body.touch #mpBar { left: 12px; bottom: auto; top: 56px; padding: 4px 6px; }
+      body.touch .mpBtn kbd, body.touch .mpLabel { display: none; }
+      body.touch #emotePop { left: 12px; bottom: auto; top: 102px; }
+      body.touch #chatLog { left: 12px; bottom: auto; top: 102px; max-height: 120px; width: min(300px, calc(100vw - 150px)); align-content: start; }
+      body.touch #chatLog.open { top: 150px; bottom: auto; }
+      body.touch #chatForm { left: 12px; bottom: auto; top: 102px; width: calc(100vw - 24px); }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -115,6 +144,10 @@
         <dt><kbd>E</kbd></dt><dd>동물 쓰다듬기</dd>
         <dt><kbd>C</kbd></dt><dd>캐릭터 변경</dd>
         <dt><kbd>M</kbd></dt><dd>캠퍼스 변경</dd>
+        <dt><kbd>Enter</kbd></dt><dd>채팅</dd>
+        <dt><kbd>1</kbd>~<kbd>4</kbd></dt><dd>이모트</dd>
+        <dt><kbd>B</kbd></dt><dd>표지판 세우기</dd>
+        <dt><kbd>X</kbd></dt><dd>내 표지판 지우기</dd>
         <dt><kbd>Esc</kbd></dt><dd>마우스 풀기</dd>
       </dl>
     </div>
@@ -144,9 +177,10 @@
           <button class="charBtn" type="button" data-i="3" aria-pressed="false"><img src="assets/char_m1.jpg" alt="" /><span>남자 1</span></button>
           <button class="charBtn" type="button" data-i="4" aria-pressed="false"><img src="assets/char_m2.jpg" alt="" /><span>남자 2</span></button>
         </div>
+        <label class="nickRow">닉네임 <input id="nick" type="text" maxlength="12" autocomplete="nickname" spellcheck="false" /></label>
         <button id="startBtn" type="button" disabled>불러오는 중…</button>
       </section>
-      <p class="keysDesk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · <kbd>Space</kbd> 점프 · 마우스 시점 · 휠 줌 · <kbd>C</kbd> 캐릭터 · <kbd>M</kbd> 캠퍼스</p>
+      <p class="keysDesk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · <kbd>Space</kbd> 점프 · 마우스 시점 · 휠 줌 · <kbd>C</kbd> 캐릭터 · <kbd>M</kbd> 캠퍼스 · <kbd>Enter</kbd> 채팅 · <kbd>B</kbd> 표지판</p>
       <p class="keysTouch">왼쪽 조이스틱 이동 · 화면 드래그 시점 · 두 손가락 줌 · 점프/달리기 버튼</p>
     </div>
     <div id="touchUI" class="hidden">
@@ -164,6 +198,16 @@
         <div id="menuCampusList" class="campusList"></div>
       </div>
     </div>
+    <div id="mpBar" class="panel hidden">
+      <span id="mpCount" aria-live="polite">🔌 연결 중…</span>
+      <button id="mpChat" class="mpBtn" type="button">💬<span class="mpLabel">채팅</span> <kbd>Enter</kbd></button>
+      <button id="mpEmote" class="mpBtn" type="button" aria-label="이모트">😀 <kbd>1-4</kbd></button>
+      <button id="mpSign" class="mpBtn" type="button">🪧<span class="mpLabel">표지판</span> <kbd>B</kbd></button>
+      <button id="mpDel" class="mpBtn hidden" type="button">🗑️<span class="mpLabel">내 표지판 지우기</span> <kbd>X</kbd></button>
+    </div>
+    <div id="emotePop" class="panel hidden"><button type="button" data-e="0">👋<small>1</small></button><button type="button" data-e="1">❤️<small>2</small></button><button type="button" data-e="2">😂<small>3</small></button><button type="button" data-e="3">🎉<small>4</small></button></div>
+    <ul id="chatLog" class="hidden" aria-live="polite" aria-label="채팅"></ul>
+    <form id="chatForm" class="panel hidden"><input id="chatInput" type="text" autocomplete="off" enterkeyhint="send" /><button id="chatSend" type="submit">보내기</button></form>
     <div id="loading" class="hidden" role="status"><span id="loadingName"></span>캠퍼스를 불러오는 중…</div>
     <script type="module" src="./client.js"></script>
   </body>
