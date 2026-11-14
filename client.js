@@ -207,6 +207,18 @@ function buildWorld(data) {
           addRec(poly, ttop, src.n);
         }
         const st = new THREE.Mesh(new THREE.CylinderGeometry(ri * 0.94, ri * 0.94, 3, 40), new THREE.MeshLambertMaterial({ color: 0xd8d4c6, emissive: 0x3a382f })); st.position.set(sx, by - 1.38, sz); st.receiveShadow = true; world.add(st);
+        const alm = LMK.find((l) => l.name === src.n && l.model);
+        if (alm) { // hand-made round colonnade on the stage, its open side facing the seats
+          const D = ri * 0.94 * 2 * (alm.scale || 1), phi = (a0 + a1) / 2, myWorld = world, H = new THREE.Group();
+          H.position.set(sx, by + 0.12, sz); H.rotation.y = Math.PI / 2 - phi + ((alm.rot || 0) * Math.PI) / 180; world.add(H);
+          new GLTFLoader().load(alm.model, (g) => {
+            if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = D / Math.max(size.x, size.z);
+            m.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.material) { o.material.emissive = new THREE.Color(0x3a382f); o.material.emissiveMap = o.material.map; } } });
+            m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
+          }, undefined, () => console.warn('amphitheatre model failed', alm.model));
+          const R = D * 0.47, colTop = by + 0.12 + D * 0.34; // columns ring, open ±60° around the seats
+          for (let t = 0; t < 360; t += 360 / Math.max(12, Math.round((Math.PI * 2 * R) / 3))) { const ang = phi + Math.PI + (t * Math.PI) / 180, off = Math.abs(((t + 180) % 360) - 180); if (off > 120) continue; addCircle(sx + Math.cos(ang) * R, sz + Math.sin(ang) * R, 0.9, colTop); }
+        }
         places.push({ n: src.n, x: sx, z: sz, top: by + 7, r: 65 }); continue;
       }
       const top = avgT + src.h, bot = minT - 1.5, sgn = area > 0 ? 1 : -1, floorH = src.h / Math.max(1, src.l);
