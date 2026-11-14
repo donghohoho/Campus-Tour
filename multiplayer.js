@@ -137,7 +137,7 @@ export function initMultiplayer(G) {
   delBtn.addEventListener('click', () => removeNearSign());
   // ── proximity voice chat: mic off by default; others are heard through a 3D panner (loud nearby, silent beyond VOICE_FAR) ──
   const VOICE_NEAR = 3, VOICE_FAR = 35, micBtn = $('#mpMic');
-  let actx = null, mic = null, micBusy = false;
+  let actx = null, mic = null, micBusy = false, myVoice = null, myTalk = null; // myVoice: analyser on my own mic for the 🔊 over my head
   const audioCtx = () => { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
   function setMicUi() { micBtn.classList.toggle('on', !!mic); micBtn.setAttribute('aria-pressed', String(!!mic)); micBtn.querySelector('.mpLabel').textContent = mic ? '마이크 켜짐' : '마이크'; }
   async function toggleMic() {
@@ -172,6 +172,13 @@ export function initMultiplayer(G) {
     if (!actx) return; const t = actx.currentTime, L = actx.listener, p = G.player.pos, cam = G.camera, fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
     if (L.positionX) { setPos(L.positionX, p.x, t); setPos(L.positionY, p.y + 1.6, t); setPos(L.positionZ, p.z, t); setPos(L.forwardX, fwd.x, t); setPos(L.forwardY, fwd.y, t); setPos(L.forwardZ, fwd.z, t); L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
     else { L.setPosition(p.x, p.y + 1.6, p.z); L.setOrientation(fwd.x, fwd.y, fwd.z, 0, 1, 0); }
+    // my own 🔊 while I'm talking
+    if (mic && (!myVoice || myVoice.stream !== mic)) { if (myVoice) try { myVoice.src.disconnect(); } catch (_) {} const src = actx.createMediaStreamSource(mic), an = actx.createAnalyser(); an.fftSize = 256; src.connect(an); myVoice = { stream: mic, src, an, buf: new Uint8Array(256), lvl: 0 }; }
+    if (!mic && myVoice) { try { myVoice.src.disconnect(); } catch (_) {} myVoice = null; }
+    let meTalking = false;
+    if (myVoice) { myVoice.an.getByteTimeDomainData(myVoice.buf); let sum = 0; for (const b of myVoice.buf) sum += (b - 128) * (b - 128); myVoice.lvl = Math.max(Math.sqrt(sum / myVoice.buf.length), myVoice.lvl - dt * 40); meTalking = myVoice.lvl > 4; }
+    if (meTalking && !myTalk) { myTalk = textSprite(['🔊'], { font: 40, worldH: 0.32, bg: 'rgba(0,0,0,0)', pad: 2 }); myTalk.position.set(0, 1.95, 0); G.pRoot.add(myTalk); }
+    else if (!meTalking && myTalk) { disposeSprite(myTalk); myTalk = null; }
     for (const av of avatars.values()) {
       const v = av.voice; if (!v) continue; const c = av.cur;
       if (v.pan.positionX) { setPos(v.pan.positionX, c.x, t); setPos(v.pan.positionY, c.y + 1.6, t); setPos(v.pan.positionZ, c.z, t); } else v.pan.setPosition(c.x, c.y + 1.6, c.z);
