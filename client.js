@@ -545,7 +545,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen || bigOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -642,10 +642,42 @@ function updateCamera(dt) {
 }
 let nearPal = null, hudT = 0, campusPoly = null, lampT = 0;
 const mini = $('#mini'), mctx = mini.getContext('2d');
+// ── big map (click the minimap or press N): whole campus, places, players; click anywhere to teleport there ──
+let bigOpen = false, bigView = null, bigT = 0;
+function drawBigMap() {
+  const cv = $('#bigMapCanvas'), size = Math.round(Math.min(innerWidth * 0.92, innerHeight * 0.86, 900) * Math.min(2, devicePixelRatio || 1));
+  if (cv.width !== size) { cv.width = cv.height = size; }
+  // frame the campus boundary (plus a margin) inside the playable square
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const r of D.campus) for (const q of r) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, half = Math.min(HALF, Math.max(x1 - x0, z1 - z0) / 2 + 80); bigView = { cx, cz, half };
+  const c = cv.getContext('2d'), k = GS / (GHALF * 2), S = size / (half * 2), toPx = (x, z) => [(x - cx + half) * S, (z - cz + half) * S];
+  c.fillStyle = '#86b56a'; c.fillRect(0, 0, size, size); c.drawImage(groundCanvas, (cx - half + GHALF) * k, (cz - half + GHALF) * k, half * 2 * k, half * 2 * k, 0, 0, size, size);
+  c.strokeStyle = 'rgba(255,240,180,0.9)'; c.lineWidth = Math.max(2, size / 400); c.setLineDash([size / 90, size / 140]); for (const r of D.campus) { c.beginPath(); r.forEach((q, i) => { const [x, y] = toPx(q[0], q[1]); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath(); c.stroke(); } c.setLineDash([]);
+  const fs = Math.max(11, size / 70); c.font = `700 ${fs}px "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+  const featured = new Set((campus.landmarks || []).filter((l) => l.model).map((l) => l.name));
+  for (const pl of places) { const [x, y] = toPx(pl.x, pl.z), star = featured.has(pl.n); c.fillStyle = star ? '#ffc83a' : '#1f2d25'; c.beginPath(); c.arc(x, y, star ? fs * 0.38 : fs * 0.25, 0, 6.3); c.fill(); const t = (star ? '⭐ ' : '') + pl.n.replace(/ \(\d+\)$/, ''); c.lineWidth = fs * 0.28; c.strokeStyle = 'rgba(255,253,246,0.92)'; c.strokeText(t, x, y - fs * 0.4); c.fillStyle = '#1f2d25'; c.fillText(t, x, y - fs * 0.4); }
+  for (const o of mp.players()) { const [x, y] = toPx(o.x, o.z); c.fillStyle = '#3a8dff'; c.strokeStyle = '#fff'; c.lineWidth = fs * 0.15; c.beginPath(); c.arc(x, y, fs * 0.45, 0, 6.3); c.fill(); c.stroke(); c.fillStyle = '#123'; c.fillText(o.name, x, y - fs * 0.5); }
+  const [px, py] = toPx(player.pos.x, player.pos.z); c.save(); c.translate(px, py); c.rotate(Math.atan2(Math.sin(player.yaw), -Math.cos(player.yaw))); c.fillStyle = '#e8432f'; c.strokeStyle = '#fff'; c.lineWidth = fs * 0.18; c.beginPath(); c.moveTo(0, -fs * 0.9); c.lineTo(fs * 0.62, fs * 0.65); c.lineTo(0, fs * 0.32); c.lineTo(-fs * 0.62, fs * 0.65); c.closePath(); c.stroke(); c.fill(); c.restore();
+}
+function bigMapShow(on) {
+  if (on && (!started || menuOpen || !worldReady)) return; bigOpen = on; $('#bigMap').classList.toggle('hidden', !on);
+  if (on) { for (const k in keys) keys[k] = false; if (document.pointerLockElement) document.exitPointerLock(); drawBigMap(); } else if (!TOUCH) lockPointer();
+}
+$('#mini').addEventListener('click', (e) => { e.stopPropagation(); bigMapShow(true); });
+$('#bigMapClose').addEventListener('click', () => bigMapShow(false));
+$('#bigMapCanvas').addEventListener('click', (e) => {
+  if (!bigView) return; const r = e.currentTarget.getBoundingClientRect(), u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+  const x = bigView.cx - bigView.half + u * bigView.half * 2, z = bigView.cz - bigView.half + v * bigView.half * 2;
+  const near = places.find((pl) => Math.hypot(pl.x - x, pl.z - z) < bigView.half * 0.035); // clicked on a label dot → go to that place properly
+  if (near) tpToPlace(near); else teleport(Math.max(-HALF + 6, Math.min(HALF - 6, x)), Math.max(-HALF + 6, Math.min(HALF - 6, z)), '지도');
+  bigMapShow(false); toast(`🌀 ${near ? near.n : '지도에서 고른 곳'}(으)로 이동했어요`, 1.8);
+});
+window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputElement || !started) return; if (e.code === 'KeyN' && !e.repeat && !(mp && mp.typing())) bigMapShow(!bigOpen); else if (e.code === 'Escape' && bigOpen) bigMapShow(false); });
 function updateHud() {
   const p = player.pos; let best = null, bd = 1e9; for (const pl of places) { const d = Math.hypot(pl.x - p.x, pl.z - p.z); if (d < pl.r && d < bd) { bd = d; best = pl; } }
   if (!campusPoly) campusPoly = D.campus;
   $('#loc').textContent = best ? `📍 ${best.n}` : campusPoly.some((r) => pip(p.x, p.z, r)) ? '📍 ' + campus.name : '📍 ' + (campus.outsideLabel || '캠퍼스 밖');
+  if (bigOpen && (bigT = (bigT || 0) + 1) % 3 === 0) drawBigMap();
   const W = mini.width, R = 170, k = GS / (GHALF * 2), sx = (p.x - R + GHALF) * k, sz = (p.z - R + GHALF) * k;
   mctx.fillStyle = '#86b56a'; mctx.fillRect(0, 0, W, W); mctx.drawImage(groundCanvas, sx, sz, R * 2 * k, R * 2 * k, 0, 0, W, W);
   mctx.save(); mctx.translate(W / 2, W / 2); mctx.rotate(Math.atan2(Math.sin(player.yaw), -Math.cos(player.yaw))); mctx.fillStyle = '#1f2d25'; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(0, -9); mctx.lineTo(6.5, 7); mctx.lineTo(0, 3.5); mctx.lineTo(-6.5, 7); mctx.closePath(); mctx.stroke(); mctx.fill(); mctx.restore();
