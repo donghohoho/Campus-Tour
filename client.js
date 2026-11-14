@@ -348,7 +348,16 @@ function placeBuildingModel(lm, p, baseY, mapH) {
   let { a, u0, u1, v0, v1 } = best; let L = u1 - u0, Wd = v1 - v0; if (Wd > L) { a += Math.PI / 2; [L, Wd] = [Wd, L]; [u0, u1, v0, v1] = [v0, v1, -u1, -u0]; }
   const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, cx = uc * Math.cos(a) - vc * Math.sin(a), cz = uc * Math.sin(a) + vc * Math.cos(a);
   if (Math.cos(a) < 0) a += Math.PI; // so rot 0 means: model +X points (roughly) along +x, model +Z (front) along +z
-  const holder = new THREE.Group(); holder.position.set(cx, baseY - 0.3, cz); holder.rotation.y = -a; world.add(holder);
+  // stand the model on the highest ground under it (no part buried) and fill the gap below with a plinth down to the lowest ground
+  let top = baseY; for (const q of p) top = Math.max(top, terrainH(q[0], q[1]));
+  { const xs = p.map((q) => q[0]), zs = p.map((q) => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    for (let i = 0; i <= 10; i++) for (let k = 0; k <= 10; k++) { const px = x0 + ((x1 - x0) * i) / 10, pz = z0 + ((z1 - z0) * k) / 10; if (pip(px, pz, p)) top = Math.max(top, terrainH(px, pz)); } }
+  if (top - baseY > 0.4) {
+    const sh = new THREE.Shape(p.map((q) => new THREE.Vector2(q[0], -q[1]))), depth = top - baseY + 1.5;
+    const pl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false }).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: lm.plinth || 0xb9b2a4, emissive: 0x1e1c18 }));
+    pl.position.y = baseY - 1.5; pl.castShadow = pl.receiveShadow = true; world.add(pl);
+  }
+  const holder = new THREE.Group(); holder.position.set(cx, top - 0.05, cz); holder.rotation.y = -a; world.add(holder);
   const myWorld = world;
   new GLTFLoader().load(lm.model, (g) => {
     if (world !== myWorld) return; // campus changed while loading
