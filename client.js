@@ -306,6 +306,7 @@ function buildWorld(data) {
   const SP = campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
   const d = Math.hypot(lib.x - gate.x, lib.z - gate.z) || 1, SD = SP.dist || 16, [sx, sz] = freeSpot(gate.x + ((lib.x - gate.x) / d) * SD, gate.z + ((lib.z - gate.z) / d) * SD, 5);
+  spawnPoint = { x: sx, z: sz, yaw: Math.atan2(lib.x - gate.x, lib.z - gate.z) };
   player.pos.set(sx, terrainH(sx, sz), sz); player.yaw = Math.atan2(lib.x - gate.x, lib.z - gate.z); camYaw = player.yaw + Math.PI; camTarget.set(sx, player.pos.y + 1.25, sz); player.vel.set(0, 0, 0); camDistCur = camDist;
   setCount();
 }
@@ -359,6 +360,41 @@ function placeBuildingModel(lm, p, baseY, mapH) {
     const s = new THREE.Group(); s.add(m); s.scale.set(L / size.x, (lm.height || mapH) / size.y, Wd / size.z); holder.add(s);
   }, undefined, () => console.warn('building model failed', lm.model));
 }
+// ── teleport (T): spawn point, any named place on campus, or another player ──
+let spawnPoint = null, tpOpen = false;
+function teleport(x, z, label, yaw) {
+  let sx = x, sz = z; // step out of buildings: nearest open ground around the target, closest ring first
+  if (label !== '__exact') search: for (let r = 0; r <= 160; r += 2) for (let k = 0; k < Math.max(1, Math.round(r * 1.2)); k++) { const a = (k / Math.max(1, Math.round(r * 1.2))) * 6.283 + r, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (!insideBuilding(px, pz, -1e4) && cls(px, pz) !== 4 && Math.abs(px) < HALF - 5 && Math.abs(pz) < HALF - 5) { sx = px; sz = pz; break search; } }
+  for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283; spawnFx(dustTex, player.pos.x, player.pos.y + 0.8, player.pos.z, Math.cos(a) * 2, rr(0.2, 1.4), Math.sin(a) * 2, 0.5, 0.6, 1.5); }
+  player.pos.set(sx, groundAt(sx, sz, 1e4), sz); player.vel.set(0, 0, 0); if (yaw != null) { player.yaw = yaw; camYaw = yaw + Math.PI; }
+  camTarget.set(sx, player.pos.y + 1.25, sz); camDistCur = camDist; player.squashV = 6;
+  for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283; spawnFx(dustTex, sx, player.pos.y + 0.8, sz, Math.cos(a) * 2, rr(0.2, 1.4), Math.sin(a) * 2, 0.5, 0.6, 1.5); }
+}
+function tpRender() {
+  const q = $('#tpSearch').value.trim(), list = $('#tpList'); list.replaceChildren();
+  const rows = [];
+  if (spawnPoint) rows.push({ g: '처음 위치', n: '🏁 시작 지점', go: () => teleport(spawnPoint.x, spawnPoint.z, '__exact', spawnPoint.yaw) });
+  for (const pl of mp.players()) rows.push({ g: '플레이어', n: '🧑 ' + pl.name, go: () => teleport(pl.x + 1.5, pl.z + 1.5, pl.name) });
+  for (const pl of [...places].sort((a, b) => a.n.localeCompare(b.n, 'ko'))) rows.push({ g: '장소', n: '📍 ' + pl.n, go: () => teleport(pl.x, pl.z, pl.n) });
+  let lastG = null, shown = 0;
+  for (const r of rows) {
+    if (q && !r.n.includes(q)) continue; shown++;
+    if (r.g !== lastG) { lastG = r.g; const h = document.createElement('li'); h.className = 'tpGroup'; h.textContent = r.g; list.append(h); }
+    const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.textContent = r.n;
+    b.addEventListener('click', () => { r.go(); tpShow(false); toast(`🌀 ${r.n.replace(/^\S+ /, '')}(으)로 이동했어요`, 1.8); }); li.append(b); list.append(li);
+  }
+  if (!shown) { const li = document.createElement('li'); li.className = 'tpGroup'; li.textContent = '찾는 곳이 없어요'; list.append(li); }
+}
+function tpShow(on) {
+  if (on && (!started || menuOpen || !worldReady)) return; tpOpen = on; $('#tpPanel').classList.toggle('hidden', !on);
+  if (on) { for (const k in keys) keys[k] = false; if (document.pointerLockElement) document.exitPointerLock(); $('#tpSearch').value = ''; tpRender(); if (!TOUCH) $('#tpSearch').focus(); } else if (!TOUCH) lockPointer();
+}
+$('#tpSearch').addEventListener('input', tpRender);
+$('#tpSearch').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') tpShow(false); if (e.key === 'Enter') { const b = $('#tpList button'); if (b) b.click(); } });
+$('#tpSearch').addEventListener('keyup', (e) => e.stopPropagation());
+$('#tpClose').addEventListener('click', () => tpShow(false));
+$('#mpTp').addEventListener('click', () => tpShow(!tpOpen));
+window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputElement) return; if (e.code === 'KeyT' && !e.repeat && started && !(mp && mp.typing())) tpShow(!tpOpen); else if (e.code === 'Escape' && tpOpen) tpShow(false); });
 function spawnFx(tex, x, y, z, vx, vy, vz, life, size, grow) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.position.set(x, y, z); sp.scale.setScalar(size); scene.add(sp); fx.push({ sp, vx, vy, vz, life, max: life, size, grow }); }
 let collected = 0, toastT = 0;
 const setCount = () => {}; // coins HUD lives in pets.js
@@ -458,7 +494,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open())) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };

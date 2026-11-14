@@ -363,5 +363,6 @@ export function initMultiplayer(G) {
     // own-sign delete button
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
-  return { enter, update, typing: () => !!typing };
+  const players = () => [...avatars.values()].filter((av) => av.has).map((av) => ({ name: av.name, x: av.cur.x, y: av.cur.y, z: av.cur.z }));
+  return { enter, update, players, typing: () => !!typing };
 }
