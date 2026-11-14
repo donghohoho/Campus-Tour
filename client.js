@@ -438,7 +438,7 @@ const player = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gro
 const pRoot = new THREE.Group(), pTilt = new THREE.Group(), pSquash = new THREE.Group(), pModel = new THREE.Group();
 pRoot.add(pTilt); pTilt.add(pSquash); pSquash.add(pModel); scene.add(pRoot);
 const camTarget = new THREE.Vector3();
-let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 6.5, camDistCur = 6.5, dragging = false, ePressed = false;
+let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 4.6, camDistCur = 4.6, dragging = false, ePressed = false;
 
 const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' },
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3' },
