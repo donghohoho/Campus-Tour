@@ -131,6 +131,17 @@
       #playerList td:last-child, #playerList th:last-child { text-align: right; white-space: nowrap; }
       #playerList tr.me td { font-weight: 700; }
       #playerList p { margin: 8px 0 0; font-size: 11.5px; color: #5a6b5e; }
+      /* HUD see-through + collapsible controls */
+      #controls, #campusBadge, #counter, #loc, #mpBar { background: rgba(255, 253, 246, 0.58); transition: background 0.2s, opacity 0.2s; }
+      #controls:hover, #campusBadge:hover, #counter:hover, #mpBar:hover { background: rgba(255, 253, 246, 0.9); }
+      #controls { opacity: 0.85; padding: 8px 12px; }
+      #controls:hover { opacity: 1; }
+      #controls h2 { margin: 0; }
+      #controls:not(.collapsed) h2 { margin-bottom: 6px; }
+      #controls.collapsed dl { display: none; }
+      #controls.collapsed .arrow { display: inline-block; transform: rotate(-90deg); }
+      #ctlToggle { font: inherit; color: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+      #ctlToggle kbd { min-width: 0; padding: 2px 5px; font-size: 10.5px; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -142,8 +153,8 @@
   <body>
     <canvas id="game"></canvas>
     <div id="controls" class="panel">
-      <h2>조작법</h2>
-      <dl>
+      <h2><button id="ctlToggle" type="button" aria-expanded="true" aria-controls="ctlList">조작법 <span class="arrow">▾</span> <kbd>H</kbd></button></h2>
+      <dl id="ctlList">
         <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>이동</dd>
         <dt><kbd>Shift</kbd></dt><dd>달리기</dd>
         <dt><kbd>Space</kbd></dt><dd>점프</dd>
@@ -157,6 +168,7 @@
         <dt><kbd>B</kbd></dt><dd>표지판 세우기</dd>
         <dt><kbd>X</kbd></dt><dd>내 표지판 지우기</dd>
         <dt><kbd>P</kbd></dt><dd>접속자 보기</dd>
+        <dt><kbd>H</kbd></dt><dd>조작법 접기</dd>
         <dt><kbd>Esc</kbd></dt><dd>마우스 풀기</dd>
       </dl>
     </div>
@@ -219,6 +231,16 @@
     <ul id="chatLog" class="hidden" aria-live="polite" aria-label="채팅"></ul>
     <form id="chatForm" class="panel hidden"><input id="chatInput" type="text" autocomplete="off" enterkeyhint="send" /><button id="chatSend" type="submit">보내기</button></form>
     <div id="loading" class="hidden" role="status"><span id="loadingName"></span>캠퍼스를 불러오는 중…</div>
+    <script>
+      (() => {
+        const box = document.getElementById('controls'), btn = document.getElementById('ctlToggle');
+        const set = (c) => { box.classList.toggle('collapsed', c); btn.setAttribute('aria-expanded', String(!c)); try { localStorage.setItem('fm:ctlCollapsed', c ? '1' : '0'); } catch (_) {} };
+        let saved = null; try { saved = localStorage.getItem('fm:ctlCollapsed'); } catch (_) {}
+        set(saved === '1');
+        btn.addEventListener('click', () => set(!box.classList.contains('collapsed')));
+        addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !e.repeat && !(e.target instanceof HTMLInputElement) && document.getElementById('start').classList.contains('hidden')) set(!box.classList.contains('collapsed')); });
+      })();
+    </script>
     <script type="module" src="./client.js"></script>
   </body>
 </html>
