@@ -406,12 +406,14 @@ function tpRender() {
   const rows = [];
   if (spawnPoint) rows.push({ g: '처음 위치', n: '🏁 시작 지점', go: () => teleport(spawnPoint.x, spawnPoint.z, '__exact', spawnPoint.yaw) });
   for (const pl of mp.players()) rows.push({ g: '플레이어', n: '🧑 ' + pl.name, go: () => teleport(pl.x + 1.5, pl.z + 1.5, pl.name) });
-  for (const pl of [...places].sort((a, b) => a.n.localeCompare(b.n, 'ko'))) rows.push({ g: '장소', n: '📍 ' + pl.n, go: () => tpToPlace(pl) });
+  const featured = new Set((campus.landmarks || []).filter((l) => l.model).map((l) => l.name)), sorted = [...places].sort((a, b) => a.n.localeCompare(b.n, 'ko'));
+  for (const pl of sorted) if (featured.has(pl.n)) rows.push({ g: '⭐ 대표 건물', n: '⭐ ' + pl.n, star: true, go: () => tpToPlace(pl) }); // buildings with a hand-made 3D model
+  for (const pl of sorted) if (!featured.has(pl.n)) rows.push({ g: '장소', n: '📍 ' + pl.n, go: () => tpToPlace(pl) });
   let lastG = null, shown = 0;
   for (const r of rows) {
     if (q && !r.n.includes(q)) continue; shown++;
     if (r.g !== lastG) { lastG = r.g; const h = document.createElement('li'); h.className = 'tpGroup'; h.textContent = r.g; list.append(h); }
-    const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.textContent = r.n;
+    const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.textContent = r.n; if (r.star) b.className = 'star';
     b.addEventListener('click', () => { r.go(); tpShow(false); toast(`🌀 ${r.n.replace(/^\S+ /, '')}(으)로 이동했어요`, 1.8); }); li.append(b); list.append(li);
   }
   if (!shown) { const li = document.createElement('li'); li.className = 'tpGroup'; li.textContent = '찾는 곳이 없어요'; list.append(li); }
