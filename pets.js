@@ -1,5 +1,5 @@
 // Coins + pets.
-//   • every 10 minutes of play (game started, tab visible) → +10 coins
+//   • every 10 minutes of play (game started, tab visible) → +10 coins; walking around fills the bar faster (pedometer)
 //   • spend coins in the pet shop (K or the 🐾 button); own several pets, pick one to walk with you, give each a name
 //   • the pet you walk with follows you and is shown to other players (multiplayer.js sends {t: type, n: name})
 // Saved per device in localStorage (no server).
@@ -17,6 +17,9 @@ export const PETS = [
   { id: 'p5', name: '보라 말랑이', price: 150, color: 0xcdb6ff },
 ];
 const EARN_EVERY = 600, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
+// pedometer: walking also fills the 10-minute bar — every metre on foot is worth WALK_BONUS extra seconds
+// (walking ≈ 3× faster than standing still, running ≈ 5×). A step is STEP_LEN metres.
+const WALK_BONUS = 0.5, STEP_LEN = 0.75;
 const $ = (s) => document.querySelector(s);
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const petDef = (id) => PETS.find((p) => p.id === id);
@@ -78,15 +81,15 @@ export function createPet(type, name, terrainH) {
 
 export function initPets(G) {
   // G: { scene, player, terrainH(x,z), toast(msg,s), started(), menuOpen(), worldReady(), touch, releaseKeys(), lockPointer() }
-  let W = { coins: 0, prog: 0, owned: [], active: null };
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], active: s.active || null }; } catch (_) {}
+  let W = { coins: 0, prog: 0, owned: [], active: null, steps: 0 };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], active: s.active || null, steps: Math.max(0, +s.steps || 0) }; } catch (_) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (_) {} };
-  let saveT = 0, pet = null, open = false;
+  let saveT = 0, pet = null, open = false, last = null;
 
   // ── HUD ──
-  const coinEl = $('#count'), nextEl = $('#coinNext'), panel = $('#petShop');
+  const coinEl = $('#count'), nextEl = $('#coinNext'), stepEl = $('#steps'), panel = $('#petShop');
   const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  function hud() { coinEl.textContent = `${W.coins}`; nextEl.textContent = `+${EARN_AMOUNT}까지 ${fmt(Math.max(0, EARN_EVERY - W.prog))}`; }
+  function hud() { coinEl.textContent = `${W.coins}`; nextEl.textContent = `+${EARN_AMOUNT}까지 ${fmt(Math.max(0, EARN_EVERY - W.prog))}`; stepEl.textContent = `👣 ${Math.floor(W.steps).toLocaleString('ko-KR')}보`; }
   hud();
 
   // ── the pet walking with me ──
@@ -142,10 +145,17 @@ export function initPets(G) {
   function update(dt) {
     if (G.started() && G.worldReady() && document.visibilityState === 'visible') {
       W.prog += Math.min(dt, 0.5);
-      if (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 10분 접속 보상! 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 3); if (open) render(); }
+      // pedometer: ground distance since last frame (ignore jumps across the map — respawn, campus change)
+      const p = G.player, d = last ? Math.hypot(p.pos.x - last.x, p.pos.z - last.z) : 0;
+      if (d > 0.01 && d < 3 && p.grounded !== false) {
+        const before = Math.floor(W.steps / 1000); W.steps += d / STEP_LEN; W.prog += d * WALK_BONUS;
+        if (Math.floor(W.steps / 1000) > before) G.toast(`👣 ${(Math.floor(W.steps / 1000) * 1000).toLocaleString('ko-KR')}보 달성! 걸을수록 코인이 빨리 모여요`, 2.4);
+      }
+      last = { x: p.pos.x, z: p.pos.z };
+      while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 10분 접속 보상! 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 3); if (open) render(); }
       if ((saveT -= dt) <= 0) { saveT = 5; save(); }
-    }
-    if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 1; hud(); }
+    } else last = null;
+    if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 0.5; hud(); }
     if (pet) { const p = G.player; pet.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
   }
   addEventListener('pagehide', save);
