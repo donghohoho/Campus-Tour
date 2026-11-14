@@ -167,6 +167,18 @@ function buildWorld(data) {
         let off = 0, bw = 0; // centre the opening on the road that runs through
         for (const r of D.roads) if (r.t === 'road') for (let i = 0; i + 1 < r.p.length; i++) { const a = r.p[i], b = r.p[i + 1], ax = (a[0] - cx) * ca + (a[1] - cz) * sa, az = -(a[0] - cx) * sa + (a[1] - cz) * ca, bx = (b[0] - cx) * ca + (b[1] - cz) * sa, bz = -(b[0] - cx) * sa + (b[1] - cz) * ca; if (az > 0 === bz > 0) continue; const x = ax + ((bx - ax) * az) / (az - bz); if (Math.abs(x) < half - 16 && (r.w > bw || (r.w === bw && Math.abs(x) < Math.abs(off)))) { bw = r.w; off = x; } }
         const gx = cx + off * ca, gz = cz + off * sa, gy = terrainH(gx, gz), G = new THREE.Group(); G.position.set(gx, gy, gz); G.rotation.y = -ang; world.add(G);
+        const glm = LMK.find((l) => l.name === src.n && l.model);
+        if (glm) { // hand-made gate model: arch opening (centre 15% of its width) on the road; pillars and colonnade wings are solid
+          const s = glm.scale || 80, myWorld = world, solid = (lx, r, t) => addCircle(gx + lx * ca, gz + lx * sa, r, gy + t);
+          new GLTFLoader().load(glm.model, (g) => {
+            if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
+            const mat = new THREE.MeshLambertMaterial({ color: glm.wall || 0xe9e5d8, emissive: glm.glow || 0x4a4638 });
+            m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
+            m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); G.add(sc);
+          }, undefined, () => console.warn('gate model failed', glm.model));
+          for (const sd of [-1, 1]) { solid(sd * 0.125 * s, 0.05 * s, 0.41 * s); for (let x = 0.19 * s; x <= 0.49 * s; x += 4) solid(sd * x, 2.4, 0.22 * s); }
+          places.push({ n: src.n, x: gx, z: gz, top: gy + 0.42 * s, r: 55 }); continue;
+        }
         const stone = new THREE.MeshLambertMaterial({ color: 0xe9e5d8, emissive: 0x4a4638 }), pale = new THREE.MeshLambertMaterial({ color: 0xf6f3ea, emissive: 0x5c584a }), dark = new THREE.MeshLambertMaterial({ color: 0x55534d });
         const add = (geo, x, y, z, m = stone) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; G.add(o); return o; };
         const solid = (lx, lz, r, t) => addCircle(gx + lx * ca - lz * sa, gz + lx * sa + lz * ca, r, gy + t);

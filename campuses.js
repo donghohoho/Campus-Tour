@@ -10,7 +10,7 @@
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
 //   spawn      start next to `from`, `dist` metres toward `toward` (both are place names from the map)
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building'
-//              (a building may carry model: 'assets/models/x.glb' to replace the block, + rot° / height / wall colour;
+//              (a gate or building may carry model: 'assets/models/x.glb' to replace the block, + rot° / height / wall colour;
 //               rot turns the model's front (+Z) in 90° steps until it faces the right road),
 //              pos = approximate [x, z] in metres from the map origin, optional wall/roof colours, note = source
 //   play       collectible / creature counts and the areas they are scattered over
@@ -66,10 +66,9 @@ export const CAMPUSES = [
     outsideLabel: '캠퍼스 밖 · 영통/서천',
     spawn: { from: '경희대학교 국제캠퍼스 정문', toward: '학생회관', dist: 16 },
     landmarks: [
-      { name: '경희대학교 국제캠퍼스 정문', kind: 'gate', pos: [-138, -457], note: '아치 + 양쪽 열주 회랑 (카카오 로드뷰)' },
+      { name: '경희대학교 국제캠퍼스 정문', kind: 'gate', pos: [-138, -457], model: 'assets/models/khu-global-front-gate.glb', scale: 80, note: '직접 만든 3D 모델 (Tripo) — 아치를 도로 중앙에 맞춤' },
       { name: '노천극장', kind: 'amphitheatre', pos: [284, 555], note: '원형 무대 + 부채꼴 계단 객석 (카카오맵 항공사진)' },
       { name: '전자정보대학', kind: 'building', pos: [298, 430], wall: 0xead9b2, roof: 0x9a9384, note: '크림색 벽돌 외벽 (카카오 로드뷰)' },
-      { name: '외국어대학관', kind: 'building', pos: [-208, -208], model: 'assets/models/khu-global-foreign-languages.glb', rot: 90, note: '직접 만든 3D 모델 (Tripo) — 풋프린트에 맞춰 늘림; rot로 정면 방향 조정 (90° 단위)' },
       { name: '천문대', kind: 'dome', pos: [170, 495] },
       { name: '대운동장', kind: 'stadium', pos: [-193, -61] },
     ],
