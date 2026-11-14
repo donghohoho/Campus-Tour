@@ -102,6 +102,7 @@
       #mpCount { font-weight: 700; font-size: 13px; white-space: nowrap; }
       .mpBtn { font: 700 13px/1 inherit; color: #1f2d25; background: #fff; border: 1px solid #c9d1c6; border-radius: 999px; padding: 7px 10px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; touch-action: manipulation; }
       .mpBtn:hover { background: #fff7e3; }
+      #mpMic.on { background: #ffe1e1; border-color: #e46a6a; color: #8a1f1f; }
       .mpBtn kbd { min-width: 0; padding: 2px 5px; font-size: 11px; }
       #emotePop { left: 16px; bottom: 84px; display: flex; gap: 4px; padding: 6px; z-index: 7; }
       #emotePop button { font-size: 24px; line-height: 1; padding: 6px 8px; border-radius: 10px; border: 0; background: transparent; cursor: pointer; display: grid; justify-items: center; gap: 2px; }
@@ -168,6 +169,7 @@
         <dt><kbd>B</kbd></dt><dd>표지판 세우기</dd>
         <dt><kbd>X</kbd></dt><dd>내 표지판 지우기</dd>
         <dt><kbd>P</kbd></dt><dd>접속자 보기</dd>
+        <dt><kbd>V</kbd></dt><dd>마이크 켜기/끄기</dd>
         <dt><kbd>H</kbd></dt><dd>조작법 접기</dd>
         <dt><kbd>Esc</kbd></dt><dd>마우스 풀기</dd>
       </dl>
@@ -223,6 +225,7 @@
       <button id="mpCount" class="mpBtn" type="button" title="접속 중인 플레이어 (P)" aria-live="polite">🔌 연결 중…</button>
       <button id="mpChat" class="mpBtn" type="button">💬<span class="mpLabel">채팅</span> <kbd>Enter</kbd></button>
       <button id="mpEmote" class="mpBtn" type="button" aria-label="이모트">😀 <kbd>1-4</kbd></button>
+      <button id="mpMic" class="mpBtn" type="button" aria-pressed="false" title="음성 채팅 (V)">🎤<span class="mpLabel">마이크</span> <kbd>V</kbd></button>
       <button id="mpSign" class="mpBtn" type="button">🪧<span class="mpLabel">표지판</span> <kbd>B</kbd></button>
       <button id="mpDel" class="mpBtn hidden" type="button">🗑️<span class="mpLabel">내 표지판 지우기</span> <kbd>X</kbd></button>
     </div>

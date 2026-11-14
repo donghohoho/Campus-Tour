@@ -31,6 +31,9 @@ async function joinP2P(roomId) {
     onJoin: (fn) => room.onPeerJoin((c) => fn(c.peerId)),
     onLeave: (fn) => room.onPeerLeave((c) => fn(c.peerId)),
     onError: (fn) => room.onError(fn),
+    addStream: (st, to) => room.addStream(st, to ? { target: to } : undefined).catch(() => {}),
+    removeStream: (st) => { try { room.removeStream(st); } catch (_) {} },
+    onStream: (fn) => room.onPeerStream((st, c) => fn(st, c.peerId)),
     leave: () => room.leave().catch(() => {}),
   };
 }
@@ -50,7 +53,7 @@ function joinLocal(roomId) {
   return {
     send: async (t, d, to) => post(t, d, to),
     on: (t, fn) => { if (!hs.has(t)) hs.set(t, []); hs.get(t).push(fn); },
-    onJoin: (fn) => joins.push(fn), onLeave: (fn) => leaves.push(fn), onError: () => {},
+    onJoin: (fn) => joins.push(fn), onLeave: (fn) => leaves.push(fn), onError: () => {}, addStream: async () => {}, removeStream: () => {}, onStream: () => {}, // no voice between tabs
     leave: async () => { bye(); removeEventListener('pagehide', bye); ch.close(); },
   };
 }
@@ -127,6 +130,48 @@ export function initMultiplayer(G) {
   $('#mpEmote').addEventListener('click', () => emotePop.classList.toggle('hidden'));
   emotePop.addEventListener('click', (e) => { const b = e.target.closest('button[data-e]'); if (b) { emote(Number(b.dataset.e)); emotePop.classList.add('hidden'); } });
   delBtn.addEventListener('click', () => removeNearSign());
+  // ── proximity voice chat: mic off by default; others are heard through a 3D panner (loud nearby, silent beyond VOICE_FAR) ──
+  const VOICE_NEAR = 3, VOICE_FAR = 35, micBtn = $('#mpMic');
+  let actx = null, mic = null, micBusy = false;
+  const audioCtx = () => { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
+  function setMicUi() { micBtn.classList.toggle('on', !!mic); micBtn.setAttribute('aria-pressed', String(!!mic)); micBtn.querySelector('.mpLabel').textContent = mic ? '마이크 켜짐' : '마이크'; }
+  async function toggleMic() {
+    if (micBusy) return; audioCtx();
+    if (mic) { if (net) net.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setMicUi(); G.toast('마이크를 껐어요', 1.4); return; }
+    if (!net) { G.toast('다른 사람과 연결된 뒤에 쓸 수 있어요', 2); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { G.toast('이 브라우저는 마이크를 쓸 수 없어요', 2); return; }
+    micBusy = true;
+    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); net.addStream(mic); G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요', 2.2); }
+    catch (e) { mic = null; G.toast('마이크 권한이 없어서 켜지 못했어요', 2.4); }
+    micBusy = false; setMicUi();
+  }
+  function attachVoice(av, stream) {
+    dropVoice(av); const ctx = audioCtx(); if (!ctx) return;
+    const el = new Audio(); el.muted = true; el.srcObject = stream; el.play().catch(() => {}); // Chrome only pulls WebRTC audio into WebAudio while an element plays it
+    const src = ctx.createMediaStreamSource(stream), pan = ctx.createPanner(), an = ctx.createAnalyser();
+    pan.panningModel = 'HRTF'; pan.distanceModel = 'linear'; pan.refDistance = VOICE_NEAR; pan.maxDistance = VOICE_FAR; pan.rolloffFactor = 1;
+    an.fftSize = 256; src.connect(an); src.connect(pan); pan.connect(ctx.destination);
+    av.voice = { el, src, pan, an, buf: new Uint8Array(an.fftSize), lvl: 0 };
+  }
+  function dropVoice(av) { const v = av.voice; if (!v) return; try { v.src.disconnect(); v.pan.disconnect(); } catch (_) {} v.el.srcObject = null; av.voice = null; if (av.talk) { disposeSprite(av.talk); av.talk = null; } }
+  function setPos(param, val, t) { if (param && param.setTargetAtTime) param.setTargetAtTime(val, t, 0.05); }
+  function updateVoice(dt) {
+    if (!actx) return; const t = actx.currentTime, L = actx.listener, p = G.player.pos, cam = G.camera, fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
+    if (L.positionX) { setPos(L.positionX, p.x, t); setPos(L.positionY, p.y + 1.6, t); setPos(L.positionZ, p.z, t); setPos(L.forwardX, fwd.x, t); setPos(L.forwardY, fwd.y, t); setPos(L.forwardZ, fwd.z, t); L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+    else { L.setPosition(p.x, p.y + 1.6, p.z); L.setOrientation(fwd.x, fwd.y, fwd.z, 0, 1, 0); }
+    for (const av of avatars.values()) {
+      const v = av.voice; if (!v) continue; const c = av.cur;
+      if (v.pan.positionX) { setPos(v.pan.positionX, c.x, t); setPos(v.pan.positionY, c.y + 1.6, t); setPos(v.pan.positionZ, c.z, t); } else v.pan.setPosition(c.x, c.y + 1.6, c.z);
+      v.an.getByteTimeDomainData(v.buf); let sum = 0; for (const b of v.buf) sum += (b - 128) * (b - 128); const rms = Math.sqrt(sum / v.buf.length);
+      v.lvl = Math.max(rms, v.lvl - dt * 40); const talking = v.lvl > 4 && Math.hypot(c.x - p.x, c.z - p.z) < VOICE_FAR;
+      if (talking && !av.talk) { av.talk = textSprite(['🔊'], { font: 40, worldH: 0.32, bg: 'rgba(0,0,0,0)', pad: 2 }); av.talk.position.set(0.0, 2.25, 0); av.root.add(av.talk); }
+      else if (!talking && av.talk) { disposeSprite(av.talk); av.talk = null; }
+    }
+  }
+  micBtn.addEventListener('click', toggleMic);
+  window.addEventListener('pointerdown', () => audioCtx(), { once: true });
+  window.addEventListener('keydown', () => audioCtx(), { once: true });
+
   // ── player list: P toggles it (or tap the player count) ──
   const plist = $('#playerList'), plBody = $('#plBody');
   const charName = (i) => { const el = document.querySelector(`.charBtn[data-i="${i}"] span`); return el ? el.textContent : '캐릭터 ' + (i + 1); };
@@ -146,6 +191,7 @@ export function initMultiplayer(G) {
     if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); openInput('chat'); }
     else if (e.code === 'KeyB') { e.preventDefault(); openInput('sign'); }
     else if (e.code === 'KeyX') removeNearSign();
+    else if (e.code === 'KeyV' && !e.repeat) toggleMic();
     else { const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code); if (n >= 0 && !e.repeat) emote(n); }
   });
 
@@ -168,7 +214,7 @@ export function initMultiplayer(G) {
   }
   function dropAvatar(peer) {
     const av = avatars.get(peer); if (!av) return; avatars.delete(peer);
-    disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
+    dropVoice(av); disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
     if (av.has && av.name !== '…') addLog(null, `${av.name}님이 나갔어요`, true); refreshCount();
   }
   function bubble(target, text, isMe) {
@@ -218,7 +264,7 @@ export function initMultiplayer(G) {
 
   // ── room ──
   function wire(n) {
-    n.onJoin((peer) => { getAvatar(peer); n.send('hi', hello(), peer); if (signs.size) n.send('sg', { list: [...signs.values()] }, peer); });
+    n.onJoin((peer) => { getAvatar(peer); if (mic) n.addStream(mic, peer); n.send('hi', hello(), peer); if (signs.size) n.send('sg', { list: [...signs.values()] }, peer); });
     n.onLeave((peer) => dropAvatar(peer));
     n.on('hi', (d, peer) => { const av = getAvatar(peer), nm = clean(d && d.name, NAME_MAX) || '익명', first = av.name === '…'; const ch = Math.max(0, Math.min(15, num(d && d.char) | 0)); if (nm !== av.name) { av.name = nm; setPlate(av); } av.char = ch; if (first) addLog(null, `${nm}님이 들어왔어요`, true); });
     n.on('st', (d, peer) => {
@@ -232,10 +278,11 @@ export function initMultiplayer(G) {
     n.on('sg', (d) => { if (!d || !Array.isArray(d.list)) return; let any = false; for (const s of d.list.slice(0, SIGN_LIMIT)) any = addSign(s, false) || any; if (any) saveSigns(); });
     n.on('sd', (d) => { const s = d && signs.get(d.id); if (s && s.by === d.by) killSign(s.id); });
     n.onError(() => {});
+    n.onStream((stream, peer) => { if (stream.getAudioTracks().length) attachVoice(getAvatar(peer), stream); });
   }
   async function enter(id) {
     if (id === roomId) return; const tok = ++joinTok;
-    if (net) { const old = net; net = null; old.leave(); }
+    if (net) { const old = net; net = null; if (mic) { old.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setMicUi(); } old.leave(); }
     for (const p of [...avatars.keys()]) dropAvatar(p);
     for (const id2 of [...signs.keys()]) killSign(id2, false); dead.clear(); roomId = id;
     const saved = store.get(signKey(), null); if (saved) { (saved.d || []).forEach((x) => dead.add(x)); (saved.s || []).forEach((s) => addSign(s, false)); }
@@ -255,6 +302,7 @@ export function initMultiplayer(G) {
     if (myBubble && (myBubbleT -= dt) <= 0) { disposeSprite(myBubble); myBubble = null; }
     if (myEmote) { myEmote.position.y += dt * 0.4; if ((myEmoteT -= dt) <= 0) { disposeSprite(myEmote); myEmote = null; } }
     // nearest players get full models; the rest just a nameplate
+    updateVoice(dt);
     const cam = G.camera.position, list = [];
     for (const av of avatars.values()) {
       if (!av.has) continue;
