@@ -41,7 +41,7 @@
       #startBtn:disabled { opacity: 0.55; cursor: progress; }
       #startBtn:not(:disabled):hover { background: #ffe6ae; }
       #startBtn:focus-visible { outline: 3px solid #ffc83a; outline-offset: 3px; }
-      #chars { display: flex; gap: 14px; margin-top: 4px; }
+      #chars { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; }
       .charBtn { display: grid; gap: 6px; justify-items: center; padding: 8px 8px 10px; border-radius: 14px; border: 3px solid transparent; background: rgba(255, 253, 246, 0.85); cursor: pointer; font: 700 14px/1 inherit; color: #1f2d25; box-shadow: 0 4px 14px rgba(20, 40, 30, 0.15); }
       .charBtn img { width: 92px; height: 138px; object-fit: cover; object-position: top; border-radius: 8px; background: #fff; display: block; }
       .charBtn[aria-pressed="true"] { border-color: #1f2d25; }
@@ -140,6 +140,7 @@
         <div id="chars" role="group" aria-label="캐릭터 선택">
           <button class="charBtn" type="button" data-i="0" aria-pressed="true"><img src="assets/char1.jpg" alt="" /><span>버전 1</span></button>
           <button class="charBtn" type="button" data-i="1" aria-pressed="false"><img src="assets/char2.jpg" alt="" /><span>버전 2</span></button>
+          <button class="charBtn" type="button" data-i="2" aria-pressed="false"><img src="assets/char3.jpg" alt="" /><span>버전 3</span></button>
         </div>
         <button id="startBtn" type="button" disabled>불러오는 중…</button>
       </section>
