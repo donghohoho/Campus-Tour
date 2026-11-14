@@ -127,7 +127,7 @@ export function initMultiplayer(G) {
   $('#mpEmote').addEventListener('click', () => emotePop.classList.toggle('hidden'));
   emotePop.addEventListener('click', (e) => { const b = e.target.closest('button[data-e]'); if (b) { emote(Number(b.dataset.e)); emotePop.classList.add('hidden'); } });
   delBtn.addEventListener('click', () => removeNearSign());
-  // ── player list: hold Tab (or tap the player count) ──
+  // ── player list: P toggles it (or tap the player count) ──
   const plist = $('#playerList'), plBody = $('#plBody');
   const charName = (i) => { const el = document.querySelector(`.charBtn[data-i="${i}"] span`); return el ? el.textContent : '캐릭터 ' + (i + 1); };
   function renderList() {
@@ -140,9 +140,8 @@ export function initMultiplayer(G) {
   let listOpen = false, listT = 0;
   const showList = (on) => { listOpen = on; plist.classList.toggle('hidden', !on); if (on) renderList(); };
   countEl.addEventListener('click', () => showList(!listOpen));
-  window.addEventListener('keyup', (e) => { if (e.code === 'Tab' && listOpen) { e.preventDefault(); showList(false); } });
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Tab' && G.started() && !G.menuOpen() && !typing) { e.preventDefault(); if (!e.repeat) showList(true); return; }
+    if (e.code === 'KeyP' && G.started() && !G.menuOpen() && !typing && !(e.target instanceof HTMLInputElement)) { if (!e.repeat) showList(!listOpen); return; }
     if (!G.started() || G.menuOpen() || typing || e.target instanceof HTMLInputElement) return;
     if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); openInput('chat'); }
     else if (e.code === 'KeyB') { e.preventDefault(); openInput('sign'); }
