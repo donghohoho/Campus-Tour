@@ -38,7 +38,19 @@ const soon = (id, name, region) => ({ id, name, region, status: 'soon' });
 export const CAMPUSES = [
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   soon('snu-gwanak', '서울대학교 관악캠퍼스', 'seoul'),
-  soon('yonsei-sinchon', '연세대학교 신촌캠퍼스', 'seoul'),
+  {
+    id: 'yonsei-sinchon', name: '연세대학교 신촌캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/yonsei-sinchon.json', terrain: 'mountain', lighting: 'night', seed: 20261115,
+    outsideLabel: '캠퍼스 밖 · 신촌/창천동',
+    spawn: { from: '백주년기념관 (201)', toward: '언더우드관 (501)', dist: 40 },
+    landmarks: [
+      { name: '연세대학교 대운동장', kind: 'stadium', pos: [-468, -600], note: 'OSM leisure=pitch' },
+      { name: '언더우드관 (501)', kind: 'building', pos: [-5, -144], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
+      { name: '스팀슨관 (502)', kind: 'building', pos: [-52, -182], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
+      { name: '아펜젤러관 (503)', kind: 'building', pos: [19, -202], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
+    ],
+    play: { pals: 18, palArea: [-450, 450, -650, 600], palHome: [-30, -300] },
+  },
   {
     id: 'korea-anam', name: '고려대학교 안암캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/korea-anam.json', terrain: 'hills', lighting: 'night', seed: 20261114,
