@@ -302,7 +302,7 @@ function buildWorld(data) {
       pals.push({ g: gp, x, z, yaw: rnd() * 6, target: rnd() * 6, timer: rr(1, 4), moving: false, ph: rnd() * 6, happy: 0 });
     }
   }
-  // spawn just inside the main gate, facing into the campus
+  // spawn by the main gate (inside, or outside if dist < 0), facing into the campus
   const SP = campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
   const d = Math.hypot(lib.x - gate.x, lib.z - gate.z) || 1, SD = SP.dist || 16, [sx, sz] = freeSpot(gate.x + ((lib.x - gate.x) / d) * SD, gate.z + ((lib.z - gate.z) / d) * SD, 5);

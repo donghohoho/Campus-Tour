@@ -8,7 +8,7 @@
 //   terrain    terrain character of the site: 'flat' | 'hills' | 'mountain'
 //   lighting   key into LIGHTING below
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
-//   spawn      start next to `from`, `dist` metres toward `toward` (both are place names from the map)
+//   spawn      start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building'
 //              (a gate or building may carry model: 'assets/models/x.glb' to replace the block, + rot° / height / wall colour;
 //               rot turns the model's front (+Z) in 90° steps until it faces the right road),
@@ -64,7 +64,7 @@ export const CAMPUSES = [
     id: 'khu-global', name: '경희대학교 국제캠퍼스', region: 'gyeonggi', status: 'ready',
     data: 'assets/campuses/khu-global.json', terrain: 'hills', lighting: 'night', seed: 20261111,
     outsideLabel: '캠퍼스 밖 · 영통/서천',
-    spawn: { from: '경희대학교 국제캠퍼스 정문', toward: '학생회관', dist: 16 },
+    spawn: { from: '경희대학교 국제캠퍼스 정문', toward: '학생회관', dist: -35 }, // negative = outside the gate, looking at it
     landmarks: [
       { name: '경희대학교 국제캠퍼스 정문', kind: 'gate', pos: [-138, -457], model: 'assets/models/khu-global-front-gate.glb', scale: 80, note: '직접 만든 3D 모델 (Tripo) — 아치를 도로 중앙에 맞춤' },
       { name: '노천극장', kind: 'amphitheatre', pos: [284, 555], note: '원형 무대 + 부채꼴 계단 객석 (카카오맵 항공사진)' },
