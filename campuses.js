@@ -69,7 +69,7 @@ export const CAMPUSES = [
       { name: '경희대학교 국제캠퍼스 정문', kind: 'gate', pos: [-138, -457], model: 'assets/models/khu-global-front-gate.glb', scale: 80, note: '직접 만든 3D 모델 (Tripo) — 아치를 도로 중앙에 맞춤' },
       { name: '노천극장', kind: 'amphitheatre', pos: [284, 555], note: '원형 무대 + 부채꼴 계단 객석 (카카오맵 항공사진)' },
       { name: '전자정보대학', kind: 'building', pos: [298, 430], wall: 0xead9b2, roof: 0x9a9384, note: '크림색 벽돌 외벽 (카카오 로드뷰)' },
-      { name: '예술디자인대학', kind: 'building', pos: [401, 164], model: 'assets/models/khu-global-art-design.glb', rot: 0, height: 30, note: '직접 만든 3D 모델 (Tripo) — 풋프린트에 맞춰 늘림; 정면 방향은 rot(90° 단위)로 조정' },
+      { name: '예술디자인대학', kind: 'building', pos: [401, 164], model: 'assets/models/khu-global-art-design.glb', rot: 0, height: 30, tpToward: '전자정보대학', note: '직접 만든 3D 모델 (Tripo) — 풋프린트에 맞춰 늘림; 정면 방향은 rot(90° 단위)로 조정' },
       { name: '천문대', kind: 'dome', pos: [170, 495] },
       { name: '대운동장', kind: 'stadium', pos: [-193, -61] },
     ],

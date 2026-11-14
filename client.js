@@ -379,12 +379,20 @@ function teleport(x, z, label, yaw) {
   camTarget.set(sx, player.pos.y + 1.25, sz); camDistCur = camDist; player.squashV = 6;
   for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283; spawnFx(dustTex, sx, player.pos.y + 0.8, sz, Math.cos(a) * 2, rr(0.2, 1.4), Math.sin(a) * 2, 0.5, 0.6, 1.5); }
 }
+// a place can say which side to arrive on: landmark tpToward = another place's name → land just outside, on that side
+function tpToPlace(pl) {
+  const lm = (campus.landmarks || []).find((l) => l.name === pl.n && l.tpToward), to = lm && places.find((q) => q.n === lm.tpToward);
+  if (!to) return teleport(pl.x, pl.z, pl.n);
+  const dx = to.x - pl.x, dz = to.z - pl.z, d = Math.hypot(dx, dz) || 1, ux = dx / d, uz = dz / d;
+  for (let r = 0; r < d; r += 1.5) { const x = pl.x + ux * r, z = pl.z + uz * r; if (!insideBuilding(x, z, -1e4)) { const tx = x + ux * 6, tz = z + uz * 6; return teleport(tx, tz, '__exact', Math.atan2(-ux, -uz)); } }
+  teleport(pl.x, pl.z, pl.n);
+}
 function tpRender() {
   const q = $('#tpSearch').value.trim(), list = $('#tpList'); list.replaceChildren();
   const rows = [];
   if (spawnPoint) rows.push({ g: '처음 위치', n: '🏁 시작 지점', go: () => teleport(spawnPoint.x, spawnPoint.z, '__exact', spawnPoint.yaw) });
   for (const pl of mp.players()) rows.push({ g: '플레이어', n: '🧑 ' + pl.name, go: () => teleport(pl.x + 1.5, pl.z + 1.5, pl.name) });
-  for (const pl of [...places].sort((a, b) => a.n.localeCompare(b.n, 'ko'))) rows.push({ g: '장소', n: '📍 ' + pl.n, go: () => teleport(pl.x, pl.z, pl.n) });
+  for (const pl of [...places].sort((a, b) => a.n.localeCompare(b.n, 'ko'))) rows.push({ g: '장소', n: '📍 ' + pl.n, go: () => tpToPlace(pl) });
   let lastG = null, shown = 0;
   for (const r of rows) {
     if (q && !r.n.includes(q)) continue; shown++;
