@@ -58,7 +58,8 @@ export const CAMPUSES = [
     spawn: { from: '고려대학교 정문', toward: '본관', dist: 16 },
     landmarks: [
       { name: '녹지운동장', kind: 'stadium', pos: [-433, 406], note: 'OSM leisure=pitch' },
-      { name: '본관', kind: 'building', pos: [206, 166], wall: 0xc9c3b6, roof: 0x5f625e, note: '화강암 석조 건물 — 색은 추정' },
+      { name: '본관', kind: 'building', pos: [206, 166], model: 'assets/models/korea-anam-main-hall.glb', rot: 180, height: 26, tpToward: '중앙광장', note: '직접 만든 3D 모델 (Tripo) — 정면이 동남쪽 중앙광장을 향함' },
+      { name: '중앙광장', kind: 'place', pos: [286, 76], r: 60, note: 'OSM park "중앙광장" (지하 CCL 위 잔디 광장)' },
       { name: '중앙도서관', kind: 'building', pos: [352, 337], wall: 0xc9c3b6, roof: 0x5f625e, note: '화강암 석조 건물 — 색은 추정' },
       { name: '인촌기념관', kind: 'building', pos: [60, 200], wall: 0xc9c3b6, roof: 0x5f625e, note: '석조 — 색은 추정' },
       { name: '문과대학서관', kind: 'building', pos: [143, 79], wall: 0xc9c3b6, roof: 0x5f625e, note: '석조 — 색은 추정' },
