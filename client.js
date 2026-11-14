@@ -105,7 +105,7 @@ function buildWorld(data) {
   seed = campus.seed || 20261111;
   const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = campus.play || {}, LMK = campus.landmarks || [];
   const lmSet = (k) => new Set(LMK.filter((l) => l.kind === k).map((l) => l.name)), gateSet = lmSet('gate'), amphSet = lmSet('amphitheatre'), domeSet = lmSet('dome'), stadiumSet = lmSet('stadium');
-  const look = new Map(LMK.filter((l) => l.wall || l.roof).map((l) => [l.name, l]));
+  const look = new Map(LMK.filter((l) => l.wall || l.roof || l.model).map((l) => [l.name, l]));
   D = data; GN = D.grid.n; GSTEP = D.grid.step; GHALF = D.grid.half; GH = Float32Array.from(D.grid.h); HALF = D.half;
   { const a = D.buildings.find((b) => amphSet.has(b.n)); if (a) {
     let minx = 1e9, maxx = -1e9, minz = 1e9, maxz = -1e9; for (const q of a.p) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); minz = Math.min(minz, q[1]); maxz = Math.max(maxz, q[1]); }
@@ -200,7 +200,9 @@ function buildWorld(data) {
       const top = avgT + src.h, bot = minT - 1.5, sgn = area > 0 ? 1 : -1, floorH = src.h / Math.max(1, src.l);
       const pal = src.c ? campusWalls : src.k === 'apartments' ? aptWalls : otherWalls;
       C.set(pal[idx % pal.length]); if (look.get(src.n)?.wall) C.set(look.get(src.n).wall); const cr = C.r, cg = C.g, cb = C.b;
-      for (let i = 0; i < p.length; i++) {
+      const custom = look.get(src.n)?.model ? look.get(src.n) : null; // a hand-made 3D model replaces the extruded block (collision still uses the footprint)
+      if (custom) placeBuildingModel(custom, p, minT, src.h);
+      if (!custom) for (let i = 0; i < p.length; i++) {
         const a = p[i], b = p[(i + 1) % p.length], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz); if (len < 0.05) continue;
         const nx = (sgn * dz) / len, nz = (-sgn * dx) / len, bays = Math.max(1, Math.round(len / 3.4)), v0 = 0, v1 = (top - bot) / floorH;
         wp.push(a[0], top, a[1], b[0], top, b[1], b[0], bot, b[1], a[0], top, a[1], b[0], bot, b[1], a[0], bot, a[1]);
@@ -209,7 +211,7 @@ function buildWorld(data) {
       }
       const tris = THREE.ShapeUtils.triangulateShape(p.map((q) => new THREE.Vector2(q[0], q[1])), []);
       C.set((src.c ? campusRoofs : otherRoofs)[idx % (src.c ? campusRoofs.length : otherRoofs.length)]); if (look.get(src.n)?.roof) C.set(look.get(src.n).roof);
-      for (const t of tris) for (const vi of t) { rp.push(p[vi][0], top, p[vi][1]); rc.push(C.r, C.g, C.b); }
+      if (!custom) for (const t of tris) for (const vi of t) { rp.push(p[vi][0], top, p[vi][1]); rc.push(C.r, C.g, C.b); }
       const rec = { p, minx, maxx, minz, maxz, top, n: src.n, c: src.c, cx, cz };
       buildings.push(rec);
       for (let i = Math.floor(minx / BCELL); i <= Math.floor(maxx / BCELL); i++) for (let j = Math.floor(minz / BCELL); j <= Math.floor(maxz / BCELL); j++) { const k = i + ',' + j; let a = bGrid.get(k); if (!a) bGrid.set(k, (a = [])); a.push(rec); }
@@ -320,6 +322,28 @@ function unloadWorld() {
   D = null; GH = null; mask = null; groundCanvas = null; groundMat = null; lantern = null; tufts = null; tcx = tcz = 1e9; amph = null;
   buildings.length = 0; bGrid.clear(); grid.clear(); labels.length = 0; gems.length = 0; pals.length = 0; clouds.length = 0; places.length = 0; delete places.lampCount; lampGrid.clear(); lampLights.length = 0;
   collected = 0; campusPoly = null; nearPal = null; lampT = 0; hudT = 0;
+}
+// Fit a building model (GLB, long side along its X axis) onto a footprint: rotate to the footprint's minimum-area rectangle,
+// stretch to its length × width, height = lm.height or the map's height. lm.rot (degrees) turns it further, e.g. 180 to face the other way.
+function placeBuildingModel(lm, p, baseY, mapH) {
+  let best = null;
+  for (let deg = 0; deg < 180; deg += 0.5) {
+    const a = (deg * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a); let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+    for (const q of p) { const u = q[0] * ca + q[1] * sa, v = -q[0] * sa + q[1] * ca; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const area = (u1 - u0) * (v1 - v0); if (!best || area < best.area) best = { area, a, u0, u1, v0, v1 };
+  }
+  let { a, u0, u1, v0, v1 } = best; let L = u1 - u0, Wd = v1 - v0; if (Wd > L) { a += Math.PI / 2; [L, Wd] = [Wd, L]; [u0, u1, v0, v1] = [v0, v1, -u1, -u0]; }
+  const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, cx = uc * Math.cos(a) - vc * Math.sin(a), cz = uc * Math.sin(a) + vc * Math.cos(a);
+  const holder = new THREE.Group(); holder.position.set(cx, baseY - 0.3, cz); holder.rotation.y = -a + ((lm.rot || 0) * Math.PI) / 180; world.add(holder);
+  const myWorld = world;
+  new GLTFLoader().load(lm.model, (g) => {
+    if (world !== myWorld) return; // campus changed while loading
+    const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
+    const mat = new THREE.MeshLambertMaterial({ color: lm.wall || 0xe7ddca, emissive: lm.glow || 0x2b2822 });
+    m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
+    m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+    const s = new THREE.Group(); s.add(m); s.scale.set(L / size.x, (lm.height || mapH) / size.y, Wd / size.z); holder.add(s);
+  }, undefined, () => console.warn('building model failed', lm.model));
 }
 function spawnFx(tex, x, y, z, vx, vy, vz, life, size, grow) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.position.set(x, y, z); sp.scale.setScalar(size); scene.add(sp); fx.push({ sp, vx, vy, vz, life, max: life, size, grow }); }
 let collected = 0, toastT = 0;
@@ -454,7 +478,7 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   hold($('#tChar'), () => { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 가로등을 따라 별조각을 모아 보세요`, 3.6); });
+$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인을 모아 보세요`, 3.6); });
 
 // ── simulation ─────────────────────────────────────────────────────────────
 function groundAt(x, z, feet) {
