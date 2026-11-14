@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>프릴 메도우</title>
+    <link rel="icon" href="assets/char1.jpg" />
+    <meta property="og:title" content="프릴 메도우" />
+    <meta property="og:description" content="손그림 속 소녀를 주인공으로, 실제 지도로 만든 밤의 경희대학교 국제캠퍼스를 돌아다니는 3인칭 3D 탐험 게임. WASD 이동, Shift 달리기, Space 점프." />
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }
+    </script>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1022; }
+      body { font: 14px/1.5 "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; color: #1d2a22; user-select: none; -webkit-user-select: none; }
+      canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+      .panel { position: fixed; background: rgba(255, 253, 246, 0.82); border: 1px solid rgba(40, 60, 45, 0.18); border-radius: 12px; padding: 10px 14px; backdrop-filter: blur(6px); box-shadow: 0 4px 18px rgba(20, 40, 30, 0.12); }
+      #controls { left: 16px; top: 72px; }
+      #campusBadge { left: 16px; top: 16px; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; font-weight: 700; font-size: 15px; max-width: calc(100vw - 32px); }
+      #campusBadge b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #campusBtn { font: 600 12.5px/1 inherit; color: #1f2d25; background: #fff; border: 1px solid #c9d1c6; border-radius: 999px; padding: 6px 10px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+      #campusBtn kbd { min-width: 0; padding: 2px 5px; font-size: 11px; }
+      #campusBtn:hover { background: #fff7e3; }
+      #controls h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; color: #5a6b5e; font-weight: 700; }
+      #controls dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; align-items: center; }
+      #controls dt { justify-self: start; }
+      #controls dd { margin: 0; }
+      kbd { display: inline-block; min-width: 24px; text-align: center; font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace; padding: 4px 6px; border-radius: 6px; background: #fff; border: 1px solid #c9d1c6; border-bottom-width: 2px; color: #26352b; }
+      #counter { right: 16px; top: 16px; font-weight: 700; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+      #counter .gem { width: 12px; height: 12px; background: #ffc83a; transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 10px #ffd766; }
+      #prompt { left: 50%; bottom: 84px; transform: translateX(-50%); font-weight: 600; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+      #prompt.show { opacity: 1; }
+      #toast { left: 50%; top: 20%; white-space: nowrap; transform: translateX(-50%); font-weight: 700; font-size: 17px; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+      #toast.show { opacity: 1; }
+      #hint { left: 50%; bottom: 20px; transform: translateX(-50%); font-size: 12.5px; color: #44564a; pointer-events: none; }
+      #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 14px; text-align: center; overflow-y: auto; padding: 28px 16px; background: linear-gradient(180deg, rgba(8, 12, 30, 0.62), rgba(22, 30, 56, 0.78)); backdrop-filter: blur(3px); z-index: 10; }
+      #start h1 { margin: 0; font-size: clamp(34px, 6vw, 60px); letter-spacing: -0.02em; color: #fdf8e8; }
+      #start p { margin: 0; color: #dfe5f2; font-size: 15px; }
+      #startBtn { margin-top: 8px; font: 700 18px/1 inherit; padding: 16px 44px; border-radius: 999px; border: 0; background: #ffd98a; color: #1b2030; cursor: pointer; box-shadow: 0 8px 24px rgba(20, 40, 30, 0.3); }
+      #startBtn:disabled { opacity: 0.55; cursor: progress; }
+      #startBtn:not(:disabled):hover { background: #ffe6ae; }
+      #startBtn:focus-visible { outline: 3px solid #ffc83a; outline-offset: 3px; }
+      #chars { display: flex; gap: 14px; margin-top: 4px; }
+      .charBtn { display: grid; gap: 6px; justify-items: center; padding: 8px 8px 10px; border-radius: 14px; border: 3px solid transparent; background: rgba(255, 253, 246, 0.85); cursor: pointer; font: 700 14px/1 inherit; color: #1f2d25; box-shadow: 0 4px 14px rgba(20, 40, 30, 0.15); }
+      .charBtn img { width: 92px; height: 138px; object-fit: cover; object-position: top; border-radius: 8px; background: #fff; display: block; }
+      .charBtn[aria-pressed="true"] { border-color: #1f2d25; }
+      .charBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+      .charBtn:focus-visible { outline: 3px solid #ffc83a; outline-offset: 2px; }
+      .step { display: grid; justify-items: center; gap: 12px; width: min(720px, 100%); }
+      .step h2 { margin: 0; font-size: 17px; color: #fdf8e8; display: flex; align-items: center; gap: 10px; }
+      .step h2 span { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #ffd98a; color: #1b2030; font-size: 14px; }
+      .chosen { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .chosen b { color: #ffd98a; font-size: 16px; }
+      .linkBtn { font: 600 13px/1 inherit; color: #dfe5f2; background: transparent; border: 1px solid rgba(223, 229, 242, 0.45); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+      .linkBtn:hover { background: rgba(255, 255, 255, 0.08); }
+      .campusList { width: 100%; display: grid; gap: 8px; text-align: left; }
+      .campusList h3 { margin: 6px 2px 0; font-size: 12.5px; letter-spacing: 0.08em; color: #aeb8d2; font-weight: 700; }
+      .campusGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+      .campusBtn { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 10px 14px; border-radius: 12px; border: 2px solid transparent; background: rgba(255, 253, 246, 0.92); color: #1f2d25; font: 700 14px/1.3 inherit; text-align: left; cursor: pointer; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18); }
+      .campusBtn:not(:disabled):hover { border-color: #ffd98a; }
+      .campusBtn:focus-visible { outline: 3px solid #ffc83a; outline-offset: 2px; }
+      .campusBtn small { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #1f2d25; color: #ffd98a; white-space: nowrap; }
+      .campusBtn:disabled { background: rgba(255, 253, 246, 0.38); color: rgba(31, 45, 37, 0.62); cursor: not-allowed; box-shadow: none; }
+      .campusBtn:disabled small { background: rgba(31, 45, 37, 0.18); color: #2b3a31; }
+      .campusBtn[aria-current="true"] { border-color: #1f2d25; }
+      #campusMenu { position: fixed; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: safe center; flex-direction: column; overflow-y: auto; padding: 24px 16px; background: rgba(6, 9, 22, 0.66); backdrop-filter: blur(4px); }
+      #campusMenu .card { width: min(720px, 100%); display: grid; gap: 12px; background: rgba(22, 30, 56, 0.94); border: 1px solid rgba(223, 229, 242, 0.18); border-radius: 18px; padding: 20px; }
+      #campusMenu .card header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+      #campusMenu h2 { margin: 0; color: #fdf8e8; font-size: 18px; }
+      #loading { position: fixed; inset: 0; z-index: 13; display: grid; place-content: center; gap: 8px; text-align: center; background: rgba(6, 9, 22, 0.82); color: #fdf8e8; font-size: 16px; font-weight: 700; }
+      #loading span { color: #ffd98a; }
+      /* touch controls */
+      #touchUI { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+      #stick { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border-radius: 50%; background: rgba(255, 253, 246, 0.16); border: 2px solid rgba(255, 253, 246, 0.55); pointer-events: auto; touch-action: none; }
+      #stick.on { background: rgba(255, 253, 246, 0.26); }
+      #stickKnob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(255, 253, 246, 0.9); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); pointer-events: none; }
+      #touchBtns { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto auto; grid-template-areas: "act jump" "char run"; gap: 12px; align-items: end; justify-items: center; }
+      .tbtn { pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255, 253, 246, 0.7); background: rgba(22, 30, 56, 0.6); color: #fdf8e8; font: 700 13px/1.1 inherit; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+      .tbtn:active { background: rgba(255, 217, 138, 0.55); }
+      #tJump { grid-area: jump; width: 84px; height: 84px; font-size: 15px; background: rgba(255, 217, 138, 0.82); color: #1b2030; border-color: #ffd98a; }
+      #tRun { grid-area: run; }
+      #tRun[aria-pressed="true"] { background: #ffd98a; color: #1b2030; }
+      #tAct { grid-area: act; background: rgba(255, 92, 138, 0.75); }
+      #tChar { grid-area: char; width: 56px; height: 56px; font-size: 12px; }
+      body.touch #controls, body.touch #prompt, body.touch #hint, body.touch #attr { display: none !important; }
+      body.touch canvas#game { touch-action: none; }
+      body.touch #mini { width: 112px; height: 112px; top: 64px; bottom: auto; right: 12px; }
+      body.touch #counter { right: 12px; top: 12px; padding: 6px 10px; font-size: 13px; }
+      body.touch #campusBadge { left: 12px; top: 12px; font-size: 13px; max-width: calc(100vw - 150px); }
+      body.touch #campusBtn kbd { display: none; }
+      body.touch #loc { top: auto; bottom: 170px; font-size: 12.5px; padding: 6px 10px; }
+      body.touch #toast { font-size: 14px; white-space: normal; max-width: calc(100vw - 32px); text-align: center; }
+      body.touch .campusBtn { min-height: 48px; }
+      @media (max-height: 460px) { body.touch #loc { bottom: auto; top: 12px; } body.touch #mini { width: 80px; height: 80px; top: 52px; } #stick { width: 116px; height: 116px; } #tJump { width: 72px; height: 72px; } .tbtn { width: 56px; height: 56px; } #touchBtns { gap: 8px; } }
+      .keysTouch { display: none; } body.touch .keysDesk { display: none; } body.touch .keysTouch { display: block; }
+      .hidden { display: none !important; }
+      #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
+      #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
+      #attr { position: fixed; left: 16px; bottom: 10px; font-size: 11px; color: #2a3a30; background: rgba(255, 253, 246, 0.7); padding: 2px 8px; border-radius: 6px; }
+      #attr a { color: inherit; }
+      #err { left: 16px; bottom: 40px; color: #a11; max-width: 60ch; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="controls" class="panel">
+      <h2>조작법</h2>
+      <dl>
+        <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>이동</dd>
+        <dt><kbd>Shift</kbd></dt><dd>달리기</dd>
+        <dt><kbd>Space</kbd></dt><dd>점프</dd>
+        <dt>마우스</dt><dd>시점 회전</dd>
+        <dt>휠</dt><dd>줌 인/아웃</dd>
+        <dt><kbd>E</kbd></dt><dd>동물 쓰다듬기</dd>
+        <dt><kbd>C</kbd></dt><dd>캐릭터 변경</dd>
+        <dt><kbd>M</kbd></dt><dd>캠퍼스 변경</dd>
+        <dt><kbd>Esc</kbd></dt><dd>마우스 풀기</dd>
+      </dl>
+    </div>
+    <div id="campusBadge" class="panel"><b id="campusName">캠퍼스</b><button id="campusBtn" type="button">캠퍼스 변경 <kbd>M</kbd></button></div>
+    <div id="counter" class="panel"><span class="gem"></span><span id="count">별조각 0 / 0</span></div>
+    <div id="loc" class="panel">📍 경희대학교 국제캠퍼스</div>
+    <canvas id="mini" class="panel" width="190" height="190" aria-label="미니맵"></canvas>
+    <div id="attr">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> 기여자 · 지형 SRTM</div>
+    <div id="prompt" class="panel"></div>
+    <div id="toast" class="panel"></div>
+    <div id="hint" class="panel hidden">화면을 클릭하면 마우스로 시점을 돌릴 수 있어요 · <kbd>M</kbd> 캠퍼스 변경</div>
+    <div id="err" class="panel hidden"></div>
+    <div id="start">
+      <h1>프릴 메도우</h1>
+      <p>실제 지도로 만든 대학 캠퍼스를 밤에 돌아다니며 별조각을 모아 보세요.</p>
+      <section id="campusStep" class="step" aria-labelledby="campusStepTitle">
+        <h2 id="campusStepTitle"><span>1</span>캠퍼스 선택</h2>
+        <div id="startCampusList" class="campusList"></div>
+      </section>
+      <section id="charStep" class="step hidden" aria-labelledby="charStepTitle">
+        <h2 id="charStepTitle"><span>2</span>캐릭터 선택</h2>
+        <p class="chosen"><b id="chosenCampus"></b><button id="backBtn" type="button" class="linkBtn">캠퍼스 다시 고르기</button></p>
+        <div id="chars" role="group" aria-label="캐릭터 선택">
+          <button class="charBtn" type="button" data-i="0" aria-pressed="true"><img src="assets/char1.jpg" alt="" /><span>버전 1</span></button>
+          <button class="charBtn" type="button" data-i="1" aria-pressed="false"><img src="assets/char2.jpg" alt="" /><span>버전 2</span></button>
+        </div>
+        <button id="startBtn" type="button" disabled>불러오는 중…</button>
+      </section>
+      <p class="keysDesk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · <kbd>Space</kbd> 점프 · 마우스 시점 · 휠 줌 · <kbd>C</kbd> 캐릭터 · <kbd>M</kbd> 캠퍼스</p>
+      <p class="keysTouch">왼쪽 조이스틱 이동 · 화면 드래그 시점 · 두 손가락 줌 · 점프/달리기 버튼</p>
+    </div>
+    <div id="touchUI" class="hidden">
+      <div id="stick" aria-label="이동 조이스틱"><div id="stickKnob"></div></div>
+      <div id="touchBtns">
+        <button id="tAct" class="tbtn hidden" type="button">쓰다듬기</button>
+        <button id="tJump" class="tbtn" type="button">점프</button>
+        <button id="tChar" class="tbtn" type="button">캐릭터</button>
+        <button id="tRun" class="tbtn" type="button" aria-pressed="false">달리기</button>
+      </div>
+    </div>
+    <div id="campusMenu" class="hidden" role="dialog" aria-modal="true" aria-labelledby="campusMenuTitle">
+      <div class="card">
+        <header><h2 id="campusMenuTitle">캠퍼스 변경</h2><button id="menuClose" type="button" class="linkBtn">닫기 <kbd>M</kbd></button></header>
+        <div id="menuCampusList" class="campusList"></div>
+      </div>
+    </div>
+    <div id="loading" class="hidden" role="status"><span id="loadingName"></span>캠퍼스를 불러오는 중…</div>
+    <script type="module" src="./client.js"></script>
+  </body>
+</html>
+
