@@ -103,13 +103,13 @@ function freeSpot(cx, cz, rad, ok = (c) => c < 4) { for (let t = 0; t < 400; t++
 
 function buildWorld(data) {
   seed = campus.seed || 20261111;
-  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = campus.play || {}, LMK = campus.landmarks || [];
+  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = flipPlay(campus.play || {}), LMK = campus.landmarks || [];
   const lmSet = (k) => new Set(LMK.filter((l) => l.kind === k).map((l) => l.name)), gateSet = lmSet('gate'), amphSet = lmSet('amphitheatre'), domeSet = lmSet('dome'), stadiumSet = lmSet('stadium');
   const look = new Map(LMK.filter((l) => l.wall || l.roof || l.model).map((l) => [l.name, l]));
   D = data; GN = D.grid.n; GSTEP = D.grid.step; GHALF = D.grid.half; GH = Float32Array.from(D.grid.h); HALF = D.half;
   { const a = D.buildings.find((b) => amphSet.has(b.n)); if (a) {
     let minx = 1e9, maxx = -1e9, minz = 1e9, maxz = -1e9; for (const q of a.p) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); minz = Math.min(minz, q[1]); maxz = Math.max(maxz, q[1]); }
-    const W = maxx - minx, sx = minx + 0.61 * W, sz = minz + 0.3 * (maxz - minz); amph = { sx, sz, ri: 0.19 * W, ro: 0.52 * W, a0: (38 * Math.PI) / 180, a1: (201 * Math.PI) / 180, NT: 12, step: 0.38, by: terrainH(sx, sz) };
+    const W = maxx - minx, sx = minx + 0.61 * W, sz = maxz - 0.3 * (maxz - minz); amph = { sx, sz, ri: 0.19 * W, ro: 0.52 * W, a0: (159 * Math.PI) / 180, a1: (322 * Math.PI) / 180, NT: 12, step: 0.38, by: terrainH(sx, sz) };
     const sm = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
     for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) { const x = -GHALF + i * GSTEP, z = -GHALF + j * GSTEP, d = Math.hypot(x - sx, z - sz); if (d > amph.ro + 34) continue; let an = Math.atan2(z - sz, x - sx); if (an < 0) an += Math.PI * 2; const inFan = an > amph.a0 - 0.15 && an < amph.a1 + 0.15, tgt = amph.by - 0.3 + (inFan ? Math.min(1, Math.max(0, (d - amph.ri) / (amph.ro - amph.ri))) * amph.NT * amph.step : 0), w = 1 - sm((d - amph.ro) / 34), k = j * GN + i; GH[k] = GH[k] * (1 - w) + tgt * w; }
   } }
@@ -323,8 +323,22 @@ function unloadWorld() {
   buildings.length = 0; bGrid.clear(); grid.clear(); labels.length = 0; gems.length = 0; pals.length = 0; clouds.length = 0; places.length = 0; delete places.lampCount; lampGrid.clear(); lampLights.length = 0;
   collected = 0; campusPoly = null; nearPal = null; lampT = 0; hudT = 0;
 }
-// Fit a building model (GLB, long side along its X axis) onto a footprint: rotate to the footprint's minimum-area rectangle,
-// stretch to its length × width, height = lm.height or the map's height. lm.rot (degrees) turns it further, e.g. 180 to face the other way.
+// Fit a building model (GLB) onto a footprint: lm.rot (degrees) first turns the model so its long side lies along X and its front faces the
+// direction you want, then it's aligned to the footprint's minimum-area rectangle and stretched to length × width; height = lm.height or the map's.
+// Map files store +z = north. three.js is right-handed with y up, so +x east / +z north would show the campus mirrored;
+// the game uses +z = south instead. flipData/flipPlay convert map files and campus settings (campuses.js keeps north-up numbers).
+function flipData(d) {
+  const f = (p) => [p[0], -p[1]], fl = (a) => a.map(f);
+  for (const b of d.buildings) b.p = fl(b.p); for (const r of d.roads) r.p = fl(r.p); for (const a of d.areas) a.p = fl(a.p);
+  d.campus = d.campus.map(fl); d.trees = fl(d.trees || []);
+  const n = d.grid.n, h = d.grid.h, out = new Array(h.length); for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j * n + i] = h[(n - 1 - j) * n + i]; d.grid.h = out;
+  return d;
+}
+function flipPlay(pl) {
+  const q = { ...pl }, area = (a) => a && [a[0], a[1], -a[3], -a[2]];
+  if (q.gemArea) q.gemArea = area(q.gemArea); if (q.palArea) q.palArea = area(q.palArea); if (q.palHome) q.palHome = [q.palHome[0], -q.palHome[1]];
+  if (q.treeClear) q.treeClear = q.treeClear.map((t) => [t[0], -t[1], t[2]]); return q;
+}
 function placeBuildingModel(lm, p, baseY, mapH) {
   let best = null;
   for (let deg = 0; deg < 180; deg += 0.5) {
@@ -334,11 +348,13 @@ function placeBuildingModel(lm, p, baseY, mapH) {
   }
   let { a, u0, u1, v0, v1 } = best; let L = u1 - u0, Wd = v1 - v0; if (Wd > L) { a += Math.PI / 2; [L, Wd] = [Wd, L]; [u0, u1, v0, v1] = [v0, v1, -u1, -u0]; }
   const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, cx = uc * Math.cos(a) - vc * Math.sin(a), cz = uc * Math.sin(a) + vc * Math.cos(a);
-  const holder = new THREE.Group(); holder.position.set(cx, baseY - 0.3, cz); holder.rotation.y = -a + ((lm.rot || 0) * Math.PI) / 180; world.add(holder);
+  if (Math.cos(a) < 0) a += Math.PI; // so rot 0 means: model +X points (roughly) east, model +Z (front) south
+  const holder = new THREE.Group(); holder.position.set(cx, baseY - 0.3, cz); holder.rotation.y = -a; world.add(holder);
   const myWorld = world;
   new GLTFLoader().load(lm.model, (g) => {
     if (world !== myWorld) return; // campus changed while loading
-    const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
+    const m0 = g.scene, m = new THREE.Group(); m0.rotation.y = ((lm.rot || 0) * Math.PI) / 180; m.add(m0); m.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
     const mat = new THREE.MeshLambertMaterial({ color: lm.wall || 0xe7ddca, emissive: lm.glow || 0x2b2822 });
     m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
     m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
@@ -413,7 +429,7 @@ async function loadCampus(c) {
   const tok = ++loadToken; unloadWorld(); refreshStart(); campus = c;
   applyLighting(LIGHTING[c.lighting] || LIGHTING.night);
   const r = await fetch(c.data); if (!r.ok) throw new Error('캠퍼스 지도를 불러오지 못했습니다 (' + r.status + ')');
-  const data = await r.json(); if (tok !== loadToken) return false;
+  const data = flipData(await r.json()); if (tok !== loadToken) return false;
   await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0))); if (tok !== loadToken) return false; // let the loading screen paint
   buildWorld(data); worldReady = true;
   $('#campusName').textContent = c.name; $('#loc').textContent = '📍 ' + c.name;

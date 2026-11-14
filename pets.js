@@ -1,5 +1,5 @@
 // Coins + pets.
-//   • every 10 minutes of play (game started, tab visible) → +10 coins; walking around fills the bar faster (pedometer)
+//   • every minute of play (game started, tab visible) → +10 coins; walking around fills the bar faster (pedometer)
 //   • spend coins in the pet shop (K or the 🐾 button); own several pets, pick one to walk with you, give each a name
 //   • the pet you walk with follows you and is shown to other players (multiplayer.js sends {t: type, n: name})
 // Saved per device in localStorage (no server).
@@ -11,14 +11,14 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 export const PETS = [
   { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
-  { id: 'p1', name: '분홍 말랑이', price: 30, color: 0xffb7c9 },
-  { id: 'p2', name: '하늘 말랑이', price: 50, color: 0xa9d6ff },
-  { id: 'p3', name: '노랑 말랑이', price: 80, color: 0xffe27a },
-  { id: 'p4', name: '민트 말랑이', price: 110, color: 0xa8ecc8 },
-  { id: 'p5', name: '보라 말랑이', price: 150, color: 0xcdb6ff },
+  { id: 'p1', name: '분홍 말랑이', price: 150, color: 0xffb7c9 },
+  { id: 'p2', name: '하늘 말랑이', price: 250, color: 0xa9d6ff },
+  { id: 'p3', name: '노랑 말랑이', price: 400, color: 0xffe27a },
+  { id: 'p4', name: '민트 말랑이', price: 550, color: 0xa8ecc8 },
+  { id: 'p5', name: '보라 말랑이', price: 750, color: 0xcdb6ff },
 ];
-const EARN_EVERY = 600, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
-// pedometer: walking also fills the 10-minute bar — every metre on foot is worth WALK_BONUS extra seconds
+const EARN_EVERY = 60, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
+// pedometer: walking also fills the bar — every metre on foot is worth WALK_BONUS extra seconds
 // (walking ≈ 3× faster than standing still, running ≈ 5×). A step is STEP_LEN metres.
 const WALK_BONUS = 0.5, STEP_LEN = 0.75;
 const $ = (s) => document.querySelector(s);
@@ -116,7 +116,7 @@ export function initPets(G) {
       btn.addEventListener('click', () => buy(d)); li.append(sw, nm, pr, btn); if (have) { const h = document.createElement('small'); h.textContent = `보유 ${have}`; li.append(h); } shop.append(li);
     }
     const mine = $('#petMine'); mine.replaceChildren();
-    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 10분마다 코인 10개가 쌓여요!'; mine.append(li); }
+    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 1분마다 코인 10개가 쌓여요!'; mine.append(li); }
     for (const o of W.owned) {
       const d = petDef(o.type), li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('input'), go = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0');
@@ -157,7 +157,7 @@ export function initPets(G) {
         if (Math.floor(W.steps / 1000) > before) G.toast(`👣 ${(Math.floor(W.steps / 1000) * 1000).toLocaleString('ko-KR')}보 달성! 걸을수록 코인이 빨리 모여요`, 2.4);
       }
       last = { x: p.pos.x, z: p.pos.z };
-      while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 10분 접속 보상! 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 3); if (open) render(); }
+      while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 1.6); if (open) render(); }
       if ((saveT -= dt) <= 0) { saveT = 5; save(); }
     } else last = null;
     if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 0.5; hud(); }
