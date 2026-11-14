@@ -442,7 +442,8 @@ let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 
 
 const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' },
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3' },
-  { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' }];
+  { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' },
+  { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' }];
 const nextChar = () => { for (let k = 1; k <= CHARS.length; k++) { const n = (charIndex + k) % CHARS.length; if (charModels[n]) return n; } return charIndex; };
 const charModels = [], charSrc = []; let charIndex = 0; // charSrc: the loaded model + walk clip, cloned for other players
 function loadChar(i) {
