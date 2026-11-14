@@ -429,7 +429,7 @@ $('#tpSearch').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.k
 $('#tpSearch').addEventListener('keyup', (e) => e.stopPropagation());
 $('#tpClose').addEventListener('click', () => tpShow(false));
 $('#mpTp').addEventListener('click', () => tpShow(!tpOpen));
-window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputElement) return; if (e.code === 'KeyT' && !e.repeat && started && !(mp && mp.typing())) tpShow(!tpOpen); else if (e.code === 'Escape' && tpOpen) tpShow(false); });
+window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputElement) return; if (e.code === 'KeyT' && !e.repeat && started && !(mp && mp.typing())) { e.preventDefault(); tpShow(!tpOpen); } /* preventDefault: keep the 't' out of the search box */ else if (e.code === 'Escape' && tpOpen) tpShow(false); });
 function spawnFx(tex, x, y, z, vx, vy, vz, life, size, grow) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.position.set(x, y, z); sp.scale.setScalar(size); scene.add(sp); fx.push({ sp, vx, vy, vz, life, max: life, size, grow }); }
 let collected = 0, toastT = 0;
 const setCount = () => {}; // coins HUD lives in pets.js
