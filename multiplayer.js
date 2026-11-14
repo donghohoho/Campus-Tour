@@ -149,7 +149,7 @@ export function initMultiplayer(G) {
   function getAvatar(peer) {
     let av = avatars.get(peer); if (av) return av;
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body); root.visible = false; G.scene.add(root);
-    av = { peer, root, body, name: '…', char: 0, shownChar: -1, has: false, t: { x: 0, y: 0, z: 0, yaw: 0, sp: 0 }, cur: { x: 0, y: 0, z: 0, yaw: 0, sp: 0 }, plate: null, bubble: null, bubbleT: 0, emote: null, emoteT: 0, hop: 0, hopV: 0 };
+    av = { peer, root, body, name: '…', char: 0, shownChar: -1, has: false, t: { x: 0, y: 0, z: 0, yaw: 0, sp: 0 }, cur: { x: 0, y: 0, z: 0, yaw: 0, sp: 0 }, plate: null, bubble: null, bubbleT: 0, emote: null, emoteT: 0 };
     avatars.set(peer, av); setPlate(av); refreshCount(); return av;
   }
   function dropAvatar(peer) {
@@ -214,7 +214,7 @@ export function initMultiplayer(G) {
       av.seen = now;
     });
     n.on('ch', (d, peer) => { const text = clean(d && d.text, CHAT_MAX); if (!text) return; const av = getAvatar(peer); addLog(av.name, text); bubble(av, text, false); });
-    n.on('em', (d, peer) => { const e = num(d && d.e, -1) | 0; if (e < 0 || e >= EMOTES.length) return; const av = getAvatar(peer); disposeSprite(av.emote); av.emote = emoteSprite(av.root, e, 2.4); av.emoteT = 2.2; av.hopV = 5.5; });
+    n.on('em', (d, peer) => { const e = num(d && d.e, -1) | 0; if (e < 0 || e >= EMOTES.length) return; const av = getAvatar(peer); disposeSprite(av.emote); av.emote = emoteSprite(av.root, e, 2.4); av.emoteT = 2.2; }); // the emote's jump arrives with the position updates
     n.on('sg', (d) => { if (!d || !Array.isArray(d.list)) return; let any = false; for (const s of d.list.slice(0, SIGN_LIMIT)) any = addSign(s, false) || any; if (any) saveSigns(); });
     n.on('sd', (d) => { const s = d && signs.get(d.id); if (s && s.by === d.by) killSign(s.id); });
     n.onError(() => {});
@@ -248,8 +248,7 @@ export function initMultiplayer(G) {
       const k = 1 - Math.exp(-12 * dt), c = av.cur, t = av.t;
       if (Math.hypot(t.x - c.x, t.z - c.z) > 30) Object.assign(c, t); // teleport / respawn
       c.x += (t.x - c.x) * k; c.y += (t.y - c.y) * k; c.z += (t.z - c.z) * k; c.yaw += angDiff(c.yaw, t.yaw) * k; c.sp += (t.sp - c.sp) * k;
-      av.hopV -= 22 * dt; av.hop = Math.max(0, av.hop + av.hopV * dt); if (av.hop === 0 && av.hopV < 0) av.hopV = 0;
-      av.root.position.set(c.x, c.y + av.hop, c.z); av.body.rotation.y = c.yaw;
+      av.root.position.set(c.x, c.y, c.z); av.body.rotation.y = c.yaw;
       const d = tmp.set(c.x, c.y, c.z).distanceTo(cam); av.dist = d; av.root.visible = d < SHOW_DIST * 2.5; list.push(av);
       if (av.bubble && (av.bubbleT -= dt) <= 0) { disposeSprite(av.bubble); av.bubble = null; }
       if (av.emote) { av.emote.position.y += dt * 0.4; if ((av.emoteT -= dt) <= 0) { disposeSprite(av.emote); av.emote = null; } }
