@@ -378,7 +378,7 @@ function placeBuildingModel(lm, p, baseY, mapH) {
     const m0 = g.scene, m = new THREE.Group(); m0.rotation.y = ((lm.rot || 0) * Math.PI) / 180; m.add(m0); m.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
     const mat = new THREE.MeshLambertMaterial({ color: lm.wall || 0xe7ddca, emissive: lm.glow || 0x2b2822 });
-    m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
+    m.traverse((o) => { if (o.isMesh) { if (o.material && o.material.map) { o.material.emissive = new THREE.Color(lm.glow || 0x2b2822); o.material.emissiveMap = o.material.map; } else o.material = mat; o.castShadow = o.receiveShadow = true; } /* keep the model texture if it has one */ });
     m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
     const s = new THREE.Group(); s.add(m); s.scale.set(L / size.x, (lm.height || mapH) / size.y, Wd / size.z); holder.add(s);
   }, undefined, () => console.warn('building model failed', lm.model));

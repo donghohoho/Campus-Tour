@@ -70,6 +70,7 @@ export const CAMPUSES = [
       { name: '노천극장', kind: 'amphitheatre', pos: [284, 555], model: 'assets/models/khu-global-amphitheatre-colonnade.glb', note: '원형 무대 + 부채꼴 계단 객석 (카카오맵 항공사진), 무대 위 열주는 직접 만든 3D 모델 — 열린 쪽이 객석을 향함' },
       { name: '전자정보대학', kind: 'building', pos: [298, 430], wall: 0xead9b2, roof: 0x9a9384, note: '크림색 벽돌 외벽 (카카오 로드뷰)' },
       { name: '예술디자인대학', kind: 'building', pos: [401, 164], model: 'assets/models/khu-global-art-design.glb', rot: 0, height: 30, tpToward: '전자정보대학', note: '직접 만든 3D 모델 (Tripo) — 풋프린트에 맞춰 늘림; 정면 방향은 rot(90° 단위)로 조정' },
+      { name: '중앙도서관', kind: 'building', pos: [-34, 262], model: 'assets/models/khu-global-central-library.glb', rot: 0, height: 28, tpToward: '사색의 광장', note: '직접 만든 3D 모델 (Tripo) — 정면이 동쪽 사색의 광장을 향함' },
       { name: '사색의 광장', kind: 'place', pos: [103, 267], r: 70, note: '중앙도서관 앞(동쪽) 잔디 광장 — OSM에 이름이 없어 사용자 설명으로 지정, 위치는 잔디 구획들의 중심' },
       { name: '천문대', kind: 'dome', pos: [170, 495] },
       { name: '대운동장', kind: 'stadium', pos: [-193, -61] },
