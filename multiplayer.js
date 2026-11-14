@@ -202,13 +202,19 @@ export function initMultiplayer(G) {
   const charName = (i) => { const el = document.querySelector(`.charBtn[data-i="${i}"] span`); return el ? el.textContent : '캐릭터 ' + (i + 1); };
   function renderList() {
     const p = G.player.pos, rows = [{ name: myName, char: G.charIndex(), d: -1, me: true }];
-    for (const av of avatars.values()) if (av.has || av.name !== '…') rows.push({ name: av.name, char: av.char, d: av.has ? Math.hypot(av.cur.x - p.x, av.cur.z - p.z) : null });
+    for (const av of avatars.values()) if (av.has || av.name !== '…') rows.push({ name: av.name, char: av.char, d: av.has ? Math.hypot(av.cur.x - p.x, av.cur.z - p.z) : null, av });
     rows.sort((a, b) => (a.me ? -1 : b.me ? 1 : (a.d ?? 1e9) - (b.d ?? 1e9)));
     $('#plTitle').textContent = `접속 중 ${rows.length}명` + (net ? '' : ' · 혼자 모드');
-    plBody.replaceChildren(...rows.map((r) => { const tr = document.createElement('tr'); if (r.me) tr.className = 'me'; for (const t of [r.name + (r.me ? ' (나)' : ''), charName(r.char), r.me ? '—' : r.d == null ? '…' : `${Math.round(r.d)}m`]) { const td = document.createElement('td'); td.textContent = t; tr.append(td); } return tr; }));
+    plBody.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr'); if (r.me) tr.className = 'me';
+      for (const t of [r.name + (r.me ? ' (나)' : ''), charName(r.char), r.me ? '—' : r.d == null ? '…' : `${Math.round(r.d)}m`]) { const td = document.createElement('td'); td.textContent = t; tr.append(td); }
+      const td = document.createElement('td');
+      if (!r.me && r.av && r.av.has && G.teleport) { const b = document.createElement('button'); b.type = 'button'; b.className = 'plTp'; b.textContent = '🌀 가기'; b.title = `${r.name}에게 텔레포트`; b.addEventListener('click', () => { const c = r.av.cur; G.teleport(c.x + 1.5, c.z + 1.5, r.name); G.toast(`🌀 ${r.name}에게 이동했어요`, 1.8); showList(false); }); td.append(b); }
+      tr.append(td); return tr;
+    }));
   }
   let listOpen = false, listT = 0;
-  const showList = (on) => { listOpen = on; plist.classList.toggle('hidden', !on); if (on) renderList(); };
+  const showList = (on) => { const was = listOpen; listOpen = on; plist.classList.toggle('hidden', !on); if (on) { renderList(); G.releaseKeys(); if (document.pointerLockElement) document.exitPointerLock(); } else if (was && !G.touch) G.lockPointer(); }; // free the mouse so 🌀 가기 can be clicked
   countEl.addEventListener('click', () => showList(!listOpen));
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' && G.started() && !G.menuOpen() && !typing && !(e.target instanceof HTMLInputElement)) { if (!e.repeat) showList(!listOpen); return; }

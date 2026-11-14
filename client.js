@@ -637,7 +637,7 @@ function updateWorld(dt, t) {
   }
 }
 const pets = initPets({ scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const mp = initMultiplayer({ myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const mp = initMultiplayer({ teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses
