@@ -55,7 +55,7 @@ export const CAMPUSES = [
     id: 'korea-anam', name: '고려대학교 안암캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/korea-anam.json', terrain: 'hills', lighting: 'night', seed: 20261114,
     outsideLabel: '캠퍼스 밖 · 안암동',
-    spawn: { from: '고려대학교 정문', toward: '본관', dist: 16 },
+    spawn: { from: '고려대학교 정문', toward: '본관', dist: -28 }, // outside the gate, looking at it
     landmarks: [
       { name: '고려대학교 정문', kind: 'gate', pos: [367, 26], model: 'assets/models/korea-anam-front-gate.glb', scale: 30, gap: 0.17, solidH: 0.36, note: '직접 만든 3D 모델 (Tripo) — 양쪽 석조 탑 사이로 도로가 지나감' },
       { name: '녹지운동장', kind: 'stadium', pos: [-433, 406], note: 'OSM leisure=pitch' },
