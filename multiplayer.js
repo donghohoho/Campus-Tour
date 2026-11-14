@@ -20,6 +20,12 @@ const QS = new URLSearchParams(location.search), MODE = QS.get('mp') || 'p2p';
 const $ = (s) => document.querySelector(s);
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const num = (v, d = 0) => (Number.isFinite(v) ? v : d);
+// Admin: whoever holds the private key can remove any sign. Peers check the signature against this public key,
+// so the key never travels over the network. Log in once with ?admin=<key> (saved in this browser, removed from the address bar).
+const ADMIN_PUB = { kty: 'EC', crv: 'P-256', x: 'mXI9Y5nYl5cFeZvHZ9smxsF52V6JbtKSLp9XQc4y57E', y: 'WmzeQEXeWvUpXlrbD4_IFJ6mdXYX7QeqJyQ3yZicaCg' };
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))), unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const ECDSA = { name: 'ECDSA', namedCurve: 'P-256' }, SIG = { name: 'ECDSA', hash: 'SHA-256' }, enc = (o) => new TextEncoder().encode(JSON.stringify(o));
+let adminKey = null; const adminPub = crypto.subtle ? crypto.subtle.importKey('jwk', ADMIN_PUB, ECDSA, false, ['verify']).catch(() => null) : Promise.resolve(null);
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} } };
 const angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -109,7 +115,7 @@ export function initMultiplayer(G) {
   const bar = $('#mpBar'), countEl = $('#mpCount'), log = $('#chatLog'), form = $('#chatForm'), input = $('#chatInput'), emotePop = $('#emotePop'), delBtn = $('#mpDel');
   const setStatus = (t) => { countEl.textContent = t; };
   const failed = new Set();
-  const refreshCount = () => setStatus(net ? `👥 ${avatars.size + 1}명` + (failed.size ? ` · ⚠️ 연결 실패 ${failed.size}` : '') : '👤 혼자 모드');
+  const refreshCount = () => setStatus((net ? `👥 ${avatars.size + 1}명` + (failed.size ? ` · ⚠️ 연결 실패 ${failed.size}` : '') : '👤 혼자 모드') + (adminKey ? ' · 🛡️ 관리자' : ''));
   function addLog(who, text, sys) {
     const li = document.createElement('li'); if (sys) li.className = 'sys';
     if (who) { const b = document.createElement('b'); b.textContent = who; li.append(b, ' '); }
@@ -296,8 +302,29 @@ export function initMultiplayer(G) {
     const s = { id: uid(), by: me, name: myName, text, x: +x.toFixed(2), y: +p.pos.y.toFixed(2), z: +z.toFixed(2), yaw: +(p.yaw + Math.PI).toFixed(3), t: Date.now() };
     lastSign = now; addSign(s); if (net) net.send('sg', { list: [s] }); G.toast('표지판을 세웠어요 — 다른 사람들도 볼 수 있어요', 2.2);
   }
-  function mySignNear() { const p = G.player.pos; let best = null, bd = 3.2; for (const s of signs.values()) if (s.by === me) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } } return best; }
-  function removeNearSign() { const s = mySignNear(); if (!s) return; killSign(s.id); if (net) net.send('sd', { id: s.id, by: me }); G.toast('내 표지판을 지웠어요', 1.6); }
+  function mySignNear() { const p = G.player.pos; let best = null, bd = 3.2; for (const s of signs.values()) if (s.by === me || adminKey) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } } return best; }
+  function removeNearSign() { const s = mySignNear(); if (!s) return; if (s.by !== me && adminKey) return adminRemove([s.id]); killSign(s.id); if (net) net.send('sd', { id: s.id, by: me }); G.toast('내 표지판을 지웠어요', 1.6); }
+  async function adminRemove(ids) {
+    if (!adminKey || !ids.length) return; const body = { room: roomId, ids, t: Date.now() };
+    const sig = b64(await crypto.subtle.sign(SIG, adminKey, enc(body))); for (const id of ids) killSign(id, false); saveSigns();
+    if (net) net.send('sa', { body, sig }); G.toast(`🛡️ 표지판 ${ids.length}개를 지웠어요`, 1.8);
+  }
+  async function adminCheck(d) { // a removal sent by the admin: verify, then apply
+    try { const key = await adminPub; if (!key || !d || !d.body || d.body.room !== roomId || !Array.isArray(d.body.ids) || Math.abs(Date.now() - d.body.t) > 864e5) return;
+      if (!(await crypto.subtle.verify(SIG, key, unb64(d.sig), enc(d.body)))) return; for (const id of d.body.ids.slice(0, 500)) killSign(String(id), false); saveSigns(); } catch (_) {}
+  }
+  // admin login (?admin=<key>), remembered in this browser
+  (async () => {
+    try {
+      const q = new URLSearchParams(location.search), fromUrl = q.get('admin'); if (fromUrl) { store.set('fm:admin', fromUrl); q.delete('admin'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
+      const dkey = store.get('fm:admin', null); if (!dkey || !crypto.subtle) return;
+      adminKey = await crypto.subtle.importKey('jwk', { ...ADMIN_PUB, d: dkey, ext: true }, ECDSA, false, ['sign']);
+      // prove it matches the public key before showing admin tools
+      const probe = enc({ probe: 1 }), key = await adminPub; if (!key || !(await crypto.subtle.verify(SIG, key, await crypto.subtle.sign(SIG, adminKey, probe), probe))) { adminKey = null; return; }
+      $('#mpWipe').classList.remove('hidden'); refreshCount();
+    } catch (_) { adminKey = null; }
+  })();
+  $('#mpWipe').addEventListener('click', () => { if (!adminKey || !signs.size) return G.toast('지울 표지판이 없어요', 1.4); if (window.confirm(`이 캠퍼스의 표지판 ${signs.size}개를 모두 지울까요?`)) adminRemove([...signs.keys()]); });
 
   // ── room ──
   function wire(n) {
@@ -314,6 +341,7 @@ export function initMultiplayer(G) {
     n.on('em', (d, peer) => { const e = num(d && d.e, -1) | 0; if (e < 0 || e >= EMOTES.length) return; const av = getAvatar(peer); disposeSprite(av.emote); av.emote = emoteSprite(av.root, e, 2.4); av.emoteT = 2.2; }); // the emote's jump arrives with the position updates
     n.on('sg', (d) => { if (!d || !Array.isArray(d.list)) return; let any = false; for (const s of d.list.slice(0, SIGN_LIMIT)) any = addSign(s, false) || any; if (any) saveSigns(); });
     n.on('sd', (d) => { const s = d && signs.get(d.id); if (s && s.by === d.by) killSign(s.id); });
+    n.on('sa', (d) => adminCheck(d));
     n.onError((e) => { // a peer was found through the relay but the direct (WebRTC) connection failed
       const msg = String((e && (e.message || e.error || e.type)) || e), id = (msg.match(/peer (\S+)/) || [])[1] || msg;
       if (failed.has(id)) return; failed.add(id); refreshCount(); console.warn('[mp]', msg);
