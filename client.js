@@ -216,8 +216,8 @@ function buildWorld(data) {
             m.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.material) { o.material.emissive = new THREE.Color(0x3a382f); o.material.emissiveMap = o.material.map; } } });
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
           }, undefined, () => console.warn('amphitheatre model failed', alm.model));
-          const R = D * 0.47, colTop = by + 0.12 + D * 0.34; // columns ring, open ±60° around the seats
-          for (let t = 0; t < 360; t += 360 / Math.max(12, Math.round((Math.PI * 2 * R) / 3))) { const ang = phi + Math.PI + (t * Math.PI) / 180, off = Math.abs(((t + 180) % 360) - 180); if (off > 120) continue; addCircle(sx + Math.cos(ang) * R, sz + Math.sin(ang) * R, 0.9, colTop); }
+          const colTop = by + 0.12 + D * 0.34; // columns ring (two rows), open ±55° around the seats
+          for (const R of [D * 0.47, D * 0.41]) for (let t = 0; t < 360; t += 360 / Math.max(24, Math.round((Math.PI * 2 * R) / 1.4))) { const ang = phi + Math.PI + (t * Math.PI) / 180, off = Math.abs(((t + 180) % 360) - 180); if (off > 125) continue; addCircle(sx + Math.cos(ang) * R, sz + Math.sin(ang) * R, 1.1, colTop); } // a closed wall of pillars
         }
         places.push({ n: src.n, x: sx, z: sz, top: by + 7, r: 65 }); continue;
       }
@@ -225,7 +225,7 @@ function buildWorld(data) {
       const pal = src.c ? campusWalls : src.k === 'apartments' ? aptWalls : otherWalls;
       C.set(pal[idx % pal.length]); if (look.get(src.n)?.wall) C.set(look.get(src.n).wall); const cr = C.r, cg = C.g, cb = C.b;
       const custom = look.get(src.n)?.model ? look.get(src.n) : null; // a hand-made 3D model replaces the extruded block (collision still uses the footprint)
-      if (custom) placeBuildingModel(custom, p, minT, src.h);
+      const fit = custom ? placeBuildingModel(custom, p, minT, src.h) : null;
       if (!custom) for (let i = 0; i < p.length; i++) {
         const a = p[i], b = p[(i + 1) % p.length], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz); if (len < 0.05) continue;
         const nx = (sgn * dz) / len, nz = (-sgn * dx) / len, bays = Math.max(1, Math.round(len / 3.4)), v0 = 0, v1 = (top - bot) / floorH;
@@ -236,9 +236,9 @@ function buildWorld(data) {
       const tris = THREE.ShapeUtils.triangulateShape(p.map((q) => new THREE.Vector2(q[0], q[1])), []);
       C.set((src.c ? campusRoofs : otherRoofs)[idx % (src.c ? campusRoofs.length : otherRoofs.length)]); if (look.get(src.n)?.roof) C.set(look.get(src.n).roof);
       if (!custom) for (const t of tris) for (const vi of t) { rp.push(p[vi][0], top, p[vi][1]); rc.push(C.r, C.g, C.b); }
-      const rec = { p, minx, maxx, minz, maxz, top, n: src.n, c: src.c, cx, cz };
+      const rec = fit ? { p: fit.poly, minx: Math.min(...fit.poly.map((q) => q[0])), maxx: Math.max(...fit.poly.map((q) => q[0])), minz: Math.min(...fit.poly.map((q) => q[1])), maxz: Math.max(...fit.poly.map((q) => q[1])), top: fit.top, n: src.n, c: src.c, cx, cz } : { p, minx, maxx, minz, maxz, top, n: src.n, c: src.c, cx, cz };
       buildings.push(rec);
-      for (let i = Math.floor(minx / BCELL); i <= Math.floor(maxx / BCELL); i++) for (let j = Math.floor(minz / BCELL); j <= Math.floor(maxz / BCELL); j++) { const k = i + ',' + j; let a = bGrid.get(k); if (!a) bGrid.set(k, (a = [])); a.push(rec); }
+      for (let i = Math.floor(rec.minx / BCELL); i <= Math.floor(rec.maxx / BCELL); i++) for (let j = Math.floor(rec.minz / BCELL); j <= Math.floor(rec.maxz / BCELL); j++) { const k = i + ',' + j; let a = bGrid.get(k); if (!a) bGrid.set(k, (a = [])); a.push(rec); }
       if (src.c && src.n) places.push({ n: src.n, x: cx, z: cz, top, r: Math.max(40, Math.hypot(maxx - minx, maxz - minz) * 0.75) });
       if (domeSet.has(src.n)) { const dome = new THREE.Mesh(new THREE.SphereGeometry(5, 20, 12, 0, 6.3, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xf4f4f1 })); dome.position.set(cx, top, cz); dome.castShadow = true; world.add(dome); }
     }
@@ -361,6 +361,7 @@ function placeBuildingModel(lm, p, baseY, mapH) {
   }
   let { a, u0, u1, v0, v1 } = best; let L = u1 - u0, Wd = v1 - v0; if (Wd > L) { a += Math.PI / 2; [L, Wd] = [Wd, L]; [u0, u1, v0, v1] = [v0, v1, -u1, -u0]; }
   const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, cx = uc * Math.cos(a) - vc * Math.sin(a), cz = uc * Math.sin(a) + vc * Math.cos(a);
+  const rect = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]].map(([u, v]) => [u * Math.cos(a) - v * Math.sin(a), u * Math.sin(a) + v * Math.cos(a)]); // collision box = the stretched model's outline
   if (Math.cos(a) < 0) a += Math.PI; // so rot 0 means: model +X points (roughly) along +x, model +Z (front) along +z
   // stand the model on the highest ground under it (no part buried) and fill the gap below with a plinth down to the lowest ground
   let top = baseY; for (const q of p) top = Math.max(top, terrainH(q[0], q[1]));
@@ -382,6 +383,7 @@ function placeBuildingModel(lm, p, baseY, mapH) {
     m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
     const s = new THREE.Group(); s.add(m); s.scale.set(L / size.x, (lm.height || mapH) / size.y, Wd / size.z); holder.add(s);
   }, undefined, () => console.warn('building model failed', lm.model));
+  return { poly: rect, top: top + (lm.height || mapH) };
 }
 // ── teleport (T): spawn point, any named place on campus, or another player ──
 let spawnPoint = null, tpOpen = false;
