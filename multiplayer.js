@@ -139,20 +139,23 @@ export function initMultiplayer(G) {
   const VOICE_NEAR = 3, VOICE_FAR = 35, micBtn = $('#mpMic');
   let actx = null, mic = null, micBusy = false, myVoice = null, myTalk = null; // myVoice: analyser on my own mic for the 🔊 over my head
   // iPhone's silent switch mutes Web Audio unless the page declares itself a playback app (Safari 17+)
-  const audioCtx = () => { try { if (navigator.audioSession && navigator.audioSession.type !== 'play-and-record') navigator.audioSession.type = mic ? 'play-and-record' : 'playback'; } catch (_) {} if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
+  // ('playback' blocks the mic — Safari throws InvalidStateError — so switch to 'play-and-record' before asking for it)
+  const setSession = (t) => { try { if (navigator.audioSession && navigator.audioSession.type !== t) navigator.audioSession.type = t; } catch (_) {} };
+  const audioCtx = () => { setSession(mic || micBusy ? 'play-and-record' : 'playback'); if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
   function setMicUi() { micBtn.classList.toggle('on', !!mic); micBtn.setAttribute('aria-pressed', String(!!mic)); micBtn.querySelector('.mpLabel').textContent = mic ? '마이크 켜짐' : '마이크'; }
   async function toggleMic() {
     if (micBusy) return; audioCtx();
-    if (mic) { if (net) net.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setMicUi(); G.toast('마이크를 껐어요', 1.4); return; }
+    if (mic) { if (net) net.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setSession('playback'); setMicUi(); G.toast('마이크를 껐어요', 1.4); return; }
     if (!net) { G.toast('다른 사람과 연결된 뒤에 쓸 수 있어요', 2); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { G.toast('이 브라우저는 마이크를 쓸 수 없어요', 2); return; }
-    micBusy = true;
+    micBusy = true; setSession('play-and-record');
     // the browser's permission prompt can't be clicked while the mouse is locked to the game, so free the mouse first
     const wasLocked = !!document.pointerLockElement; if (wasLocked) { G.releaseKeys(); document.exitPointerLock(); }
     micBtn.querySelector('.mpLabel').textContent = '권한 확인 중…'; if (wasLocked) G.toast('브라우저 창에서 마이크 허용을 눌러 주세요', 3);
-    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); if (net) net.addStream(mic); if (G.touch) { G.toast('🔕 무음 모드를 꺼 주세요! 켜져 있으면 상대 목소리가 안 들릴 수 있어요', 4); addLog(null, '📱 모바일은 무음 모드를 꺼야 상대 목소리가 잘 들려요', true); } else G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요' + (wasLocked ? ' (화면을 클릭하면 다시 조작)' : ''), 2.6); }
+    const want = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+    try { try { mic = await navigator.mediaDevices.getUserMedia(want); } catch (e) { if (!e || e.name !== 'InvalidStateError') throw e; setSession('auto'); mic = await navigator.mediaDevices.getUserMedia(want); } if (net) net.addStream(mic); if (G.touch) { G.toast('🔕 무음 모드를 꺼 주세요! 켜져 있으면 상대 목소리가 안 들릴 수 있어요', 4); addLog(null, '📱 모바일은 무음 모드를 꺼야 상대 목소리가 잘 들려요', true); } else G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요' + (wasLocked ? ' (화면을 클릭하면 다시 조작)' : ''), 2.6); }
     catch (e) {
-      mic = null; const n = e && e.name;
+      mic = null; setSession('playback'); const n = e && e.name;
       addLog(null, n === 'NotAllowedError' ? '마이크가 차단돼 있어요 — 주소창 왼쪽 사이트 설정에서 마이크를 "허용"으로 바꾸고, 맥이라면 시스템 설정 › 개인정보 보호 및 보안 › 마이크에서 이 브라우저를 켜 주세요'
         : n === 'NotFoundError' ? '연결된 마이크를 찾지 못했어요' : n === 'NotReadableError' ? '다른 앱(줌·디스코드 등)이 마이크를 쓰고 있어서 켜지 못했어요' : '마이크를 켜지 못했어요 (' + (n || e) + ')', true);
       G.toast('마이크를 켜지 못했어요 — 채팅창 안내를 확인해 주세요', 2.6);
