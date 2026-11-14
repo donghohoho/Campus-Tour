@@ -146,8 +146,16 @@ export function initMultiplayer(G) {
     if (!net) { G.toast('다른 사람과 연결된 뒤에 쓸 수 있어요', 2); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { G.toast('이 브라우저는 마이크를 쓸 수 없어요', 2); return; }
     micBusy = true;
-    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); net.addStream(mic); G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요', 2.2); }
-    catch (e) { mic = null; G.toast('마이크 권한이 없어서 켜지 못했어요', 2.4); }
+    // the browser's permission prompt can't be clicked while the mouse is locked to the game, so free the mouse first
+    const wasLocked = !!document.pointerLockElement; if (wasLocked) { G.releaseKeys(); document.exitPointerLock(); }
+    micBtn.querySelector('.mpLabel').textContent = '권한 확인 중…'; if (wasLocked) G.toast('브라우저 창에서 마이크 허용을 눌러 주세요', 3);
+    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); if (net) net.addStream(mic); G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요' + (wasLocked ? ' (화면을 클릭하면 다시 조작)' : ''), 2.6); }
+    catch (e) {
+      mic = null; const n = e && e.name;
+      addLog(null, n === 'NotAllowedError' ? '마이크가 차단돼 있어요 — 주소창 왼쪽 사이트 설정에서 마이크를 "허용"으로 바꾸고, 맥이라면 시스템 설정 › 개인정보 보호 및 보안 › 마이크에서 이 브라우저를 켜 주세요'
+        : n === 'NotFoundError' ? '연결된 마이크를 찾지 못했어요' : n === 'NotReadableError' ? '다른 앱(줌·디스코드 등)이 마이크를 쓰고 있어서 켜지 못했어요' : '마이크를 켜지 못했어요 (' + (n || e) + ')', true);
+      G.toast('마이크를 켜지 못했어요 — 채팅창 안내를 확인해 주세요', 2.6);
+    }
     micBusy = false; setMicUi();
   }
   function attachVoice(av, stream) {
