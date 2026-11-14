@@ -437,7 +437,7 @@ window.addEventListener('mousemove', (e) => { if (TOUCH || !started || menuOpen 
 window.addEventListener('wheel', (e) => { if (started) e.preventDefault(); }, { passive: false }); // scroll no longer zooms; just keep the page from scrolling
 document.addEventListener('pointerlockchange', () => { $('#hint').classList.toggle('hidden', TOUCH || !started || locked()); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-// ── touch controls: left stick moves, drag anywhere else to look, pinch to zoom ──
+// ── touch controls: left stick moves, drag anywhere else to look ──
 const stick = { x: 0, y: 0, id: null }; let touchRun = false;
 {
   const base = $('#stick'), knob = $('#stickKnob'), DEAD = 0.12;
@@ -450,7 +450,7 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' || !started || menuOpen) return; looks.set(e.pointerId, { x: e.clientX, y: e.clientY }); canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', (e) => {
     const prev = looks.get(e.pointerId); if (!prev) return;
-    if (looks.size >= 2) { const [a, b] = [...looks.values()], d0 = Math.hypot(a.x - b.x, a.y - b.y); prev.x = e.clientX; prev.y = e.clientY; const [c, d] = [...looks.values()], d1 = Math.hypot(c.x - d.x, c.y - d.y); if (d0 > 0 && d1 > 0) camDist = Math.min(22, Math.max(2.2, camDist * (d0 / d1))); return; }
+    if (looks.size >= 2) { prev.x = e.clientX; prev.y = e.clientY; return; } // two fingers: no zoom, just don't spin the camera
     camYaw -= (e.clientX - prev.x) * 0.0055; camPitch = Math.min(1.25, Math.max(-0.3, camPitch + (e.clientY - prev.y) * 0.0045)); prev.x = e.clientX; prev.y = e.clientY;
   });
   for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, (e) => looks.delete(e.pointerId));
