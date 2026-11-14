@@ -434,7 +434,7 @@ const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p &
 canvas.addEventListener('mousedown', () => { if (TOUCH || !started || menuOpen) return; dragging = true; if (!locked()) lockPointer(); });
 window.addEventListener('mouseup', () => { dragging = false; });
 window.addEventListener('mousemove', (e) => { if (TOUCH || !started || menuOpen || !(locked() || dragging)) return; camYaw -= e.movementX * 0.0026; camPitch = Math.min(1.25, Math.max(-0.3, camPitch + e.movementY * 0.0022)); });
-window.addEventListener('wheel', (e) => { if (!started) return; e.preventDefault(); camDist = Math.min(22, Math.max(2.2, camDist * (1 + Math.sign(e.deltaY) * 0.1))); }, { passive: false });
+window.addEventListener('wheel', (e) => { if (started) e.preventDefault(); }, { passive: false }); // scroll no longer zooms; just keep the page from scrolling
 document.addEventListener('pointerlockchange', () => { $('#hint').classList.toggle('hidden', TOUCH || !started || locked()); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 // ── touch controls: left stick moves, drag anywhere else to look, pinch to zoom ──
