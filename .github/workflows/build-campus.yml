@@ -1,0 +1,36 @@
+# Build one campus map file from OpenStreetMap + SRTM and commit it to the repo.
+# Run it from the Actions tab ("Build campus map" → Run workflow) or with:
+#   gh workflow run build-campus.yml -f id=yonsei-sinchon -f name=연세대학교 -f lat=37.5658 -f lon=126.9386
+name: Build campus map
+on:
+  workflow_dispatch:
+    inputs:
+      id: { description: 'campus id (file name), e.g. yonsei-sinchon', required: true }
+      lat: { description: 'latitude of a point on the campus', required: true }
+      lon: { description: 'longitude of a point on the campus', required: true }
+      name: { description: 'OSM campus name to match, e.g. 연세대학교', required: false, default: '' }
+      osm: { description: 'exact boundary instead of name, e.g. way/26253960', required: false, default: '' }
+permissions:
+  contents: write
+concurrency: { group: build-campus, cancel-in-progress: false }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pillow
+      - name: Build
+        env: { ID: '${{ inputs.id }}', LAT: '${{ inputs.lat }}', LON: '${{ inputs.lon }}', NAME: '${{ inputs.name }}', OSM: '${{ inputs.osm }}' }
+        run: python tools/build_campus.py --id "$ID" --lat "$LAT" --lon "$LON" --name "$NAME" --osm "$OSM"
+      - name: Commit
+        env: { ID: '${{ inputs.id }}' }
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "assets/campuses/$ID.json" "assets/campuses/$ID.report.md"
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "Map data: $ID (OpenStreetMap + SRTM, built by GitHub Actions)"
+          git pull --rebase && git push
