@@ -237,6 +237,8 @@ function buildWorld(data) {
     const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)); rg.setAttribute('color', new THREE.Float32BufferAttribute(rc, 3)); const rnorm = new Float32Array(rp.length); for (let i = 1; i < rnorm.length; i += 3) rnorm[i] = 1; rg.setAttribute('normal', new THREE.BufferAttribute(rnorm, 3));
     const roofs = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); roofs.castShadow = roofs.receiveShadow = true; roofs.frustumCulled = false; world.add(roofs);
   }
+  // named open spaces that the map data doesn't name (kind 'place', pos = centre, r = radius): sign + teleport target
+  for (const l of LMK) if (l.kind === 'place' && l.pos) places.push({ n: l.name, x: l.pos[0], z: l.pos[1], top: terrainH(l.pos[0], l.pos[1]) + 4, r: l.r || 50 });
   for (const a of D.areas) if (a.k === 'pitch' && stadiumSet.has(a.n)) { const cx = a.p.reduce((s, p) => s + p[0], 0) / a.p.length, cz = a.p.reduce((s, p) => s + p[1], 0) / a.p.length; places.push({ n: a.n, x: cx, z: cz, top: terrainH(cx, cz) + 6, r: 70 }); }
   // name labels over campus landmarks
   for (const pl of places) {
