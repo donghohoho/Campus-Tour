@@ -138,7 +138,8 @@ export function initMultiplayer(G) {
   // ── proximity voice chat: mic off by default; others are heard through a 3D panner (loud nearby, silent beyond VOICE_FAR) ──
   const VOICE_NEAR = 3, VOICE_FAR = 35, micBtn = $('#mpMic');
   let actx = null, mic = null, micBusy = false, myVoice = null, myTalk = null; // myVoice: analyser on my own mic for the 🔊 over my head
-  const audioCtx = () => { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
+  // iPhone's silent switch mutes Web Audio unless the page declares itself a playback app (Safari 17+)
+  const audioCtx = () => { try { if (navigator.audioSession && navigator.audioSession.type !== 'play-and-record') navigator.audioSession.type = mic ? 'play-and-record' : 'playback'; } catch (_) {} if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); return actx; };
   function setMicUi() { micBtn.classList.toggle('on', !!mic); micBtn.setAttribute('aria-pressed', String(!!mic)); micBtn.querySelector('.mpLabel').textContent = mic ? '마이크 켜짐' : '마이크'; }
   async function toggleMic() {
     if (micBusy) return; audioCtx();
