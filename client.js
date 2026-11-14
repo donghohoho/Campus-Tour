@@ -440,9 +440,13 @@ pRoot.add(pTilt); pTilt.add(pSquash); pSquash.add(pModel); scene.add(pRoot);
 const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 6.5, camDistCur = 6.5, dragging = false, ePressed = false;
 
-const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' }];
+const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' },
+  null, // 여자 3 — model not added yet (the start-screen button stays locked)
+  { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' }];
+const nextChar = () => { for (let k = 1; k <= CHARS.length; k++) { const n = (charIndex + k) % CHARS.length; if (charModels[n]) return n; } return charIndex; };
 const charModels = [], charSrc = []; let charIndex = 0; // charSrc: the loaded model + walk clip, cloned for other players
 function loadChar(i) {
+  if (!CHARS[i]) return Promise.resolve();
   return new Promise((res) => new GLTFLoader().load(CHARS[i].url, (gltf) => {
     const m = gltf.scene; if (CHARS[i].yaw) { m.rotation.y = CHARS[i].yaw; m.updateMatrixWorld(true); }
     const bb = new THREE.Box3().setFromObject(m), size = bb.getSize(new THREE.Vector3()), ctr = bb.getCenter(new THREE.Vector3()), s = CHARS[i].h / size.y, zs = CHARS[i].zs || 1, holder = new THREE.Group();
@@ -527,7 +531,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -558,7 +562,7 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   hold($('#tJump'), () => { player.jumpBuf = 0.14; keys.Space = true; }, () => { keys.Space = false; });
   hold($('#tRun'), () => { touchRun = !touchRun; $('#tRun').setAttribute('aria-pressed', String(touchRun)); });
   hold($('#tAct'), () => { ePressed = true; });
-  hold($('#tChar'), () => { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
+  hold($('#tChar'), () => { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 $('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인을 모아 보세요`, 3.6); });
