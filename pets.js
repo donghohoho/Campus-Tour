@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 export const PETS = [
+  { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
   { id: 'p1', name: '분홍 말랑이', price: 30, color: 0xffb7c9 },
   { id: 'p2', name: '하늘 말랑이', price: 50, color: 0xa9d6ff },
   { id: 'p3', name: '노랑 말랑이', price: 80, color: 0xffe27a },
@@ -49,7 +50,7 @@ export function createPet(type, name, terrainH) {
     const m = cloneSkinned(g.scene); const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = (def.h || 0.6) / h;
     m.scale.setScalar(s); m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
     body.remove(model); model = m; body.add(m);
-    if (g.animations.length) { mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(g.animations[0]); action.play(); }
+    if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
   let plate = null;
   function setName(n) {
@@ -82,8 +83,12 @@ export function createPet(type, name, terrainH) {
 export function initPets(G) {
   // G: { scene, player, terrainH(x,z), toast(msg,s), started(), menuOpen(), worldReady(), touch, releaseKeys(), lockPointer() }
   let W = { coins: 0, prog: 0, owned: [], active: null, steps: 0 };
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], active: s.active || null, steps: Math.max(0, +s.steps || 0) }; } catch (_) {}
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], active: s.active || null, steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] }; } catch (_) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (_) {} };
+  // starter pet: given once; walks with you the first time
+  for (const d of PETS.filter((p) => p.starter)) if (!W.owned.some((o) => o.type === d.id) && !(W.given || []).includes(d.id)) {
+    const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.active) W.active = o.id; W.given = [...(W.given || []), d.id]; save();
+  }
   let saveT = 0, pet = null, open = false, last = null;
 
   // ── HUD ──
@@ -104,7 +109,7 @@ export function initPets(G) {
   function render() {
     $('#petCoins').textContent = `🪙 ${W.coins}`;
     const shop = $('#petList'); shop.replaceChildren();
-    for (const d of PETS) {
+    for (const d of PETS.filter((p) => !p.starter)) {
       const li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('b'), pr = document.createElement('span'), btn = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0'); nm.textContent = d.name; pr.className = 'petPrice'; pr.textContent = `🪙 ${d.price}`;
       const have = W.owned.filter((o) => o.type === d.id).length; btn.type = 'button'; btn.textContent = W.coins >= d.price ? '사기' : `${d.price - W.coins} 부족`; btn.disabled = W.coins < d.price;
