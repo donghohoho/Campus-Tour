@@ -12,6 +12,9 @@ const APP_ID = 'donghohoho/campus-tour';
 const SEND_HZ = 10, SHOW_DIST = 130, MAX_MODELS = 16;
 const NAME_MAX = 12, CHAT_MAX = 80, SIGN_MAX = 40, SIGN_LIMIT = 150, SIGN_COOLDOWN = 15;
 const EMOTES = ['👋', '❤️', '😂', '🎉'];
+// TURN relay for networks where devices can't reach each other directly (strict NAT, mobile data, client isolation).
+// e.g. [{ urls: 'turn:…', username: '…', credential: '…' }]; empty = direct connections only (STUN).
+const TURN = [];
 const QS = new URLSearchParams(location.search), MODE = QS.get('mp') || 'p2p';
 const $ = (s) => document.querySelector(s);
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -23,7 +26,8 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 // ── transports: same small interface for the network and for local testing ──
 async function joinP2P(roomId) {
   const { joinRoom } = await import('./vendor/trystero.min.js');
-  const room = joinRoom({ appId: APP_ID }, roomId), acts = new Map();
+  const cfg = { appId: APP_ID }; if (TURN.length) cfg.turnConfig = TURN;
+  const room = joinRoom(cfg, roomId), acts = new Map();
   const act = (t) => { if (!acts.has(t)) acts.set(t, room.makeAction(t)); return acts.get(t); };
   return {
     send: (t, d, to) => act(t).send(d, to ? { target: to } : undefined).catch(() => {}),
@@ -103,7 +107,8 @@ export function initMultiplayer(G) {
   // ── HUD ──
   const bar = $('#mpBar'), countEl = $('#mpCount'), log = $('#chatLog'), form = $('#chatForm'), input = $('#chatInput'), emotePop = $('#emotePop'), delBtn = $('#mpDel');
   const setStatus = (t) => { countEl.textContent = t; };
-  const refreshCount = () => setStatus(net ? `👥 ${avatars.size + 1}명` : '👤 혼자 모드');
+  const failed = new Set();
+  const refreshCount = () => setStatus(net ? `👥 ${avatars.size + 1}명` + (failed.size ? ` · ⚠️ 연결 실패 ${failed.size}` : '') : '👤 혼자 모드');
   function addLog(who, text, sys) {
     const li = document.createElement('li'); if (sys) li.className = 'sys';
     if (who) { const b = document.createElement('b'); b.textContent = who; li.append(b, ' '); }
@@ -264,7 +269,7 @@ export function initMultiplayer(G) {
 
   // ── room ──
   function wire(n) {
-    n.onJoin((peer) => { getAvatar(peer); if (mic) n.addStream(mic, peer); n.send('hi', hello(), peer); if (signs.size) n.send('sg', { list: [...signs.values()] }, peer); });
+    n.onJoin((peer) => { if (failed.delete(peer)) refreshCount(); getAvatar(peer); if (mic) n.addStream(mic, peer); n.send('hi', hello(), peer); if (signs.size) n.send('sg', { list: [...signs.values()] }, peer); });
     n.onLeave((peer) => dropAvatar(peer));
     n.on('hi', (d, peer) => { const av = getAvatar(peer), nm = clean(d && d.name, NAME_MAX) || '익명', first = av.name === '…'; const ch = Math.max(0, Math.min(15, num(d && d.char) | 0)); if (nm !== av.name) { av.name = nm; setPlate(av); } av.char = ch; if (first) addLog(null, `${nm}님이 들어왔어요`, true); });
     n.on('st', (d, peer) => {
@@ -277,13 +282,17 @@ export function initMultiplayer(G) {
     n.on('em', (d, peer) => { const e = num(d && d.e, -1) | 0; if (e < 0 || e >= EMOTES.length) return; const av = getAvatar(peer); disposeSprite(av.emote); av.emote = emoteSprite(av.root, e, 2.4); av.emoteT = 2.2; }); // the emote's jump arrives with the position updates
     n.on('sg', (d) => { if (!d || !Array.isArray(d.list)) return; let any = false; for (const s of d.list.slice(0, SIGN_LIMIT)) any = addSign(s, false) || any; if (any) saveSigns(); });
     n.on('sd', (d) => { const s = d && signs.get(d.id); if (s && s.by === d.by) killSign(s.id); });
-    n.onError(() => {});
+    n.onError((e) => { // a peer was found through the relay but the direct (WebRTC) connection failed
+      const msg = String((e && (e.message || e.error || e.type)) || e), id = (msg.match(/peer (\S+)/) || [])[1] || msg;
+      if (failed.has(id)) return; failed.add(id); refreshCount(); console.warn('[mp]', msg);
+      if (failed.size === 1) addLog(null, '다른 플레이어를 찾았지만 직접 연결에 실패했어요 (네트워크가 기기 간 연결을 막는 경우)', true);
+    });
     n.onStream((stream, peer) => { if (stream.getAudioTracks().length) attachVoice(getAvatar(peer), stream); });
   }
   async function enter(id) {
     if (id === roomId) return; const tok = ++joinTok;
     if (net) { const old = net; net = null; if (mic) { old.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setMicUi(); } old.leave(); }
-    for (const p of [...avatars.keys()]) dropAvatar(p);
+    for (const p of [...avatars.keys()]) dropAvatar(p); failed.clear();
     for (const id2 of [...signs.keys()]) killSign(id2, false); dead.clear(); roomId = id;
     const saved = store.get(signKey(), null); if (saved) { (saved.d || []).forEach((x) => dead.add(x)); (saved.s || []).forEach((s) => addSign(s, false)); }
     bar.classList.remove('hidden'); log.classList.remove('hidden');
