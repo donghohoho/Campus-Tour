@@ -150,7 +150,7 @@ export function initMultiplayer(G) {
     // the browser's permission prompt can't be clicked while the mouse is locked to the game, so free the mouse first
     const wasLocked = !!document.pointerLockElement; if (wasLocked) { G.releaseKeys(); document.exitPointerLock(); }
     micBtn.querySelector('.mpLabel').textContent = '권한 확인 중…'; if (wasLocked) G.toast('브라우저 창에서 마이크 허용을 눌러 주세요', 3);
-    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); if (net) net.addStream(mic); G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요' + (wasLocked ? ' (화면을 클릭하면 다시 조작)' : ''), 2.6); }
+    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); if (net) net.addStream(mic); if (G.touch) { G.toast('🔕 무음 모드를 꺼 주세요! 켜져 있으면 상대 목소리가 안 들릴 수 있어요', 4); addLog(null, '📱 모바일은 무음 모드를 꺼야 상대 목소리가 잘 들려요', true); } else G.toast('마이크 켜짐 — 가까이 있는 사람에게 들려요' + (wasLocked ? ' (화면을 클릭하면 다시 조작)' : ''), 2.6); }
     catch (e) {
       mic = null; const n = e && e.name;
       addLog(null, n === 'NotAllowedError' ? '마이크가 차단돼 있어요 — 주소창 왼쪽 사이트 설정에서 마이크를 "허용"으로 바꾸고, 맥이라면 시스템 설정 › 개인정보 보호 및 보안 › 마이크에서 이 브라우저를 켜 주세요'
