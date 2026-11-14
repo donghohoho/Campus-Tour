@@ -445,9 +445,17 @@ let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 
 const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' },
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3' },
   { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' },
-  { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' }];
+  { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' },
+  { url: 'assets/character_m3.glb', h: 1.75, rigged: true, name: '남자 3' }];
 const nextChar = () => { for (let k = 1; k <= CHARS.length; k++) { const n = (charIndex + k) % CHARS.length; if (charModels[n]) return n; } return charIndex; };
 const charModels = [], charSrc = []; let charIndex = 0; // charSrc: the loaded model + walk clip, cloned for other players
+// walk ↔ run: with a run clip the walk fades out between 5 and 7.5 m/s; without one the walk just speeds up
+function runBlend(u, hs, dt) {
+  if (!u.run) { u.action.setEffectiveWeight(u.w); u.action.timeScale = 0.9 + Math.min(hs, 9) * 0.23; return; }
+  const k = Math.min(1, Math.max(0, (hs - 5) / 2.5)), rk = k * k * (3 - 2 * k); u.rw = (u.rw || 0) + (rk - (u.rw || 0)) * (1 - Math.exp(-8 * dt));
+  u.action.setEffectiveWeight(u.w * (1 - u.rw)); u.run.setEffectiveWeight(u.w * u.rw); u.action.timeScale = 0.9 + Math.min(hs, 6) * 0.23; u.run.timeScale = 0.75 + Math.min(hs, 10) * 0.04;
+}
+window.__runBlend = runBlend;
 function loadChar(i) {
   if (!CHARS[i]) return Promise.resolve();
   return new Promise((res) => new GLTFLoader().load(CHARS[i].url, (gltf) => {
@@ -457,10 +465,12 @@ function loadChar(i) {
     m.traverse((o) => { if (o.isMesh) { if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals(); o.material.flatShading = false; o.material.needsUpdate = true; o.castShadow = true; o.receiveShadow = false; o.material.roughness = 1; o.material.metalness = 0; o.material.side = THREE.DoubleSide; if (o.material.map) { o.material.map.anisotropy = 8; o.material.emissive.set(0xffffff); o.material.emissiveMap = o.material.map; o.material.emissiveIntensity = 0.42; } } }); // the drawing glows faintly so it stays readable at night
     m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
     if (gltf.animations.length) { // Blender walk cycle: drop the root bone's forward travel so it plays in place
-      const clip = gltf.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.'));
-      const mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
+      const inPlace = (c) => { const k = c.clone(); k.tracks = k.tracks.filter((t) => !t.name.startsWith('root.')); return k; };
+      const walkSrc = gltf.animations.find((a) => /walk/i.test(a.name)) || gltf.animations[0], runSrc = gltf.animations.find((a) => /run/i.test(a.name) && a !== walkSrc);
+      const clip = inPlace(walkSrc), mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
+      if (runSrc) { const run = mixer.clipAction(inPlace(runSrc)); run.play(); run.setEffectiveWeight(0); holder.userData.run = run; } // optional run cycle, blended in with speed
     }
-    charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null };
+    charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null, run: holder.userData.run ? holder.userData.run.getClip() : null };
     holder.add(m); holder.visible = false; pModel.add(holder); charModels[i] = holder; res();
   }, undefined, () => { charModels[i] = null; res(); }));
 }
@@ -613,7 +623,7 @@ function updatePlayer(dt, t) {
   const lean = (p.grounded ? 0.05 + 0.2 * sf * sf : THREE.MathUtils.clamp(-p.vel.y * 0.02, -0.18, 0.22)) * Math.min(1, hs / 1.2);
   pTilt.rotation.x += (lean - pTilt.rotation.x) * (1 - Math.exp(-10 * dt));
   const cmod = charModels[charIndex], anim = cmod && cmod.userData.mixer, pk = anim ? 0.35 : 1;
-  if (anim) { const u = cmod.userData, tw = p.grounded ? Math.min(1, hs / 1.0) : 0.55; u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); u.action.setEffectiveWeight(u.w); u.action.timeScale = 0.9 + Math.min(hs, 9) * 0.23; u.mixer.update(dt); }
+  if (anim) { const u = cmod.userData, tw = p.grounded ? Math.min(1, hs / 1.0) : 0.55; u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
   const sway = pk * (p.grounded ? Math.sin(p.phase) * (0.035 + 0.035 * sf) * Math.min(1, hs / 1.5) : 0);
   pTilt.rotation.z += (sway + Math.sin(t * 0.9) * 0.008 - pTilt.rotation.z) * (1 - Math.exp(-14 * dt));
   pModel.rotation.y = MODEL_YAW + (p.grounded ? pk * Math.sin(p.phase) * 0.07 * Math.min(1, hs / 1.5) : 0);

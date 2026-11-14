@@ -246,7 +246,7 @@ export function initMultiplayer(G) {
     const ci = pickChar(av.char); av.shownChar = av.char; const src = G.charSrc[ci]; if (!src) return;
     const m = cloneSkinned(src.model); m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
     av.model = m; av.body.add(m);
-    if (src.clip) { av.mixer = new THREE.AnimationMixer(m); av.action = av.mixer.clipAction(src.clip); av.action.play(); av.action.setEffectiveWeight(0); av.w = 0; }
+    if (src.clip) { av.mixer = new THREE.AnimationMixer(m); av.action = av.mixer.clipAction(src.clip); av.action.play(); av.action.setEffectiveWeight(0); av.w = 0; av.run = null; av.rw = 0; if (src.run) { av.run = av.mixer.clipAction(src.run); av.run.play(); av.run.setEffectiveWeight(0); } }
   }
   function setPlate(av) { disposeSprite(av.plate); av.plate = textSprite([av.name], { font: 26, worldH: 0.24, bg: 'rgba(16,22,44,0.62)' }); av.plate.position.y = 1.95; av.root.add(av.plate); }
   function getAvatar(peer) {
@@ -391,7 +391,7 @@ export function initMultiplayer(G) {
       if (av.model) av.model.visible = full;
       if (av.pet) { av.pet.root.visible = full; if (full) av.pet.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5); }
       if (av.plate) av.plate.visible = av.dist < 60;
-      if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; av.mixer.update(dt); }
+      if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); if (window.__runBlend) window.__runBlend(av, av.cur.sp, dt); else { av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; } av.mixer.update(dt); }
     });
     if (listOpen && (listT -= dt) <= 0) { listT = 0.5; renderList(); }
     // own-sign delete button
