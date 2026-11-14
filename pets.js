@@ -1,7 +1,7 @@
 // Coins + pets.
 //   • every minute of play (game started, tab visible) → +10 coins; walking around fills the bar faster (pedometer)
-//   • spend coins in the pet shop (K or the 🐾 button); own several pets, pick one to walk with you, give each a name
-//   • the pet you walk with follows you and is shown to other players (multiplayer.js sends {t: type, n: name})
+//   • spend coins in the pet shop (K or the 🐾 button); own several pets, take up to MAX_WALK of them along, give each a name
+//   • the pets you walk with follow you in a little formation and are shown to other players (multiplayer.js sends [{t: type, n: name}, …])
 // Saved per device in localStorage (no server).
 //
 // PETS: add a 3D model with `model: 'assets/pets/<file>.glb'` (+ `h` = height in metres). Without a model a placeholder creature is drawn.
@@ -17,6 +17,9 @@ export const PETS = [
   { id: 'p4', name: '민트 말랑이', price: 550, color: 0xa8ecc8 },
   { id: 'p5', name: '보라 말랑이', price: 750, color: 0xcdb6ff },
 ];
+export const MAX_WALK = 5; // pets that can walk with you at once
+// follow spots behind the owner: [metres back, metres to the side]
+const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
 const EARN_EVERY = 60, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
 // pedometer: walking also fills the bar — every metre on foot is worth WALK_BONUS extra seconds
 // (walking ≈ 3× faster than standing still, running ≈ 5×). A step is STEP_LEN metres.
@@ -42,7 +45,7 @@ function placeholder(def) {
   return g;
 }
 // A pet object that walks after a target: { root, update(dt, x, y, z, yaw, moving), setName(n), dispose() }
-export function createPet(type, name, terrainH) {
+export function createPet(type, name, terrainH, slot = 0) {
   const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   let model = placeholder(def), mixer = null, action = null; body.add(model);
   if (def.model) loadGlb(def.model).then((g) => {
@@ -66,7 +69,7 @@ export function createPet(type, name, terrainH) {
   let placed = false, hopT = 0; const pos = new THREE.Vector3();
   function update(dt, x, y, z, yaw, moving) {
     // aim for a spot behind and to the left of the owner
-    const tx = x - Math.sin(yaw) * 1.3 + Math.cos(yaw) * 0.7, tz = z - Math.cos(yaw) * 1.3 - Math.sin(yaw) * 0.7;
+    const [bk, sd] = SLOTS[slot % SLOTS.length], tx = x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (!placed || Math.hypot(tx - pos.x, tz - pos.z) > 25) { pos.set(tx, y, tz); placed = true; }
     const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz), k = 1 - Math.exp(-(d > 0.35 ? 4.5 : 1.5) * dt);
     pos.x += dx * k; pos.z += dz * k; const gy = terrainH(pos.x, pos.z); pos.y += ((Math.abs(y - gy) < 1.5 ? gy : y) - pos.y) * (1 - Math.exp(-10 * dt));
@@ -82,14 +85,14 @@ export function createPet(type, name, terrainH) {
 
 export function initPets(G) {
   // G: { scene, player, terrainH(x,z), toast(msg,s), started(), menuOpen(), worldReady(), touch, releaseKeys(), lockPointer() }
-  let W = { coins: 0, prog: 0, owned: [], active: null, steps: 0 };
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], active: s.active || null, steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] }; } catch (_) {}
+  let W = { coins: 0, prog: 0, owned: [], actives: [], steps: 0 };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] }; } catch (_) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (_) {} };
   // starter pet: given once; walks with you the first time
   for (const d of PETS.filter((p) => p.starter)) if (!W.owned.some((o) => o.type === d.id) && !(W.given || []).includes(d.id)) {
-    const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.active) W.active = o.id; W.given = [...(W.given || []), d.id]; save();
+    const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.actives.length) W.actives = [o.id]; W.given = [...(W.given || []), d.id]; save();
   }
-  let saveT = 0, pet = null, open = false, last = null;
+  let saveT = 0, pets = [], open = false, last = null;
 
   // ── HUD ──
   const coinEl = $('#count'), nextEl = $('#coinNext'), stepEl = $('#steps'), panel = $('#petShop');
@@ -99,9 +102,9 @@ export function initPets(G) {
 
   // ── the pet walking with me ──
   function spawnActive() {
-    if (pet) { pet.dispose(); pet = null; }
-    const o = W.owned.find((x) => x.id === W.active); if (!o) { W.active = null; return; }
-    pet = createPet(o.type, o.name, G.terrainH); G.scene.add(pet.root);
+    for (const pt of pets) pt.dispose(); pets = [];
+    W.actives = W.actives.filter((id) => W.owned.some((x) => x.id === id)).slice(0, MAX_WALK);
+    W.actives.forEach((id, k) => { const o = W.owned.find((x) => x.id === id), pt = createPet(o.type, o.name, G.terrainH, k); pt.id = id; G.scene.add(pt.root); pets.push(pt); });
   }
   spawnActive();
 
@@ -122,16 +125,16 @@ export function initPets(G) {
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0');
       nm.type = 'text'; nm.maxLength = NAME_MAX; nm.value = o.name; nm.setAttribute('aria-label', '펫 이름'); nm.spellcheck = false;
       nm.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') nm.blur(); }); nm.addEventListener('keyup', (e) => e.stopPropagation());
-      nm.addEventListener('change', () => { o.name = clean(nm.value, NAME_MAX) || d.name; nm.value = o.name; save(); if (W.active === o.id && pet) pet.setName(o.name); });
-      const on = W.active === o.id; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : '데리고 다니기';
-      go.addEventListener('click', () => { W.active = on ? null : o.id; save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
+      nm.addEventListener('change', () => { o.name = clean(nm.value, NAME_MAX) || d.name; nm.value = o.name; save(); const pt = pets.find((x) => x.id === o.id); if (pt) pt.setName(o.name); });
+      const on = W.actives.includes(o.id), full = !on && W.actives.length >= MAX_WALK; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : full ? `최대 ${MAX_WALK}마리` : '데리고 다니기'; go.disabled = full;
+      go.addEventListener('click', () => { W.actives = on ? W.actives.filter((x) => x !== o.id) : [...W.actives, o.id].slice(0, MAX_WALK); save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
       li.append(sw, nm, go); mine.append(li);
     }
   }
   function buy(d) {
     if (W.coins < d.price) return;
     W.coins -= d.price; const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name };
-    W.owned.push(o); W.active = o.id; save(); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
+    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
     const inputs = $('#petMine').querySelectorAll('input'); const last = inputs[inputs.length - 1]; if (last) { last.focus(); last.select(); }
   }
   function show(on) {
@@ -161,9 +164,9 @@ export function initPets(G) {
       if ((saveT -= dt) <= 0) { saveT = 5; save(); }
     } else last = null;
     if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 0.5; hud(); }
-    if (pet) { const p = G.player; pet.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
+    { const p = G.player; for (const pt of pets) pt.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
   }
   addEventListener('pagehide', save);
-  function current() { const o = W.owned.find((x) => x.id === W.active); return o ? { t: o.type, n: o.name } : null; }
-  return { update, current, open: () => open, worldChanged: () => { if (pet) pet.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name })); }
+  return { update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

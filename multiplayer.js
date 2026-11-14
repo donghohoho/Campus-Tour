@@ -7,7 +7,7 @@
 //   ?mp=off    play alone
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { createPet, PETS } from './pets.js';
+import { createPet, PETS, MAX_WALK } from './pets.js';
 
 const APP_ID = 'donghohoho/campus-tour';
 const SEND_HZ = 10, SHOW_DIST = 130, MAX_MODELS = 16;
@@ -234,11 +234,14 @@ export function initMultiplayer(G) {
 
   // ── avatars ──
   function hello() { return { name: myName, char: G.charIndex(), pet: G.myPet() }; }
-  function setRemotePet(av, info) {
-    const t = info && PETS.some((p) => p.id === info.t) ? info.t : null, n = t ? clean(info.n, 10) : '';
-    if (av.pet && (av.pet.type !== t)) { av.pet.dispose(); av.pet = null; }
-    if (t && !av.pet) { av.pet = createPet(t, n, G.terrainH); G.scene.add(av.pet.root); } else if (av.pet && n !== av.petName) av.pet.setName(n);
-    av.petName = n;
+  function setRemotePet(av, info) { // info: [{t, n}, …] (or one {t, n} from older clients)
+    const list = (Array.isArray(info) ? info : info ? [info] : []).slice(0, MAX_WALK).filter((x) => x && PETS.some((p) => p.id === x.t)).map((x) => ({ t: x.t, n: clean(x.n, 10) }));
+    av.pets = av.pets || [];
+    while (av.pets.length > list.length) av.pets.pop().dispose();
+    list.forEach((x, k) => {
+      let pt = av.pets[k]; if (pt && pt.type !== x.t) { pt.dispose(); pt = null; }
+      if (!pt) { pt = createPet(x.t, x.n, G.terrainH, k); pt.nm = x.n; G.scene.add(pt.root); av.pets[k] = pt; } else if (pt.nm !== x.n) { pt.setName(x.n); pt.nm = x.n; }
+    });
   }
   function pickChar(i) { return G.charSrc[i] ? i : G.charSrc.findIndex(Boolean); }
   function makeModel(av) {
@@ -257,7 +260,7 @@ export function initMultiplayer(G) {
   }
   function dropAvatar(peer) {
     const av = avatars.get(peer); if (!av) return; avatars.delete(peer);
-    dropVoice(av); if (av.pet) { av.pet.dispose(); av.pet = null; } disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
+    dropVoice(av); for (const pt of av.pets || []) pt.dispose(); av.pets = []; disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
     if (av.has && av.name !== '…') addLog(null, `${av.name}님이 나갔어요`, true); refreshCount();
   }
   function bubble(target, text, isMe) {
@@ -389,7 +392,7 @@ export function initMultiplayer(G) {
       const full = i < MAX_MODELS && av.dist < SHOW_DIST;
       if (full && (!av.model || av.shownChar !== av.char)) makeModel(av);
       if (av.model) av.model.visible = full;
-      if (av.pet) { av.pet.root.visible = full; if (full) av.pet.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5); }
+      for (const pt of av.pets || []) { pt.root.visible = full; if (full) pt.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5); }
       if (av.plate) av.plate.visible = av.dist < 60;
       if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); if (window.__runBlend) window.__runBlend(av, av.cur.sp, dt); else { av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; } av.mixer.update(dt); }
     });
