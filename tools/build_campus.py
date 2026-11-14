@@ -64,7 +64,7 @@ def main():
         if not cand: raise SystemExit('no university area found — pass --osm')
         def dist(e):
             pts = e.get('geometry') or [p for m in e.get('members', []) for p in (m.get('geometry') or [])]
-            return min(math.hypot(p['lat'] - a.lat, (p['lon'] - a.lon) * math.cos(math.radians(a.lat))) for p in pts)
+            return min((math.hypot(p['lat'] - a.lat, (p['lon'] - a.lon) * math.cos(math.radians(a.lat))) for p in pts), default=1e9)
         cand.sort(key=dist); campus_el = [cand[0]]
         print('campus candidates:', [(e['type'], e['id'], e['tags'].get('name')) for e in cand[:6]])
     campus_ids = {(e['type'], e['id']) for e in campus_el}
