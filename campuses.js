@@ -38,7 +38,7 @@ export const CAMPUSES = [
   soon('snu-gwanak', '서울대학교 관악캠퍼스', 'seoul'),
   soon('yonsei-sinchon', '연세대학교 신촌캠퍼스', 'seoul'),
   {
-    id: 'korea-anam', name: '고려대학교 안암캠퍼스', region: 'seoul', status: 'soon', // 'ready' once assets/campuses/korea-anam.json is in
+    id: 'korea-anam', name: '고려대학교 안암캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/korea-anam.json', terrain: 'hills', lighting: 'night', seed: 20261114,
     outsideLabel: '캠퍼스 밖 · 안암동',
     spawn: { from: '고려대학교 정문', toward: '본관', dist: 16 },
