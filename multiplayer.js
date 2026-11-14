@@ -7,6 +7,7 @@
 //   ?mp=off    play alone
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { createPet, PETS } from './pets.js';
 
 const APP_ID = 'donghohoho/campus-tour';
 const SEND_HZ = 10, SHOW_DIST = 130, MAX_MODELS = 16;
@@ -220,7 +221,13 @@ export function initMultiplayer(G) {
   });
 
   // ── avatars ──
-  function hello() { return { name: myName, char: G.charIndex() }; }
+  function hello() { return { name: myName, char: G.charIndex(), pet: G.myPet() }; }
+  function setRemotePet(av, info) {
+    const t = info && PETS.some((p) => p.id === info.t) ? info.t : null, n = t ? clean(info.n, 10) : '';
+    if (av.pet && (av.pet.type !== t)) { av.pet.dispose(); av.pet = null; }
+    if (t && !av.pet) { av.pet = createPet(t, n, G.terrainH); G.scene.add(av.pet.root); } else if (av.pet && n !== av.petName) av.pet.setName(n);
+    av.petName = n;
+  }
   function pickChar(i) { return G.charSrc[i] ? i : G.charSrc.findIndex(Boolean); }
   function makeModel(av) {
     if (av.model) { av.body.remove(av.model); av.model = null; av.mixer = null; }
@@ -238,7 +245,7 @@ export function initMultiplayer(G) {
   }
   function dropAvatar(peer) {
     const av = avatars.get(peer); if (!av) return; avatars.delete(peer);
-    dropVoice(av); disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
+    dropVoice(av); if (av.pet) { av.pet.dispose(); av.pet = null; } disposeSprite(av.plate); disposeSprite(av.bubble); disposeSprite(av.emote); G.scene.remove(av.root);
     if (av.has && av.name !== '…') addLog(null, `${av.name}님이 나갔어요`, true); refreshCount();
   }
   function bubble(target, text, isMe) {
@@ -290,7 +297,7 @@ export function initMultiplayer(G) {
   function wire(n) {
     n.onJoin((peer) => { if (failed.delete(peer)) refreshCount(); getAvatar(peer); if (mic) n.addStream(mic, peer); n.send('hi', hello(), peer); if (signs.size) n.send('sg', { list: [...signs.values()] }, peer); });
     n.onLeave((peer) => dropAvatar(peer));
-    n.on('hi', (d, peer) => { const av = getAvatar(peer), nm = clean(d && d.name, NAME_MAX) || '익명', first = av.name === '…'; const ch = Math.max(0, Math.min(15, num(d && d.char) | 0)); if (nm !== av.name) { av.name = nm; setPlate(av); } av.char = ch; if (first) addLog(null, `${nm}님이 들어왔어요`, true); });
+    n.on('hi', (d, peer) => { const av = getAvatar(peer); setRemotePet(av, d && d.pet); const nm = clean(d && d.name, NAME_MAX) || '익명', first = av.name === '…'; const ch = Math.max(0, Math.min(15, num(d && d.char) | 0)); if (nm !== av.name) { av.name = nm; setPlate(av); } av.char = ch; if (first) addLog(null, `${nm}님이 들어왔어요`, true); });
     n.on('st', (d, peer) => {
       if (!Array.isArray(d) || d.length < 6) return; const av = getAvatar(peer);
       const t = av.t; t.x = num(d[0]); t.y = num(d[1]); t.z = num(d[2]); t.yaw = num(d[3]); t.sp = Math.min(12, Math.abs(num(d[4]))); const ch = num(d[5]) | 0; if (ch >= 0 && ch < 16) av.char = ch;
@@ -326,7 +333,7 @@ export function initMultiplayer(G) {
   function update(dt) {
     now += dt;
     if (net) { sendAcc += dt; if (sendAcc >= 1 / SEND_HZ) { sendAcc = 0; const p = G.player; net.send('st', [+p.pos.x.toFixed(2), +p.pos.y.toFixed(2), +p.pos.z.toFixed(2), +p.yaw.toFixed(3), +p.speed.toFixed(2), G.charIndex()]); } }
-    if (G.charIndex() !== update.lastChar) { update.lastChar = G.charIndex(); if (net) net.send('hi', hello()); }
+    const sig = G.charIndex() + '|' + JSON.stringify(G.myPet()); if (sig !== update.lastSig) { update.lastSig = sig; if (net) net.send('hi', hello()); }
     if (myBubble && (myBubbleT -= dt) <= 0) { disposeSprite(myBubble); myBubble = null; }
     if (myEmote) { myEmote.position.y += dt * 0.4; if ((myEmoteT -= dt) <= 0) { disposeSprite(myEmote); myEmote = null; } }
     // nearest players get full models; the rest just a nameplate
@@ -348,6 +355,7 @@ export function initMultiplayer(G) {
       const full = i < MAX_MODELS && av.dist < SHOW_DIST;
       if (full && (!av.model || av.shownChar !== av.char)) makeModel(av);
       if (av.model) av.model.visible = full;
+      if (av.pet) { av.pet.root.visible = full; if (full) av.pet.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5); }
       if (av.plate) av.plate.visible = av.dist < 60;
       if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; av.mixer.update(dt); }
     });

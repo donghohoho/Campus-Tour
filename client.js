@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CAMPUSES, REGIONS, LIGHTING } from './campuses.js';
 import { initMultiplayer } from './multiplayer.js';
+import { initPets } from './pets.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -275,14 +276,6 @@ function buildWorld(data) {
     places.lampCount = pts.length;
   }
   { const cm = new THREE.MeshLambertMaterial({ color: L.clouds.color, emissive: L.clouds.emissive, fog: false, flatShading: true }); for (let i = 0; i < 22; i++) { const gp = new THREE.Group(); for (let k = 0; k < 5; k++) { const pz = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(12, 24), 1), cm); pz.position.set(rr(-30, 30), rr(-4, 5), rr(-12, 12)); pz.scale.y = 0.55; gp.add(pz); } gp.position.set(rr(-1300, 1300), rr(230, 330), rr(-1300, 1300)); world.add(gp); clouds.push(gp); } }
-  // ── collectibles near the landmarks ──
-  {
-    const geo = new THREE.OctahedronGeometry(0.34, 0), mat = new THREE.MeshStandardMaterial({ color: 0xffc83a, emissive: 0xffa200, emissiveIntensity: 0.9, roughness: 0.25, flatShading: true });
-    const spots = []; for (const pl of places) { if (spots.length >= 24) break; spots.push(freeSpot(pl.x, pl.z, pl.r * 0.9, (c) => c < 4)); }
-    const GA = PLAY.gemArea || [-350, 450, -420, 520];
-    while (spots.length < (PLAY.gems || 30)) spots.push(freeSpot(rr(GA[0], GA[1]), rr(GA[2], GA[3]), 60, (c) => c < 4));
-    for (const [x, z] of spots) { const base = terrainH(x, z) + 1.05, me = new THREE.Mesh(geo, mat); me.position.set(x, base, z); me.castShadow = true; world.add(me); const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); glow.scale.setScalar(2.4); me.add(glow); gems.push({ m: me, base, taken: false, ph: rnd() * 6 }); }
-  }
   // ── creatures on the lawns ──
   {
     const cols = [0xffd1dc, 0xcfe8ff, 0xfff2b0, 0xd6f5c9, 0xe6d5ff], eyeM = new THREE.MeshBasicMaterial({ color: 0x1b1b1b }), bodyG = new THREE.SphereGeometry(0.55, 14, 10), earG = new THREE.ConeGeometry(0.16, 0.42, 6), eyeG = new THREE.SphereGeometry(0.06, 6, 5);
@@ -330,7 +323,7 @@ function unloadWorld() {
 }
 function spawnFx(tex, x, y, z, vx, vy, vz, life, size, grow) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.position.set(x, y, z); sp.scale.setScalar(size); scene.add(sp); fx.push({ sp, vx, vy, vz, life, max: life, size, grow }); }
 let collected = 0, toastT = 0;
-const setCount = () => { $('#count').textContent = `별조각 ${collected} / ${gems.length}`; };
+const setCount = () => {}; // coins HUD lives in pets.js
 function toast(msg, sec = 2.4) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); toastT = sec; }
 
 // ── player ─────────────────────────────────────────────────────────────────
@@ -427,7 +420,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing())) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open())) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = (charIndex + 1) % CHARS.length; if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -530,16 +523,10 @@ function updateHud() {
   $('#loc').textContent = best ? `📍 ${best.n}` : campusPoly.some((r) => pip(p.x, p.z, r)) ? '📍 ' + campus.name : '📍 ' + (campus.outsideLabel || '캠퍼스 밖');
   const W = mini.width, R = 170, k = GS / (GHALF * 2), sx = (p.x - R + GHALF) * k, sz = (p.z - R + GHALF) * k;
   mctx.fillStyle = '#86b56a'; mctx.fillRect(0, 0, W, W); mctx.drawImage(groundCanvas, sx, sz, R * 2 * k, R * 2 * k, 0, 0, W, W);
-  mctx.fillStyle = '#ffc83a'; mctx.strokeStyle = '#7a5200'; mctx.lineWidth = 1; for (const g of gems) if (!g.taken) { const x = ((g.m.position.x - p.x) / R * 0.5 + 0.5) * W, y = ((g.m.position.z - p.z) / R * 0.5 + 0.5) * W; if (x > 0 && y > 0 && x < W && y < W) { mctx.beginPath(); mctx.arc(x, y, 3.2, 0, 6.3); mctx.fill(); mctx.stroke(); } }
   mctx.save(); mctx.translate(W / 2, W / 2); mctx.rotate(Math.atan2(Math.sin(player.yaw), -Math.cos(player.yaw))); mctx.fillStyle = '#1f2d25'; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(0, -9); mctx.lineTo(6.5, 7); mctx.lineTo(0, 3.5); mctx.lineTo(-6.5, 7); mctx.closePath(); mctx.stroke(); mctx.fill(); mctx.restore();
 }
 function updateWorld(dt, t) {
   const p = player;
-  for (const g of gems) {
-    if (g.taken) { if (g.m.visible) { g.m.scale.multiplyScalar(1 + dt * 6); g.m.position.y += dt * 4; if (g.m.scale.x > 3) g.m.visible = false; } continue; }
-    g.m.rotation.y = t * 1.6 + g.ph; g.m.position.y = g.base + Math.sin(t * 2 + g.ph) * 0.18;
-    if (started && Math.hypot(g.m.position.x - p.pos.x, g.m.position.z - p.pos.z) < 1.25 && Math.abs(g.m.position.y - (p.pos.y + 0.9)) < 1.7) { g.taken = true; collected++; setCount(); for (let i = 0; i < 8; i++) { const a = rnd() * 6.283; spawnFx(glowTex, g.m.position.x, g.m.position.y, g.m.position.z, Math.cos(a) * 2.2, rr(0.5, 2.5), Math.sin(a) * 2.2, 0.7, 0.6, -0.5); } toast(collected === gems.length ? '모든 별조각을 모았어요! 🎉' : `별조각 획득! (${collected}/${gems.length})`, collected === gems.length ? 5 : 1.6); }
-  }
   nearPal = null; let best = 2.6;
   for (const a of pals) {
     const dx = p.pos.x - a.x, dz = p.pos.z - a.z, d = Math.hypot(dx, dz); if (d < best) { best = d; nearPal = a; }
@@ -575,13 +562,14 @@ function updateWorld(dt, t) {
     lampLights.forEach((L, i) => { const c = cand[i]; if (!c) { L.intensity = 0; return; } L.position.set(c[1][0], c[1][1], c[1][2]); const f = Math.max(0, 1 - c[0] / 70); L.intensity = 70 * f * f * (3 - 2 * f); });
   }
 }
-const mp = initMultiplayer({ scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const pets = initPets({ scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const mp = initMultiplayer({ myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses
   const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; time += dt;
   if (started && rawDt < 0.5) { slowAcc += rawDt; if (++slowN >= 90) { if (slowAcc / slowN > 0.036 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight, false); } slowAcc = 0; slowN = 0; } }
-  if (started) { updatePlayer(dt, time); mp.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
+  if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { mp, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

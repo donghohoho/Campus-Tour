@@ -28,7 +28,6 @@
       #controls dd { margin: 0; }
       kbd { display: inline-block; min-width: 24px; text-align: center; font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace; padding: 4px 6px; border-radius: 6px; background: #fff; border: 1px solid #c9d1c6; border-bottom-width: 2px; color: #26352b; }
       #counter { right: 16px; top: 16px; font-weight: 700; font-size: 15px; display: flex; gap: 8px; align-items: center; }
-      #counter .gem { width: 12px; height: 12px; background: #ffc83a; transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 10px #ffd766; }
       #prompt { left: 50%; bottom: 84px; transform: translateX(-50%); font-weight: 600; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
       #prompt.show { opacity: 1; }
       #toast { left: 50%; top: 20%; white-space: nowrap; transform: translateX(-50%); font-weight: 700; font-size: 17px; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
@@ -143,6 +142,30 @@
       #controls.collapsed .arrow { display: inline-block; transform: rotate(-90deg); }
       #ctlToggle { font: inherit; color: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; }
       #ctlToggle kbd { min-width: 0; padding: 2px 5px; font-size: 10.5px; }
+      /* coins + pets */
+      #counter .coinIco { font-size: 15px; }
+      #coinNext { font-size: 11.5px; font-weight: 600; color: #5a6b5e; }
+      #counter .mpBtn { padding: 5px 9px; }
+      body.touch #coinNext, body.touch #counter .mpBtn kbd { display: none; }
+      #petShop { left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; width: min(440px, calc(100vw - 24px)); max-height: min(78vh, 640px); overflow-y: auto; padding: 14px 16px; }
+      .petHead { display: flex; align-items: center; gap: 10px; }
+      .petHead h2 { margin: 0; font-size: 17px; flex: 1; }
+      #petCoins { font-weight: 800; }
+      #petClose { border: 0; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+      #petClose:hover { background: rgba(0, 0, 0, 0.07); }
+      .petNote { margin: 4px 0 6px; font-size: 12px; color: #5a6b5e; }
+      #petShop h3 { margin: 12px 0 6px; font-size: 13.5px; }
+      .petRows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+      .petRows li { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 10px; background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(40, 60, 45, 0.12); font-size: 14px; flex-wrap: wrap; }
+      .petRows li b { flex: 1; min-width: 6em; }
+      .petRows li.empty { color: #5a6b5e; font-size: 13px; }
+      .petRows small { font-size: 11.5px; color: #5a6b5e; width: 100%; padding-left: 31px; margin-top: -4px; }
+      .petSwatch { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12); flex: none; }
+      .petPrice { font-weight: 700; font-size: 13px; }
+      .petRows button { font: 700 13px/1 inherit; padding: 8px 11px; border-radius: 8px; border: 0; background: #ffd98a; color: #1b2030; cursor: pointer; }
+      .petRows button:disabled { background: #e3e3df; color: #77807a; cursor: default; }
+      .petRows button.on { background: #b9e4c3; color: #163b22; }
+      .petRows input { flex: 1; min-width: 6em; font: 600 14px/1 inherit; padding: 7px 9px; border-radius: 8px; border: 1px solid #c9d1c6; background: #fff; user-select: text; -webkit-user-select: text; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -168,13 +191,14 @@
         <dt><kbd>B</kbd></dt><dd>표지판 세우기</dd>
         <dt><kbd>X</kbd></dt><dd>내 표지판 지우기</dd>
         <dt><kbd>P</kbd></dt><dd>접속자 보기</dd>
+        <dt><kbd>K</kbd></dt><dd>펫 상점 · 내 펫</dd>
         <dt><kbd>V</kbd></dt><dd>마이크 켜기/끄기</dd>
         <dt><kbd>H</kbd></dt><dd>조작법 접기</dd>
         <dt><kbd>Esc</kbd></dt><dd>마우스 풀기</dd>
       </dl>
     </div>
     <div id="campusBadge" class="panel"><b id="campusName">캠퍼스</b><button id="campusBtn" type="button">캠퍼스 변경 <kbd>M</kbd></button></div>
-    <div id="counter" class="panel"><span class="gem"></span><span id="count">별조각 0 / 0</span></div>
+    <div id="counter" class="panel"><span class="coinIco" aria-hidden="true">🪙</span><span id="count" aria-label="코인">0</span><small id="coinNext"></small><button id="petBtn" class="mpBtn" type="button" title="펫 상점 (K)">🐾<span class="mpLabel">펫</span> <kbd>K</kbd></button></div>
     <div id="loc" class="panel">📍 경희대학교 국제캠퍼스</div>
     <canvas id="mini" class="panel" width="190" height="190" aria-label="미니맵"></canvas>
     <div id="attr">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> 기여자 · 지형 SRTM</div>
@@ -184,7 +208,7 @@
     <div id="err" class="panel hidden"></div>
     <div id="start">
       <h1>캠퍼스 투어</h1>
-      <p>실제 지도로 만든 대학 캠퍼스를 밤에 돌아다니며 별조각을 모아 보세요.</p>
+      <p>실제 지도로 만든 대학 캠퍼스를 밤에 돌아다녀 보세요. 10분마다 코인이 쌓이고, 코인으로 펫을 데려올 수 있어요.</p>
       <section id="campusStep" class="step" aria-labelledby="campusStepTitle">
         <h2 id="campusStepTitle"><span>1</span>캠퍼스 선택</h2>
         <div id="startCampusList" class="campusList"></div>
@@ -229,6 +253,12 @@
       <button id="mpDel" class="mpBtn hidden" type="button">🗑️<span class="mpLabel">내 표지판 지우기</span> <kbd>X</kbd></button>
     </div>
     <div id="emotePop" class="panel hidden"><button type="button" data-e="0">👋<small>1</small></button><button type="button" data-e="1">❤️<small>2</small></button><button type="button" data-e="2">😂<small>3</small></button><button type="button" data-e="3">🎉<small>4</small></button></div>
+    <div id="petShop" class="panel hidden" role="dialog" aria-labelledby="petTitle">
+      <div class="petHead"><h2 id="petTitle">🐾 펫</h2><span id="petCoins">🪙 0</span><button id="petClose" type="button" aria-label="닫기">✕</button></div>
+      <p class="petNote">10분 접속할 때마다 코인 10개 · 코인과 펫은 이 기기(브라우저)에 저장돼요</p>
+      <h3>상점</h3><ul id="petList" class="petRows"></ul>
+      <h3>내 펫</h3><ul id="petMine" class="petRows"></ul>
+    </div>
     <div id="playerList" class="panel hidden" role="dialog" aria-labelledby="plTitle"><h2 id="plTitle">접속 중</h2><table><thead><tr><th>닉네임</th><th>캐릭터</th><th>거리</th></tr></thead><tbody id="plBody"></tbody></table><p class="keysDesk">P를 한 번 더 누르면 닫혀요</p></div>
     <ul id="chatLog" class="hidden" aria-live="polite" aria-label="채팅"></ul>
     <form id="chatForm" class="panel hidden"><input id="chatInput" type="text" autocomplete="off" enterkeyhint="send" /><button id="chatSend" type="submit">보내기</button></form>
