@@ -37,7 +37,21 @@ export const CAMPUSES = [
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   soon('snu-gwanak', '서울대학교 관악캠퍼스', 'seoul'),
   soon('yonsei-sinchon', '연세대학교 신촌캠퍼스', 'seoul'),
-  soon('korea-anam', '고려대학교 안암캠퍼스', 'seoul'),
+  {
+    id: 'korea-anam', name: '고려대학교 안암캠퍼스', region: 'seoul', status: 'soon', // 'ready' once assets/campuses/korea-anam.json is in
+    data: 'assets/campuses/korea-anam.json', terrain: 'hills', lighting: 'night', seed: 20261114,
+    outsideLabel: '캠퍼스 밖 · 안암동',
+    spawn: { from: '고려대학교 정문', toward: '본관', dist: 16 },
+    landmarks: [
+      { name: '녹지운동장', kind: 'stadium', pos: [-433, 406], note: 'OSM leisure=pitch' },
+      { name: '본관', kind: 'building', pos: [206, 166], wall: 0xc9c3b6, roof: 0x5f625e, note: '화강암 석조 건물 — 색은 추정' },
+      { name: '중앙도서관', kind: 'building', pos: [352, 337], wall: 0xc9c3b6, roof: 0x5f625e, note: '화강암 석조 건물 — 색은 추정' },
+      { name: '인촌기념관', kind: 'building', pos: [60, 200], wall: 0xc9c3b6, roof: 0x5f625e, note: '석조 — 색은 추정' },
+      { name: '문과대학서관', kind: 'building', pos: [143, 79], wall: 0xc9c3b6, roof: 0x5f625e, note: '석조 — 색은 추정' },
+      { name: '백주년기념삼성관', kind: 'building', pos: [391, 162], wall: 0xc9c3b6, roof: 0x5f625e, note: '석조 — 색은 추정' },
+    ],
+    play: { gems: 30, gemArea: [-450, 450, -600, 600], pals: 18, palArea: [-450, 450, -600, 600], palHome: [286, 76], treeClear: [[367, 26, 10]] },
+  },
   soon('sogang', '서강대학교', 'seoul'),
   soon('skku-seoul', '성균관대학교 인문사회과학캠퍼스', 'seoul'),
   soon('hanyang-seoul', '한양대학교 서울캠퍼스', 'seoul'),
