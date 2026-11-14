@@ -339,7 +339,7 @@ pRoot.add(pTilt); pTilt.add(pSquash); pSquash.add(pModel); scene.add(pRoot);
 const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 6.5, camDistCur = 6.5, dragging = false, ePressed = false;
 
-const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '버전 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '버전 2' }];
+const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' }];
 const charModels = []; let charIndex = 0;
 function loadChar(i) {
   return new Promise((res) => new GLTFLoader().load(CHARS[i].url, (gltf) => {
