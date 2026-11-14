@@ -57,6 +57,7 @@ export const CAMPUSES = [
     outsideLabel: '캠퍼스 밖 · 안암동',
     spawn: { from: '고려대학교 정문', toward: '본관', dist: 16 },
     landmarks: [
+      { name: '고려대학교 정문', kind: 'gate', pos: [367, 26], model: 'assets/models/korea-anam-front-gate.glb', scale: 30, gap: 0.17, solidH: 0.36, note: '직접 만든 3D 모델 (Tripo) — 양쪽 석조 탑 사이로 도로가 지나감' },
       { name: '녹지운동장', kind: 'stadium', pos: [-433, 406], note: 'OSM leisure=pitch' },
       { name: '본관', kind: 'building', pos: [206, 166], model: 'assets/models/korea-anam-main-hall.glb', rot: 180, height: 26, tpToward: '중앙광장', note: '직접 만든 3D 모델 (Tripo) — 정면이 동남쪽 중앙광장을 향함' },
       { name: '중앙광장', kind: 'place', pos: [286, 76], r: 60, note: 'OSM park "중앙광장" (지하 CCL 위 잔디 광장)' },

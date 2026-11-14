@@ -176,7 +176,8 @@ function buildWorld(data) {
             m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); G.add(sc);
           }, undefined, () => console.warn('gate model failed', glm.model));
-          for (const sd of [-1, 1]) { solid(sd * 0.125 * s, 0.05 * s, 0.41 * s); for (let x = 0.19 * s; x <= 0.49 * s; x += 4) solid(sd * x, 2.4, 0.22 * s); }
+          if (glm.gap != null) { const r = Math.max(0.8, 0.04 * s); for (const sd of [-1, 1]) for (let x = glm.gap * s + r; x <= 0.5 * s - r * 0.5; x += r * 1.2) solid(sd * x, r, (glm.solidH || 0.35) * s); } // open gate: solid from the opening's edge outwards
+          else for (const sd of [-1, 1]) { solid(sd * 0.125 * s, 0.05 * s, 0.41 * s); for (let x = 0.19 * s; x <= 0.49 * s; x += 4) solid(sd * x, 2.4, 0.22 * s); }
           places.push({ n: src.n, x: gx, z: gz, top: gy + 0.42 * s, r: 55 }); continue;
         }
         const stone = new THREE.MeshLambertMaterial({ color: 0xe9e5d8, emissive: 0x4a4638 }), pale = new THREE.MeshLambertMaterial({ color: 0xf6f3ea, emissive: 0x5c584a }), dark = new THREE.MeshLambertMaterial({ color: 0x55534d });
