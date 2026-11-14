@@ -67,6 +67,12 @@ def main():
             return min((math.hypot(p['lat'] - a.lat, (p['lon'] - a.lon) * math.cos(math.radians(a.lat))) for p in pts), default=1e9)
         cand.sort(key=dist); campus_el = [cand[0]]
         print('campus candidates:', [(e['type'], e['id'], e['tags'].get('name')) for e in cand[:6]])
+    # relations: fetch their outer member ways with full geometry (the bbox search may return them without it)
+    for e in campus_el:
+        if e['type'] == 'relation':
+            ways = overpass(f'[out:json][timeout:120];relation({e["id"]});way(r);out geom;')
+            roles = {m['ref']: m.get('role', '') for m in e.get('members', []) if m.get('type') == 'way'}
+            e['members'] = [{'type': 'way', 'ref': w['id'], 'role': roles.get(w['id'], 'outer'), 'geometry': w.get('geometry', [])} for w in ways]
     campus_ids = {(e['type'], e['id']) for e in campus_el}
 
     def bbox_center(els):
@@ -78,7 +84,21 @@ def main():
 
     def rings_of(e):
         if e['type'] == 'way': return [[loc(p) for p in e['geometry']]] if e.get('geometry') else []
-        return [[loc(p) for p in m['geometry']] for m in e.get('members', []) if m.get('role') in ('outer', '') and m.get('geometry')]
+        # stitch outer member ways end-to-end into closed rings
+        segs = [[(p['lat'], p['lon']) for p in m['geometry']] for m in e.get('members', []) if m.get('role') in ('outer', '') and m.get('geometry')]
+        rings = []
+        while segs:
+            ring = segs.pop(0)
+            while ring[0] != ring[-1]:
+                for i, sg in enumerate(segs):
+                    if sg[0] == ring[-1]: ring += sg[1:]; break
+                    if sg[-1] == ring[-1]: ring += sg[::-1][1:]; break
+                    if sg[-1] == ring[0]: ring = sg[:-1] + ring; break
+                    if sg[0] == ring[0]: ring = sg[::-1][:-1] + ring; break
+                else: break
+                segs.pop(i)
+            rings.append([loc({'lat': a, 'lon': b}) for a, b in ring])
+        return rings
     campus = [r for e in campus_el for r in rings_of(e)]
 
     def pip(x, z, q):
