@@ -11,18 +11,22 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 export const PETS = [
   { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
-  { id: 'p1', name: '분홍 말랑이', price: 150, color: 0xffb7c9 },
-  { id: 'p2', name: '하늘 말랑이', price: 250, color: 0xa9d6ff },
-  { id: 'p3', name: '노랑 말랑이', price: 400, color: 0xffe27a },
-  { id: 'p4', name: '민트 말랑이', price: 550, color: 0xa8ecc8 },
-  { id: 'p5', name: '보라 말랑이', price: 750, color: 0xcdb6ff },
   // wild: tamed on campus (wild-pets.js), never sold in the shop
   { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066 },
   { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc },
   { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a },
   { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74 },
   { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c },
+  { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d },
+  { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8 },
+  { id: 'magpie', name: '까치', wild: true, color: 0x33384a },
+  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf },
+  { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b },
+  { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c },
 ];
+// 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
+const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
+
 export const MAX_WALK = 5; // pets that can walk with you at once
 // follow spots behind the owner: [metres back, metres to the side]
 const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
@@ -98,7 +102,14 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
 export function initPets(G) {
   // G: { scene, player, terrainH(x,z), toast(msg,s), started(), menuOpen(), worldReady(), touch, releaseKeys(), lockPointer() }
   let W = { coins: 0, prog: 0, owned: [], actives: [], steps: 0 };
-  const norm = (s) => (s && typeof s === 'object' ? { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] } : null);
+  // retired 말랑이 in a loaded wallet → their price back as coins (the pets drop out of the list in norm0, so this pays once)
+  let refunded = 0;
+  const norm = (s) => { const w = norm0(s); const r = w && Array.isArray(s.owned) ? s.owned.reduce((a, o) => a + ((o && RETIRED[o.type]) || 0), 0) : 0; if (r) { w.coins += r; refunded += r; setTimeout(settleRefund, 0); } return w; };
+  function settleRefund() {
+    if (!refunded) return; save(); flush(); hud();
+    const tell = () => { if (!G.started()) return setTimeout(tell, 1000); G.toast(`🐾 말랑이 펫이 사라졌어요 — 산 값 🪙 ${refunded}을(를) 돌려드렸어요`, 4.5); refunded = 0; }; tell();
+  }
+  const norm0 = (s) => (s && typeof s === 'object' ? { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] } : null);
   try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || W; } catch (_) {}
   // storage: this browser (guest) or the logged-in account (cloud, written at most every 20 s and when leaving)
   let cloud = null, dirty = false, flushT = 0;
@@ -128,14 +139,16 @@ export function initPets(G) {
   function render() {
     $('#petCoins').textContent = `🪙 ${W.coins}`;
     const shop = $('#petList'); shop.replaceChildren();
-    for (const d of PETS.filter((p) => !p.starter && !p.wild)) {
+    const forSale = PETS.filter((p) => !p.starter && !p.wild);
+    if (!forSale.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '지금은 파는 펫이 없어요 — 캠퍼스의 야생 펫을 쓰다듬어 길들여 보세요 🐾'; shop.append(li); }
+    for (const d of forSale) {
       const li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('b'), pr = document.createElement('span'), btn = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0'); nm.textContent = d.name; pr.className = 'petPrice'; pr.textContent = `🪙 ${d.price}`;
       const have = W.owned.filter((o) => o.type === d.id).length; btn.type = 'button'; btn.textContent = W.coins >= d.price ? '사기' : `${d.price - W.coins} 부족`; btn.disabled = W.coins < d.price;
       btn.addEventListener('click', () => buy(d)); li.append(sw, nm, pr, btn); if (have) { const h = document.createElement('small'); h.textContent = `보유 ${have}` + (have < 3 ? ` · ${3 - have}마리 더 모으면 1.5배로 커져요` : have < 6 ? ` · 1.5배 크기 (6마리면 2배)` : ' · 2배 크기'); li.append(h); } shop.append(li);
     }
     const mine = $('#petMine'); mine.replaceChildren();
-    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 6초마다 코인 1개가 쌓여요!'; mine.append(li); }
+    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 캠퍼스의 야생 펫을 길들여 보세요!'; mine.append(li); }
     for (const o of W.owned) {
       const d = petDef(o.type), li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('input'), go = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0');

@@ -325,18 +325,7 @@ function buildWorld(data) {
     places.lampCount = pts.length;
   }
   { const cm = new THREE.MeshLambertMaterial({ color: L.clouds.color, emissive: L.clouds.emissive, fog: false, flatShading: true }); for (let i = 0; i < 22; i++) { const gp = new THREE.Group(); for (let k = 0; k < 5; k++) { const pz = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(12, 24), 1), cm); pz.position.set(rr(-30, 30), rr(-4, 5), rr(-12, 12)); pz.scale.y = 0.55; gp.add(pz); } gp.position.set(rr(-1300, 1300), rr(230, 330), rr(-1300, 1300)); world.add(gp); clouds.push(gp); } }
-  // ── creatures on the lawns ──
-  {
-    const cols = [0xffd1dc, 0xcfe8ff, 0xfff2b0, 0xd6f5c9, 0xe6d5ff], eyeM = new THREE.MeshBasicMaterial({ color: 0x1b1b1b }), bodyG = new THREE.SphereGeometry(0.55, 14, 10), earG = new THREE.ConeGeometry(0.16, 0.42, 6), eyeG = new THREE.SphereGeometry(0.06, 6, 5);
-    const PA = PLAY.palArea || [-320, 420, -420, 520], PH = PLAY.palHome;
-    for (let n = 0; n < (PLAY.pals || 18); n++) {
-      const [x, z] = PH && n < 3 ? freeSpot(PH[0], PH[1], 30, (c) => c < 3) : freeSpot(rr(PA[0], PA[1]), rr(PA[2], PA[3]), 50, (c) => c < 3);
-      const gp = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ color: cols[n % cols.length] }), b = new THREE.Mesh(bodyG, mat); b.scale.set(1, 0.85, 1.1); b.position.y = 0.47; b.castShadow = true; gp.add(b);
-      for (const s of [-1, 1]) { const e = new THREE.Mesh(earG, mat); e.position.set(s * 0.25, 1.02, 0.1); e.rotation.z = -s * 0.25; e.castShadow = true; gp.add(e); const ey = new THREE.Mesh(eyeG, eyeM); ey.position.set(s * 0.2, 0.58, 0.55); gp.add(ey); }
-      const tail = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), mat); tail.position.set(0, 0.45, -0.62); gp.add(tail); gp.scale.setScalar(rr(0.8, 1.25)); world.add(gp);
-      pals.push({ g: gp, x, z, yaw: rnd() * 6, target: rnd() * 6, timer: rr(1, 4), moving: false, ph: rnd() * 6, happy: 0 });
-    }
-  }
+  // (the lawn creatures are gone — wild pets from wild-pets.js live on the campus instead)
   // spawn by the main gate (inside, or outside if dist < 0), facing into the campus
   const SP = campus.mirror ? mirrorSpawn(campus.spawn || {}) : campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
@@ -874,7 +863,7 @@ const coll = initCollection({ onCollect: (it) => { quests.event('collect', it); 
 const quests = initQuests({ onComplete: (q) => { growth.onQuestDone(q); wildPets.onQuestDone(q); }, toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
   metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
 const growth = initPetGrowth({ onLevelUp: (id, lv) => wildPets.onLevelUp(id, lv), scene, toast, started: () => started, worldReady: () => worldReady, metres: () => pets.metres(), activeIds: () => pets.activeIds(), owned: () => pets.owned(), rootOf: (id) => pets.rootOf(id), now: () => Date.now() });
-const wildPets = initWildPets({ scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets, growth });
+const wildPets = initWildPets({ onPat: () => quests.event('pat'), scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets, growth });
 // ── accounts (nickname + password) or guest ──
 const auth = initAuth();
 {

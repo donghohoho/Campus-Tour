@@ -8,7 +8,7 @@
 //   • saved apart from wallet and XP: localStorage 'fm:petBond' (guests) or users/{uid}.petBond (accounts, read-merge-write)
 import * as THREE from 'three';
 import { createPet } from './pets.js';
-import { SPECIES, SPAWNS, BOND, stageOf } from './wild-pets-data.js';
+import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf } from './wild-pets-data.js';
 
 const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 2.6, BAR_R = 7;
 const $ = (s) => document.querySelector(s);
@@ -49,19 +49,23 @@ export function initWildPets(G) {
   // G: { scene, toast, player, terrainH, walkable(x,z), solidAt(x,y,z), started(), worldReady(), touch,
   //      pets: { adopt, ownsType, owned, activeIds, rootOf, metres }, growth: { grant(id, n, src), selected() } }
   let S = localStore.load() || empty(), store = localStore, dirty = false, saveT = 0, saving = false;
-  let campusId = null, wild = [], stillT = 0, lastMetres = null, uiT = 0;
+  let campusId = null, wild = [], stillT = 0, lastMetres = null, uiT = 0, respawnT = 0;
+  const gone = new Map(); // spot key → time it gets a new animal (this session)
   const fx = [], walkAcc = new Map(), chips = new Map();
   const now = () => Date.now();
 
   // ── wild animals in the world ──
-  function spawnAll() {
-    clearWild(); if (!campusId || !G.worldReady()) return;
-    for (const sp of SPAWNS[campusId] || []) {
-      const def = SPECIES[sp.species]; if (!def || G.pets.ownsType(def.type)) continue; // already yours → this spot stays empty for you
-      const pet = createPet(def.type, `야생 ${def.name}`, G.terrainH, 0, 1); G.scene.add(pet.root);
-      const w = { sp: sp.species, def, home: sp.pos, roam: sp.roam || 6, x: sp.pos[0], z: sp.pos[1], tx: sp.pos[0], tz: sp.pos[1], timer: Math.random() * 3, yaw: 0, cd: 0, msg: '', msgT: 0, pet }; wild.push(w); drive(w, 0, Math.random() * 6.283, false); // placed at its spot right away (far ones aren't animated)
-    }
+  function spawnAll() { clearWild(); if (!campusId || !G.worldReady()) return; (SPAWNS[campusId] || []).forEach((_, i) => spawnOne(i)); }
+  function spawnOne(i) {
+    const sp = (SPAWNS[campusId] || [])[i], key = `${campusId}:${i}`; if (!sp || (gone.get(key) || 0) > now() || wild.some((w) => w.key === key)) return;
+    const pool = (sp.pool || [sp.species]).map((e) => (Array.isArray(e) ? e : [e, 1])).filter(([k, wt]) => SPECIES[k] && wt > 0); if (!pool.length) return;
+    let r = Math.random() * pool.reduce((a, [, wt]) => a + wt, 0), id = pool[0][0]; for (const [k, wt] of pool) { r -= wt; if (r <= 0) { id = k; break; } } // weighted: signature animals win at their spots
+    const def = SPECIES[id];
+    const pet = createPet(def.type, `야생 ${def.name}`, G.terrainH, 0, 1); G.scene.add(pet.root);
+    const w = { key, sp: id, def, home: sp.pos, roam: sp.roam || 6, x: sp.pos[0], z: sp.pos[1], tx: sp.pos[0], tz: sp.pos[1], timer: Math.random() * 3, yaw: 0, cd: 0, msg: '', msgT: 0, pet };
+    wild.push(w); drive(w, 0, Math.random() * 6.283, false); // placed at its spot right away (far ones aren't animated)
   }
+  const tameable = (w) => !G.pets.ownsType(w.def.type); // one per kind: once you have one, the rest are just friends to pet
   function clearWild() { for (const w of wild) w.pet.dispose(); wild = []; }
   function setCampus(id) { campusId = id; spawnAll(); }
   function clear() { clearWild(); campusId = null; showBar(null); }
@@ -85,7 +89,9 @@ export function initWildPets(G) {
   }
   function patWild(w) {
     if (!w || w.cd > 0) return false;
-    w.cd = w.def.cooldown; const r = tameRec(w.sp);
+    w.cd = w.def.cooldown; if (G.onPat) G.onPat(); // daily quest "쓰다듬기"
+    if (!tameable(w)) { burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); floatText('♥', '#ff5c8a', w.pet.root.position); w.msg = '좋아해요 ♥'; w.msgT = 1.6; return true; }
+    const r = tameRec(w.sp);
     if (Math.random() < w.def.success) { r.gauge = Math.min(100, r.gauge + w.def.gain); dirty = true; burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); floatText(`+${w.def.gain}`, '#ff5c8a', w.pet.root.position); w.msg = '기분 좋아해요 ♥'; }
     else { floatText('실패', '#8a96a8', w.pet.root.position); w.msg = '깜짝 놀라 물러났어요'; const p = G.player.pos, d = Math.hypot(w.x - p.x, w.z - p.z) || 1, nx = w.x + ((w.x - p.x) / d) * 1.5, nz = w.z + ((w.z - p.z) / d) * 1.5; if (G.walkable(nx, nz)) { w.x = nx; w.z = nz; } }
     w.msgT = 1.6;
@@ -97,7 +103,7 @@ export function initWildPets(G) {
     if (!id) { r.state = 'tamed'; dirty = true; G.toast(`${w.def.name}은(는) 이미 함께하는 친구예요`, 2.4); }
     else { r.state = 'tamed'; r.petId = id; r.t = now(); rec(id).bond = Math.max(rec(id).bond, BOND.tamedStart); dirty = true; saveT = 0; popTamed(w.def); }
     const pos = w.pet.root.position.clone(); burst(goldTex, pos, 22, 2.6, 0.32); burst(heartTex, pos, 8, 1.8, 0.4);
-    w.pet.dispose(); wild = wild.filter((x) => x !== w); showBar(null); persist();
+    w.pet.dispose(); wild = wild.filter((x) => x !== w); gone.set(w.key, now() + RESPAWN_SEC * 1000); showBar(null); persist(); // this spot gets a new animal later
   }
   function popTamed(def) {
     const el = $('#tamePop'); el.replaceChildren();
@@ -106,10 +112,11 @@ export function initWildPets(G) {
     el.append(ic, t, b, p); el.classList.remove('hidden', 'show'); void el.offsetWidth; el.classList.add('show'); clearTimeout(popTamed.t); popTamed.t = setTimeout(() => el.classList.remove('show'), 3600);
     G.toast(`🎉 ${def.name}을(를) 길들였어요!`, 3);
   }
-  const promptWild = (w) => (w.cd > 0 ? `<kbd>E</kbd> 쓰다듬기 · ${w.def.name} <small>(${w.cd.toFixed(1)}초)</small>` : `<kbd>E</kbd> 쓰다듬기 · 야생 ${w.def.name} 길들이기`);
+  const promptWild = (w) => (!tameable(w) ? `<kbd>E</kbd> 쓰다듬기 · ${w.def.name} 💕` : w.cd > 0 ? `<kbd>E</kbd> 쓰다듬기 · ${w.def.name} <small>(${w.cd.toFixed(1)}초)</small>` : `<kbd>E</kbd> 쓰다듬기 · 야생 ${w.def.name} 길들이기`);
   function showBar(w) {
     const el = $('#tameBar'); if (!w) { el.classList.add('hidden'); return; }
-    const r = tameRec(w.sp); el.classList.remove('hidden');
+    const r = tameRec(w.sp); el.classList.remove('hidden'); el.classList.toggle('friend', !tameable(w));
+    if (!tameable(w)) { $('#tameName').textContent = `🐾 ${w.def.name}`; $('#tamePct').textContent = ''; $('#tameStats').textContent = '이미 함께하는 종류예요 — 쓰다듬기만 할 수 있어요'; $('#tameMsg').textContent = w.msgT > 0 ? w.msg : ''; return; }
     const need = Math.ceil(100 / w.def.gain), done = Math.min(need, Math.round(r.gauge / w.def.gain));
     $('#tameName').textContent = `🐾 야생 ${w.def.name}`; $('#tamePct').textContent = `${Math.floor(r.gauge)} / 100`; $('#tameFill').style.width = `${r.gauge}%`;
     $('#tameStats').textContent = `쓰다듬기 성공 ${done} / ${need}번 · 1회 +${w.def.gain} · 성공률 ${Math.round(w.def.success * 100)}% · 쿨다운 ${w.def.cooldown}초`;
@@ -139,7 +146,7 @@ export function initWildPets(G) {
   function patOwn(id) {
     if (!id || patWait(id) > 0) return false;
     const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0, xp: 0 };
-    r.lastPat = now(); dirty = true;
+    r.lastPat = now(); dirty = true; if (G.onPat) G.onPat();
     const got = addBond(id, BOND.pat.bond, '쓰다듬기'), xp = Math.min(BOND.pat.xp, BOND.patXpDailyCap - r.day.xp);
     if (xp > 0) { r.day.xp += xp; G.growth.grant(id, xp, '쓰다듬기'); }
     const root = G.pets.rootOf(id); if (root) burst(heartTex, root.position, 5, 1.6, 0.35);
@@ -160,6 +167,7 @@ export function initWildPets(G) {
   // ── per frame ──
   function update(dt) {
     for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { G.scene.remove(f.s); if (f.float) f.s.material.map.dispose(); f.s.material.dispose(); fx.splice(i, 1); continue; } if (!f.float) f.vy -= 2.5 * dt; f.s.position.x += f.vx * dt; f.s.position.y += f.vy * dt; f.s.position.z += f.vz * dt; f.s.material.opacity = f.life / f.max; }
+    if ((respawnT -= dt) <= 0) { respawnT = 1; for (const [k, t] of gone) if (t <= now()) { gone.delete(k); const [c, i] = k.split(':'); if (c === campusId) spawnOne(+i); } }
     const p = G.player.pos; let barW = null, barD = BAR_R;
     for (const w of wild) {
       w.cd = Math.max(0, w.cd - dt); w.msgT -= dt;
@@ -217,6 +225,6 @@ export function initWildPets(G) {
 
   return {
     setCampus, clear, nearestWild, patWild, promptWild, nearOwn, patOwn, promptOwn, update, onPlace, onCollect, onQuestDone, onLevelUp, decorate, useAccount,
-    flush: () => { if (dirty && !saving) persist(); }, state: () => S, bondOf: (id) => ({ ...rec(id), stage: stageOf(rec(id).bond).name }), wild: () => wild,
+    flush: () => { if (dirty && !saving) persist(); }, state: () => S, respawnNow: () => { for (const k of gone.keys()) gone.set(k, 0); respawnT = 0; }, bondOf: (id) => ({ ...rec(id), stage: stageOf(rec(id).bond).name }), wild: () => wild,
   };
 }

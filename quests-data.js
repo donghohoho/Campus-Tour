@@ -40,8 +40,8 @@ export const TEMPLATES = [
   { id: 'collect-2', period: 'daily', type: 'collect', kind: 'collect', target: 2, reward: 70, name: '보물 사냥꾼', desc: '수집품 2개를 찾아 주우세요' },
   { id: 'collect-rare', period: 'daily', type: 'collect', kind: 'collect', minRarity: 'rare', target: 1, reward: 80, name: '귀한 발견', desc: '희귀 등급 이상 수집품 1개를 찾아 주우세요' },
   // ── 펫: petting the animals on the lawns (E), or walking with your own pets ──
-  { id: 'pat-5', period: 'daily', type: 'pet', kind: 'pat', target: 5, reward: 30, name: '동물 친구', desc: '캠퍼스의 동물을 5번 쓰다듬어 주세요 (E)' },
-  { id: 'pat-12', period: 'daily', type: 'pet', kind: 'pat', target: 12, reward: 50, name: '교감의 달인', desc: '캠퍼스의 동물을 12번 쓰다듬어 주세요 (E)' },
+  { id: 'pat-5', period: 'daily', type: 'pet', kind: 'pat', target: 5, reward: 30, name: '동물 친구', desc: '야생 펫이나 내 펫을 5번 쓰다듬어 주세요 (E)' },
+  { id: 'pat-12', period: 'daily', type: 'pet', kind: 'pat', target: 12, reward: 50, name: '교감의 달인', desc: '야생 펫이나 내 펫을 12번 쓰다듬어 주세요 (E)' },
   { id: 'petwalk-400', period: 'daily', type: 'pet', kind: 'petWalk', target: 400, reward: 40, name: '펫과 산책', desc: '펫을 데리고 400m 걸어 보세요' },
   // ── 플레이: time in the game (tab visible) ──
   { id: 'play-10', period: 'daily', type: 'play', kind: 'play', target: 600, reward: 30, name: '잠깐 들르기', desc: '10분 동안 플레이하세요' },

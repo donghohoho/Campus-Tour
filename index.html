@@ -300,6 +300,7 @@
       .tbHead { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; }
       .tbTrack { height: 9px; border-radius: 99px; background: rgba(40, 60, 45, 0.14); overflow: hidden; margin: 5px 0 3px; }
       #tameFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff9cb8, #ff5c8a); transition: width 0.35s; }
+      #tameBar.friend .tbTrack { display: none; }
       #tameMsg { font-size: 11.5px; color: #5a6b5e; display: block; }
       #tameStats { display: block; font-size: 11.5px; font-weight: 700; color: #b0284f; font-variant-numeric: tabular-nums; }
       body.touch #tameBar { bottom: calc(max(6px, env(safe-area-inset-bottom)) + 230px); }
@@ -361,7 +362,7 @@
     <div id="err" class="panel hidden"></div>
     <div id="start">
       <h1>캠퍼스 투어</h1>
-      <p>실제 지도로 만든 대학 캠퍼스를 밤에 돌아다녀 보세요. 6초마다 코인이 1개씩 쌓이고(많이 걸을수록 더 빨리!), 코인으로 펫을 데려올 수 있어요.</p>
+      <p>실제 지도로 만든 대학 캠퍼스를 밤에 돌아다녀 보세요. 6초마다 코인이 1개씩 쌓이고(많이 걸을수록 더 빨리!), 캠퍼스의 야생 펫을 길들여 함께 다닐 수 있어요.</p>
       <section id="campusStep" class="step" aria-labelledby="campusStepTitle">
         <h2 id="campusStepTitle"><span>1</span>캠퍼스 선택</h2>
         <div id="startCampusList" class="campusList"></div>
@@ -414,7 +415,7 @@
     <div id="emotePop" class="panel hidden"><button type="button" data-e="0">👋<small>1</small></button><button type="button" data-e="1">❤️<small>2</small></button><button type="button" data-e="2">😂<small>3</small></button><button type="button" data-e="3">🎉<small>4</small></button></div>
     <div id="petShop" class="panel hidden" role="dialog" aria-labelledby="petTitle">
       <div class="petHead"><h2 id="petTitle">🐾 펫</h2><span id="petCoins">🪙 0</span><button id="petClose" type="button" aria-label="닫기">✕</button></div>
-      <p class="petNote">6초마다 코인 1개 · 걸어 다니면 시간이 더 빨리 줄어요 (걷기 약 3배, 달리기 약 5배, 점프 중 7배) · 같은 펫 3마리면 1.5배, 6마리면 2배로 커져요</p>
+      <p class="petNote">펫은 캠퍼스의 야생 동물을 쓰다듬어 길들여 데려와요 (종류마다 한 마리) · 코인은 6초마다 1개, 걸으면 더 빨리 쌓여요</p>
       <h3>상점</h3><ul id="petList" class="petRows"></ul>
       <h3>내 펫</h3><ul id="petMine" class="petRows"></ul>
       <h3>성장</h3><div id="petGrowth" class="pgCard empty">펫을 누르면 성장 정보를 볼 수 있어요</div>

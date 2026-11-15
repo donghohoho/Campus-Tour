@@ -25,7 +25,7 @@ export const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary'];
 export const ITEMS = {
   'khu-global': [
     // ── first find: right in front of the spawn point (outside the main gate), so every new player learns that items exist ──
-    { id: 'khu-g-20', rarity: 'common', icon: '🗺️', name: '캠퍼스 투어 안내 책자', place: '정문 앞', pos: [-141.5, -480], desc: '"캠퍼스 곳곳에 수집품이 숨어 있어요!" 첫 장에 이렇게 적혀 있다. 도감(I)을 열어 보자.', hint: '시작 지점 바로 앞' },
+    { id: 'khu-g-20', rarity: 'common', icon: '🗺️', name: '캠퍼스 투어 안내 책자', place: '정문 앞', pos: [-143.4, -484.4], desc: '"캠퍼스 곳곳에 수집품이 숨어 있어요!" 첫 장에 이렇게 적혀 있다. 도감(I)을 열어 보자.', hint: '시작 지점 바로 앞' },
     // ── 일반: on the main walks, near the buildings everyone passes ──
     { id: 'khu-g-01', rarity: 'common', icon: '🎫', name: '신입생 웰컴 배지', place: '정문', pos: [-122, -428], desc: '정문을 처음 지나는 신입생에게 나눠 주던 배지. 아직 반짝인다.', hint: '캠퍼스에 들어서자마자 보이는 곳' },
     { id: 'khu-g-02', rarity: 'common', icon: '🍱', name: '학식 식권', place: '학생회관', pos: [-19, 106], desc: '오늘의 메뉴는 돈가스. 유효기간은… 지났다.', hint: '배고픈 학생들이 모이는 건물 앞' },
