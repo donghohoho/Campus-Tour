@@ -54,6 +54,7 @@ export const CAMPUSES = [
   {
     id: 'yonsei-sinchon', name: '연세대학교 신촌캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/yonsei-sinchon.json', terrain: 'mountain', lighting: 'night', seed: 20261115,
+    mirror: true, // shown flipped north↔south (reported as mirrored); coordinates below stay as in the map file
     outsideLabel: '캠퍼스 밖 · 신촌/창천동',
     spawn: { at: [-171, -852], look: [-150, -700], toward: '언더우드관 (501)' }, // 연세로 in front of the main gate, looking up 백양로 (gate = where 백양로 meets 연세로)
     landmarks: [

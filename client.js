@@ -103,7 +103,7 @@ function freeSpot(cx, cz, rad, ok = (c) => c < 4) { for (let t = 0; t < 400; t++
 
 function buildWorld(data) {
   seed = campus.seed || 20261111;
-  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = campus.play || {}, LMK = campus.landmarks || [];
+  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = campus.mirror ? mirrorPlay(campus.play || {}) : campus.play || {}, LMK = campus.mirror ? mirrorLandmarks(campus.landmarks || []) : campus.landmarks || [];
   const lmSet = (k) => new Set(LMK.filter((l) => l.kind === k).map((l) => l.name)), gateSet = lmSet('gate'), amphSet = lmSet('amphitheatre'), domeSet = lmSet('dome'), stadiumSet = lmSet('stadium');
   const look = new Map(LMK.filter((l) => l.wall || l.roof || l.model).map((l) => [l.name, l]));
   D = data; GN = D.grid.n; GSTEP = D.grid.step; GHALF = D.grid.half; GH = Float32Array.from(D.grid.h); HALF = D.half;
@@ -331,7 +331,7 @@ function buildWorld(data) {
     }
   }
   // spawn by the main gate (inside, or outside if dist < 0), facing into the campus
-  const SP = campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
+  const SP = campus.mirror ? mirrorSpawn(campus.spawn || {}) : campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
   let sx, sz, syaw;
   if (SP.at) { [sx, sz] = SP.at; const lk = SP.look ? { x: SP.look[0], z: SP.look[1] } : lib; syaw = Math.atan2(lk.x - sx, lk.z - sz); } // fixed spot (e.g. the street outside a gate the map has no building for)
@@ -378,6 +378,21 @@ function floodlight(root, lm, mat) {
     else if (mat) { o.material = mat; mat.emissive = new THREE.Color(mat.color).multiplyScalar(0.62 * k / 0.55); }
   });
 }
+// campus.mirror: show that campus flipped north↔south (z → −z). Applied to its map file and to every coordinate in its campuses.js entry.
+function mirrorData(d) {
+  const f = (p) => [p[0], -p[1]], fl = (a) => a.map(f);
+  for (const b of d.buildings) b.p = fl(b.p); for (const r of d.roads) r.p = fl(r.p); for (const a of d.areas) a.p = fl(a.p);
+  d.campus = d.campus.map(fl); d.trees = fl(d.trees || []);
+  const n = d.grid.n, h = d.grid.h, out = new Array(h.length); for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j * n + i] = h[(n - 1 - j) * n + i]; d.grid.h = out;
+  return d;
+}
+function mirrorPlay(pl) {
+  const q = { ...pl }, area = (a) => a && [a[0], a[1], -a[3], -a[2]];
+  if (q.gemArea) q.gemArea = area(q.gemArea); if (q.palArea) q.palArea = area(q.palArea); if (q.palHome) q.palHome = [q.palHome[0], -q.palHome[1]];
+  if (q.treeClear) q.treeClear = q.treeClear.map((t) => [t[0], -t[1], t[2]]); return q;
+}
+function mirrorSpawn(sp) { const q = { ...sp }; if (q.at) q.at = [q.at[0], -q.at[1]]; if (q.look) q.look = [q.look[0], -q.look[1]]; return q; }
+function mirrorLandmarks(list) { return list.map((l) => ({ ...l, pos: l.pos && [l.pos[0], -l.pos[1]], yaw: l.yaw != null ? -l.yaw : l.yaw })); }
 function placeBuildingModel(lm, p, baseY, mapH) {
   let best = null;
   for (let deg = 0; deg < 180; deg += 0.5) {
@@ -538,7 +553,7 @@ async function loadCampus(c) {
   const tok = ++loadToken; unloadWorld(); refreshStart(); campus = c;
   applyLighting(LIGHTING[c.lighting] || LIGHTING.night);
   const r = await fetch(c.data); if (!r.ok) throw new Error('캠퍼스 지도를 불러오지 못했습니다 (' + r.status + ')');
-  const data = await r.json(); if (tok !== loadToken) return false;
+  const data = c.mirror ? mirrorData(await r.json()) : await r.json(); if (tok !== loadToken) return false;
   await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0))); if (tok !== loadToken) return false; // let the loading screen paint
   buildWorld(data); worldReady = true;
   $('#campusName').textContent = c.name; $('#loc').textContent = '📍 ' + c.name;
