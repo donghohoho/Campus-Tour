@@ -189,5 +189,7 @@ export function initPets(G) {
     if (remote) W = remote; else { dirty = true; flush(); } // new account: starts with the guest progress of this browser
     giveStarter(); spawnActive(); hud(); if (open) render();
   }
-  return { steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  // quest rewards (quests.js): add coins through this wallet and hand back what to store with the claim
+  function addCoins(n) { W.coins += Math.max(0, n | 0); save(); hud(); if (open) render(); return JSON.parse(JSON.stringify(W)); }
+  return { addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

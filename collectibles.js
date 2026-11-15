@@ -97,6 +97,7 @@ export function initCollection(G) {
     S.got[l.it.id] = { t: Date.now(), c: campusId }; persist();
     l.take = 0.001; for (const o of l.g.children) if (o !== l.gem) o.visible = false; // ground ring + beam go at once, the gem flies up
     burst(l); pop(l.it); hud(); if (open) render();
+    if (G.onCollect) G.onCollect(l.it); // quests.js listens
     return true;
   }
 
@@ -196,5 +197,7 @@ export function initCollection(G) {
     refresh();
   }
 
-  return { setCampus, clear, nearest, collect, update, useAccount, has, open: () => open, show, live: () => live, state: () => S, rarityOf: (l) => RARITY[l.it.rarity] };
+  // items still to find anywhere (optionally only of minRarity or rarer) — quests.js won't hand out a collect quest that can't be done
+  const remaining = (minRarity) => { const k = RARITY_ORDER.indexOf(minRarity || 'common'); return Object.values(ITEMS).flat().filter((it) => !has(it.id) && RARITY_ORDER.indexOf(it.rarity) >= k).length; };
+  return { remaining, setCampus, clear, nearest, collect, update, useAccount, has, open: () => open, show, live: () => live, state: () => S, rarityOf: (l) => RARITY[l.it.rarity] };
 }

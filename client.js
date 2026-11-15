@@ -9,6 +9,7 @@ import { initPets, setPetCamera } from './pets.js';
 import { initAuth } from './auth.js';
 import { initMusic } from './music.js';
 import { initCollection } from './collectibles.js';
+import { initQuests } from './quests.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const MODEL_YAW = 0, PR = 0.38;
@@ -663,7 +664,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || (coll && coll.open()) || tpOpen || bigOpen || rankOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || (coll && coll.open()) || (quests && quests.open()) || tpOpen || bigOpen || rankOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -795,6 +796,7 @@ window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputEle
 function updateHud() {
   const p = player.pos; let best = null, bd = 1e9; for (const pl of places) { const d = Math.hypot(pl.x - p.x, pl.z - p.z); if (d < pl.r && d < bd) { bd = d; best = pl; } }
   if (!campusPoly) campusPoly = D.campus;
+  quests.onPlace(campus.id, best && best.n); // explore quests: which named place we're standing in
   $('#loc').textContent = best ? `📍 ${best.n}` : campusPoly.some((r) => pip(p.x, p.z, r)) ? '📍 ' + campus.name : '📍 ' + (campus.outsideLabel || '캠퍼스 밖');
   if (bigOpen && (bigT = (bigT || 0) + 1) % 3 === 0) drawBigMap();
   const W = mini.width, R = 170, k = GS / (GHALF * 2), sx = (p.x - R + GHALF) * k, sz = (p.z - R + GHALF) * k;
@@ -821,7 +823,7 @@ function updateWorld(dt, t) {
   const pr = $('#prompt'), item = started ? coll.nearest(p.pos) : null; // a collectible in reach wins over petting
   $('#tAct').classList.toggle('hidden', !((item || nearPal) && started)); $('#tAct').textContent = item ? '줍기' : '쓰다듬기';
   if (item) { const R = coll.rarityOf(item); pr.innerHTML = `<kbd>E</kbd> 줍기 · <b style="color:${R.css}">${R.name}</b> 수집품`; pr.classList.add('show'); if (ePressed) coll.collect(item); }
-  else if (nearPal && started) { pr.innerHTML = '<kbd>E</kbd> 쓰다듬기'; pr.classList.add('show'); if (ePressed && nearPal.happy <= 0) { nearPal.happy = 1.6; for (let i = 0; i < 5; i++) spawnFx(heartTex, nearPal.x + rr(-0.4, 0.4), nearPal.g.position.y + 1.2, nearPal.z + rr(-0.4, 0.4), rr(-0.3, 0.3), rr(1.2, 2.2), rr(-0.3, 0.3), 1.1, 0.45, 0.3); } } else pr.classList.remove('show');
+  else if (nearPal && started) { pr.innerHTML = '<kbd>E</kbd> 쓰다듬기'; pr.classList.add('show'); if (ePressed && nearPal.happy <= 0) { nearPal.happy = 1.6; quests.event('pat'); for (let i = 0; i < 5; i++) spawnFx(heartTex, nearPal.x + rr(-0.4, 0.4), nearPal.g.position.y + 1.2, nearPal.z + rr(-0.4, 0.4), rr(-0.3, 0.3), rr(1.2, 2.2), rr(-0.3, 0.3), 1.1, 0.45, 0.3); } } else pr.classList.remove('show');
   ePressed = false;
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { scene.remove(f.sp); f.sp.material.dispose(); fx.splice(i, 1); continue; } f.sp.position.x += f.vx * dt; f.sp.position.y += f.vy * dt; f.sp.position.z += f.vz * dt; const k = f.life / f.max; f.sp.material.opacity = k; f.sp.scale.setScalar(Math.max(0.01, f.size + (1 - k) * f.grow)); }
   coll.update(dt, t);
@@ -843,7 +845,9 @@ function updateWorld(dt, t) {
 setPetCamera(camera);
 const pets = initPets({ scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const mp = initMultiplayer({ teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const coll = initCollection({ scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const coll = initCollection({ onCollect: (it) => quests.event('collect', it), scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const quests = initQuests({ toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
+  metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
 // ── accounts (nickname + password) or guest ──
 const auth = initAuth();
 {
@@ -858,7 +862,7 @@ const auth = initAuth();
   let lastAcct;
   auth.onChange(async (raw) => {
     const u = raw && !raw.anon ? raw : null; mp.setIdentity(u, raw && raw.uid); if (u === lastAcct || (u && lastAcct && u.uid === lastAcct.uid)) return; lastAcct = u;
-    show(u); await pets.useAccount(u ? auth : null); await coll.useAccount(u ? auth : null);
+    show(u); await pets.useAccount(u ? auth : null); await coll.useAccount(u ? auth : null); await quests.useAccount(u ? auth : null);
     if (u) { // admin follows the account: use the key saved on it, or save this browser's key onto it
       const saved = await auth.loadAdmin().catch(() => null), local = await mp.adminKey();
       if (saved) { if (await mp.useAdminKey(saved)) toast('🛡️ 관리자 계정으로 로그인했어요', 2.2); } else if (local) auth.saveAdmin(local).then(() => toast('🛡️ 이 계정을 관리자로 등록했어요 — 다른 기기에서도 로그인만 하면 관리자예요', 3)).catch(() => {});
@@ -873,7 +877,7 @@ const auth = initAuth();
   lb.addEventListener('click', go);
   pw.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
   gb.addEventListener('click', () => { const sb = $('#startBtn'); if (sb.disabled) { msg.textContent = '캐릭터를 불러오는 중이에요… 잠시 뒤에 다시 눌러 주세요'; return; } sb.click(); }); // play right away as a guest
-  ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
+  ob.addEventListener('click', async () => { pets.flush(); quests.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
 }
 // ── pedometer leaderboard (L / 🏆): accounts only; total steps ──
 let rankOpen = false;
@@ -900,7 +904,7 @@ function frame(now) {
   const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; time += dt;
   if (started && rawDt < 0.5) { slowAcc += rawDt; if (++slowN >= 90) { if (slowAcc / slowN > 0.036 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight, false); } slowAcc = 0; slowN = 0; } }
   if (worldReady) updateNpcs(dt);
-  if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
+  if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { coll, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { coll, quests, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
