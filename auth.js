@@ -77,6 +77,9 @@ export function initAuth() {
       if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }, { merge: true });
       await fb.setDoc(fb.doc(db, 'ranking', user.uid), { nick: user.nick, steps: Math.floor(w.steps || 0), updated: Date.now() }).catch(() => {}); // pedometer leaderboard (accounts only)
     },
+    // collection book (collectibles.js): same users/{uid} document as the wallet, field "collection" — covered by the users rule above
+    async loadCollection() { if (!user || !db || user.anon) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().collection || null : null; },
+    async saveCollection(c) { if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { collection: JSON.parse(JSON.stringify(c)), updated: Date.now() }, { merge: true }); },
     async loadRanking(n = 50) {
       await ready; if (!fb) return null; const snap = await fb.getDocs(fb.query(fb.collection(db, 'ranking'), fb.orderBy('steps', 'desc'), fb.limit(n))), out = [];
       snap.forEach((d) => { const v = d.data(); out.push({ uid: d.id, nick: v.nick, steps: v.steps | 0 }); }); return out;
