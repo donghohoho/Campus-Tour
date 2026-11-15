@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <title>캠퍼스 투어</title>
     <link rel="icon" href="assets/char1.jpg" />
     <meta property="og:title" content="캠퍼스 투어" />
@@ -184,6 +184,8 @@
       #bigMapClose { border: 0; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
       #bigMapCanvas { width: min(92vw, 86vh, 900px); height: min(92vw, 86vh, 900px); border-radius: 10px; cursor: crosshair; display: block; }
       body.touch #bigMapCanvas { width: min(94vw, 78vh); height: min(94vw, 78vh); }
+      /* phones zoom the page into any text box smaller than 16px — keep them at 16px on touch screens */
+      body.touch input[type="text"], body.touch #chatInput, body.touch #tpSearch, body.touch #nick, body.touch .petRows input { font-size: 16px; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -300,6 +302,16 @@
         set(saved === '1');
         btn.addEventListener('click', () => set(!box.classList.contains('collapsed')));
         addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !e.repeat && !(e.target instanceof HTMLInputElement) && document.getElementById('start').classList.contains('hidden')) set(!box.classList.contains('collapsed')); });
+      })();
+    </script>
+    <script>
+      // if the page still got zoomed (typing, a tap), snap back to 100% when the keyboard closes or the view changes
+      (() => {
+        const vp = document.querySelector('meta[name="viewport"]'), base = vp.getAttribute('content');
+        const reset = () => { if (!window.visualViewport || window.visualViewport.scale <= 1.01) return; vp.setAttribute('content', base + ', minimum-scale=1'); setTimeout(() => vp.setAttribute('content', base), 300); window.scrollTo(0, 0); };
+        document.addEventListener('focusout', () => setTimeout(reset, 120));
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(() => { if (!document.activeElement || document.activeElement === document.body) reset(); }, 200));
+        document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS pinch on the page itself
       })();
     </script>
     <script type="module" src="./client.js"></script>
