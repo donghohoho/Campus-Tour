@@ -346,7 +346,7 @@ export function initMultiplayer(G) {
       const k = await crypto.subtle.importKey('jwk', { ...ADMIN_PUB, d: dkey, ext: true }, ECDSA, false, ['sign']);
       // prove it matches the public key before showing admin tools
       const probe = enc({ probe: 1 }), key = await adminPub; if (!key || !(await crypto.subtle.verify(SIG, key, await crypto.subtle.sign(SIG, k, probe), probe))) return false;
-      adminKey = k; adminD = dkey; $('#mpWipe').classList.remove('hidden'); refreshCount(); return true;
+      adminKey = k; adminD = dkey; refreshCount(); return true;
     } catch (_) { return false; }
   }
   let adminD = null;
@@ -354,7 +354,6 @@ export function initMultiplayer(G) {
     const q = new URLSearchParams(location.search), fromUrl = q.get('admin'); if (fromUrl) { store.set('fm:admin', fromUrl); q.delete('admin'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
     await useAdminKey(store.get('fm:admin', null));
   })();
-  $('#mpWipe').addEventListener('click', () => { if (!adminKey || !signs.size) return G.toast('지울 표지판이 없어요', 1.4); if (window.confirm(`이 캠퍼스의 표지판 ${signs.size}개를 모두 지울까요?`)) adminRemove([...signs.keys()]); });
 
   // ── room ──
   function wire(n) {
