@@ -91,6 +91,10 @@ const trunkGeo = new THREE.CylinderGeometry(0.09, 0.12, 0.45, 8), coneGeos = [[0
 const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a4a2a }), leafMat = new THREE.MeshLambertMaterial({ color: 0x2f7a46, emissive: 0x0f2a18 });
 const starMat = new THREE.MeshLambertMaterial({ color: 0xffd34d, emissive: 0xffc21a, emissiveIntensity: 0.9 }), starGeo = new THREE.OctahedronGeometry(0.13, 0);
 const ballGeo = new THREE.SphereGeometry(0.06, 8, 6), ballMats = [0xff5a5a, 0xffd34d, 0x6ab8ff, 0xffffff].map((c) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.55 }));
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,240,170,1)'); gr.addColorStop(0.18, 'rgba(255,214,90,0.75)'); gr.addColorStop(0.5, 'rgba(255,190,60,0.22)'); gr.addColorStop(1, 'rgba(255,180,40,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const glowMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }); // halo around the tree-top star, like the street lamps
 const tagGeo = new THREE.PlaneGeometry(0.96, 0.6), stringMat = new THREE.LineBasicMaterial({ color: 0xf6e7c8 });
 function signFace(text, name) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 320; const g = c.getContext('2d');
@@ -297,6 +301,7 @@ export function initMultiplayer(G) {
     const trunk = new THREE.Mesh(trunkGeo, trunkMat); trunk.position.y = 0.22; trunk.castShadow = true; g.add(trunk);
     let y = 0.45; coneGeos.forEach((geo, k) => { const c = new THREE.Mesh(geo, leafMat); c.position.y = y + geo.parameters.height / 2 - k * 0.12; c.castShadow = true; g.add(c); y += geo.parameters.height - 0.32; });
     const star = new THREE.Mesh(starGeo, starMat); star.position.y = y + 0.42; g.add(star);
+    const halo = new THREE.Sprite(glowMat); halo.position.y = y + 0.42; halo.scale.set(2.3, 2.3, 1); halo.renderOrder = 5; g.add(halo); g.userData.halo = halo;
     const h = (s.id.charCodeAt(0) + s.id.charCodeAt(1)) | 0; // ornaments, same pattern for everyone
     for (let k = 0; k < 7; k++) { const a = k * 2.4 + h, yy = 0.7 + (k % 4) * 0.33, r = 0.62 - (yy - 0.6) * 0.42; const b = new THREE.Mesh(ballGeo, ballMats[(k + h) % 4]); b.position.set(Math.cos(a) * r, yy, Math.sin(a) * r); g.add(b); }
     // the name tag hangs from a lower branch on a short string, readable from both sides
@@ -408,6 +413,7 @@ export function initMultiplayer(G) {
       if (av.plate) av.plate.visible = av.dist < 60;
       if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); if (window.__runBlend) window.__runBlend(av, av.cur.sp, dt); else { av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; } av.mixer.update(dt); }
     });
+    for (const g of signGroup.children) { const h = g.userData.halo; if (h) { const k = 2.3 + Math.sin(now * 2.2 + g.position.x) * 0.25; h.scale.set(k, k, 1); } } // stars twinkle
     if (listOpen && (listT -= dt) <= 0) { listT = 0.5; renderList(); }
     // own-sign delete button
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
