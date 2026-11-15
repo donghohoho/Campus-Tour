@@ -88,7 +88,7 @@
       body.touch #counter { right: 12px; top: 12px; padding: 6px 10px; font-size: 13px; }
       body.touch #campusBadge { left: 12px; top: 12px; font-size: 13px; max-width: calc(100vw - 150px); }
       body.touch #campusBtn kbd { display: none; }
-      body.touch #loc { top: auto; bottom: 170px; font-size: 12.5px; padding: 6px 10px; }
+      body.touch #loc { top: auto; bottom: 232px; font-size: 12.5px; padding: 6px 10px; }
       body.touch #toast { font-size: 14px; white-space: normal; max-width: calc(100vw - 32px); text-align: center; }
       body.touch .campusBtn { min-height: 48px; }
       @media (max-height: 460px) { body.touch #loc { bottom: auto; top: 12px; } body.touch #mini { width: 80px; height: 80px; top: 52px; } #stick { width: 116px; height: 116px; } #tJump { width: 72px; height: 72px; } .tbtn { width: 56px; height: 56px; } #touchBtns { gap: 8px; } }
@@ -117,12 +117,18 @@
       #chatInput { flex: 1; min-width: 0; font: 500 15px/1 inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid #c9d1c6; user-select: text; -webkit-user-select: text; }
       #chatSend { font: 700 14px/1 inherit; padding: 0 14px; border-radius: 8px; border: 0; background: #ffd98a; color: #1b2030; cursor: pointer; }
       body:not(.touch) #controls { max-height: calc(100vh - 250px); overflow-y: auto; }
-      body.touch #mpBar { left: 12px; bottom: auto; top: 56px; padding: 4px 6px; }
+      /* phones: function buttons as one bar along the bottom edge; stick and action buttons sit just above it */
+      body.touch #mpBar { left: 50%; transform: translateX(-50%); bottom: max(6px, env(safe-area-inset-bottom)); top: auto; padding: 4px 6px; max-width: calc(100vw - 12px); overflow-x: auto; scrollbar-width: none; gap: 4px; }
+      body.touch #mpBar::-webkit-scrollbar { display: none; }
+      @media (max-width: 560px) { body.touch #counter { top: 60px; } body.touch #mini { top: 112px; } body.touch #campusBadge { max-width: calc(100vw - 24px); } } /* narrow portrait: coins row under the campus name */
+      body.touch #mpBar .mpBtn { padding: 8px 10px; font-size: 16px; flex: none; }
+      body.touch #stick { bottom: calc(max(6px, env(safe-area-inset-bottom)) + 62px); }
+      body.touch #touchBtns { bottom: calc(max(6px, env(safe-area-inset-bottom)) + 60px); }
       body.touch .mpBtn kbd, body.touch .mpLabel { display: none; }
-      body.touch #emotePop { left: 12px; bottom: auto; top: 102px; }
-      body.touch #chatLog { left: 12px; bottom: auto; top: 102px; max-height: 120px; width: min(300px, calc(100vw - 150px)); align-content: start; }
-      body.touch #chatLog.open { top: 150px; bottom: auto; }
-      body.touch #chatForm { left: 12px; bottom: auto; top: 102px; width: calc(100vw - 24px); }
+      body.touch #emotePop { left: 50%; transform: translateX(-50%); top: auto; bottom: calc(max(6px, env(safe-area-inset-bottom)) + 58px); }
+      body.touch #chatLog { left: 12px; bottom: auto; top: 56px; max-height: 120px; width: min(300px, calc(100vw - 150px)); align-content: start; }
+      body.touch #chatLog.open { top: 104px; bottom: auto; }
+      body.touch #chatForm { left: 12px; bottom: auto; top: 56px; width: calc(100vw - 24px); }
       #playerList { left: 50%; top: 18%; transform: translateX(-50%); z-index: 9; width: min(420px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto; }
       #playerList h2 { margin: 0 0 8px; font-size: 15px; }
       #playerList table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
