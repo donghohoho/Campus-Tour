@@ -8,6 +8,7 @@ import { initMultiplayer } from './multiplayer.js';
 import { initPets } from './pets.js';
 import { initAuth } from './auth.js';
 import { initMusic } from './music.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -338,7 +339,7 @@ function buildWorld(data) {
   let sx, sz, syaw;
   if (SP.at) { [sx, sz] = SP.at; const lk = SP.look ? { x: SP.look[0], z: SP.look[1] } : lib; syaw = Math.atan2(lk.x - sx, lk.z - sz); } // fixed spot (e.g. the street outside a gate the map has no building for)
   else { const d = Math.hypot(lib.x - gate.x, lib.z - gate.z) || 1, SD = SP.dist || 16; [sx, sz] = freeSpot(gate.x + ((lib.x - gate.x) / d) * SD, gate.z + ((lib.z - gate.z) / d) * SD, 5); syaw = Math.atan2(lib.x - gate.x, lib.z - gate.z); }
-  spawnPoint = { x: sx, z: sz, yaw: syaw };
+  spawnPoint = { x: sx, z: sz, yaw: syaw }; npcPlan = { from: [sx, sz], to: [lib.x, lib.z] }; clearNpcs();
   player.pos.set(sx, terrainH(sx, sz), sz); player.yaw = syaw; camYaw = player.yaw + Math.PI; camTarget.set(sx, player.pos.y + 1.25, sz); player.vel.set(0, 0, 0); camDistCur = camDist;
   setCount();
 }
@@ -359,6 +360,54 @@ const dustTex = canvasTex((g, s) => { const gr = g.createRadialGradient(s / 2, s
 const KEEP_TEX = new Set([glowTex, heartTex, dustTex]); // shared across campuses — never disposed
 function disposeMaterial(mat) { for (const k of ['map', 'emissiveMap']) { const t = mat[k]; if (t && !KEEP_TEX.has(t)) t.dispose(); } mat.dispose(); }
 // Free everything the current campus allocated (GPU buffers, textures, collision grids) before another one is built.
+// ── strolling NPCs: a few random characters walk the road from the main gate into the campus and back ──
+const npcGroup = new THREE.Group(); scene.add(npcGroup);
+let npcs = [], npcPlan = null, npcRoute = null;
+function clearNpcs() { for (const n of npcs) npcGroup.remove(n.root); npcs = []; npcRoute = null; }
+// shortest path over the map's roads and footpaths (their polylines share points at junctions)
+function roadRoute(from, to) {
+  const key = (p) => p[0].toFixed(1) + ',' + p[1].toFixed(1), pts = new Map(), adj = new Map();
+  const node = (p) => { const k = key(p); if (!pts.has(k)) { pts.set(k, p); adj.set(k, []); } return k; };
+  for (const r of D.roads) for (let i = 0; i + 1 < r.p.length; i++) { const a = node(r.p[i]), b = node(r.p[i + 1]), w = Math.hypot(r.p[i][0] - r.p[i + 1][0], r.p[i][1] - r.p[i + 1][1]); adj.get(a).push([b, w]); adj.get(b).push([a, w]); }
+  const nearest = (p) => { let best = null, bd = 1e9; for (const [k, q] of pts) { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = k; } } return best; };
+  const s0 = nearest(from), t0 = nearest(to); if (!s0 || !t0) return null;
+  const dist = new Map([[s0, 0]]), prev = new Map(), done = new Set(), heap = [[0, s0]];
+  const push = (e) => { heap.push(e); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const open = { push }; while (heap.length) { const [d, k] = pop(); if (done.has(k)) continue; done.add(k); if (k === t0) break;
+    for (const [n, w] of adj.get(k)) { const nd = d + w; if (nd < (dist.get(n) ?? 1e12)) { dist.set(n, nd); prev.set(n, k); open.push([nd, n]); } } }
+  if (!prev.has(t0) && s0 !== t0) return null;
+  const path = [pts.get(t0)]; let k = t0; while (prev.has(k)) { k = prev.get(k); path.push(pts.get(k)); } path.reverse();
+  return [from, ...path, to];
+}
+function routeAt(route, d) { // point + heading at distance d along the route
+  for (let i = 0; i + 1 < route.pts.length; i++) { const L = route.len[i]; if (d <= L || i + 2 === route.pts.length) { const a = route.pts[i], b = route.pts[i + 1], t = L ? Math.min(1, Math.max(0, d / L)) : 0; return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, Math.atan2(b[0] - a[0], b[1] - a[1])]; } d -= L; }
+  const p = route.pts[route.pts.length - 1]; return [p[0], p[1], 0];
+}
+function setupNpcs() {
+  if (!npcPlan || npcs.length || !charSrc.some(Boolean)) return;
+  const pts = roadRoute(npcPlan.from, npcPlan.to) || [npcPlan.from, npcPlan.to], len = []; let total = 0;
+  for (let i = 0; i + 1 < pts.length; i++) { const L = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]); len.push(L); total += L; }
+  npcRoute = { pts, len, total }; const avail = charSrc.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), count = LOW ? 2 : 3 + Math.floor(Math.random() * 2);
+  for (let k = 0; k < count; k++) {
+    const ci = avail[Math.floor(Math.random() * avail.length)], src = charSrc[ci], m = cloneSkinned(src.model); m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
+    const root = new THREE.Group(), body = new THREE.Group(); body.add(m); root.add(body); npcGroup.add(root);
+    let mixer = null; if (src.clip) { mixer = new THREE.AnimationMixer(m); const a = mixer.clipAction(src.clip); a.play(); a.timeScale = 0.75; }
+    npcs.push({ root, body, mixer, d: Math.random() * total, dir: Math.random() < 0.5 ? 1 : -1, speed: 1.0 + Math.random() * 0.5, side: (Math.random() * 2 - 1) * 1.8, wait: 0, yaw: 0 });
+  }
+}
+function updateNpcs(dt) {
+  if (!npcs.length) { setupNpcs(); return; }
+  const R = npcRoute;
+  for (const n of npcs) {
+    if (n.wait > 0) { n.wait -= dt; if (n.wait <= 0) n.dir *= -1; } else { n.d += n.dir * n.speed * dt; if (n.d <= 0 || n.d >= R.total) { n.d = Math.max(0, Math.min(R.total, n.d)); n.wait = 3 + Math.random() * 6; } }
+    const [x, z, h] = routeAt(R, n.d), hd = n.dir > 0 ? h : h + Math.PI, px = x + Math.cos(h) * n.side, pz = z - Math.sin(h) * n.side; // keep to one side of the path
+    n.root.position.set(px, groundAt(px, pz, 1e4), pz);
+    let a = (hd - n.yaw) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; n.yaw += a * (1 - Math.exp(-5 * dt)); n.body.rotation.y = n.yaw;
+    const far = n.root.position.distanceTo(camera.position) > 160; n.root.visible = !far;
+    if (n.mixer && !far) { n.mixer.timeScale = n.wait > 0 ? 0 : 1; n.mixer.update(dt); }
+  }
+}
 function unloadWorld() {
   worldReady = false;
   world.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(disposeMaterial); if (o.isInstancedMesh) o.dispose(); });
@@ -818,7 +867,8 @@ function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses
   const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; time += dt;
   if (started && rawDt < 0.5) { slowAcc += rawDt; if (++slowN >= 90) { if (slowAcc / slowN > 0.036 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight, false); } slowAcc = 0; slowN = 0; } }
+  if (worldReady) updateNpcs(dt);
   if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { npcCount: () => npcs.length, mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
