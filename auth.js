@@ -6,7 +6,14 @@
 //
 // The nickname is the login id: it is turned into a hidden e-mail address (Firebase needs one), so each nickname can only
 // be registered once. Passwords never touch this code's storage — Firebase handles them.
-export const FIREBASE_CONFIG = null; // { apiKey: '…', authDomain: '…', projectId: '…', appId: '…' }
+export const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDQsJ85w0tiwD8nbEK7GN6v0zkOGpZ6GCk',
+  authDomain: 'campustour-aa079.firebaseapp.com',
+  projectId: 'campustour-aa079',
+  storageBucket: 'campustour-aa079.firebasestorage.app',
+  messagingSenderId: '180845335435',
+  appId: '1:180845335435:web:dd3413e8d145ba0495558e',
+};
 
 const NICK_RE = /^[\p{L}\p{N}_ .-]{2,12}$/u;
 const nickToEmail = (nick) => 'u' + [...new TextEncoder().encode(nick.normalize('NFC').toLowerCase())].map((b) => b.toString(16).padStart(2, '0')).join('') + '@campus-tour.app';
