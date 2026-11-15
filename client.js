@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CAMPUSES, REGIONS, LIGHTING } from './campuses.js';
 import { initMultiplayer } from './multiplayer.js';
-import { initPets } from './pets.js';
+import { initPets, setPetCamera } from './pets.js';
 import { initAuth } from './auth.js';
 import { initMusic } from './music.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -836,6 +836,7 @@ function updateWorld(dt, t) {
     lampLights.forEach((L, i) => { const c = cand[i]; if (!c) { L.intensity = 0; return; } L.position.set(c[1][0], c[1][1], c[1][2]); const f = Math.max(0, 1 - c[0] / 70); L.intensity = 70 * f * f * (3 - 2 * f); });
   }
 }
+setPetCamera(camera);
 const pets = initPets({ scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const mp = initMultiplayer({ teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 // ── accounts (nickname + password) or guest ──

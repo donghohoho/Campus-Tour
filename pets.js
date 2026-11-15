@@ -46,6 +46,8 @@ function placeholder(def) {
 }
 // A pet object that walks after a target: { root, update(dt, x, y, z, yaw, moving), setName(n), dispose() }
 // owning 3 of the same pet makes that kind bigger: ×1.5 at 3, ×2 at 6 (the most)
+// name tags fade out when the camera is close (your own pets walk between you and the camera)
+let camRef = null; export const setPetCamera = (c) => { camRef = c; };
 export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
 export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
@@ -65,7 +67,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     x.fillStyle = 'rgba(60,40,70,0.6)'; x.beginPath(); x.roundRect(0, 0, w, 36, 12); x.fill(); x.fillStyle = '#fff4fb'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐾 ' + n, w / 2, 19);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     plate = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: false })); plate.renderOrder = 19; plate.center.set(0.5, 0);
-    plate.scale.set(w * 0.0075, 36 * 0.0075, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
+    plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
   }
   setName(name);
   let placed = false, hopT = 0; const pos = new THREE.Vector3();
@@ -80,6 +82,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const want = d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
     if (!action) model.scale.y = 1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03);
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
+    if (plate && camRef) { const cd = camRef.position.distanceTo(root.position), o = Math.max(0, Math.min(1, (cd - 3.5) / 3)); plate.visible = o > 0.02; plate.material.opacity = o; }
   }
   function dispose() { setName(''); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
