@@ -101,7 +101,7 @@ export function initQuests(G) {
     for (const q of active()) {
       if (q.kind !== kind || q.done || (match && !match(q))) continue;
       q.progress = Math.min(q.target, q.progress + amount); dirty = true; uiDirty = true;
-      if (q.progress >= q.target) { q.done = true; saveT = 0; G.toast(`✅ 퀘스트 완료: ${q.name} — 📜 퀘스트(Q)에서 보상을 받으세요`, 3.2); hud(); }
+      if (q.progress >= q.target) { q.done = true; saveT = 0; if (G.onComplete) G.onComplete(q); G.toast(`✅ 퀘스트 완료: ${q.name} — 📜 퀘스트(Q)에서 보상을 받으세요`, 3.2); hud(); }
     }
   }
   // events reported by the other systems

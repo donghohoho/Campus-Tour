@@ -83,6 +83,9 @@ export function initAuth() {
     // daily quests (quests.js): field "quests"; a reward claim passes the wallet too, so coins and the claim land in ONE write
     async loadQuests() { if (!user || !db || user.anon) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().quests || null : null; },
     async saveQuests(q, wallet) { if (!user || !db || user.anon) return; const d = { quests: JSON.parse(JSON.stringify(q)), updated: Date.now() }; if (wallet) d.wallet = wallet; await fb.setDoc(fb.doc(db, 'users', user.uid), d, { merge: true }); },
+    // pet levels (pet-growth.js): field "petGrowth" = { pets: { [petId]: { lv, xp, total, last } }, … }; the caller merges before saving
+    async loadPetGrowth() { if (!user || !db || user.anon) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().petGrowth || null : null; },
+    async savePetGrowth(g) { if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { petGrowth: JSON.parse(JSON.stringify(g)), updated: Date.now() }, { merge: true }); },
     async loadRanking(n = 50) {
       await ready; if (!fb) return null; const snap = await fb.getDocs(fb.query(fb.collection(db, 'ranking'), fb.orderBy('steps', 'desc'), fb.limit(n))), out = [];
       snap.forEach((d) => { const v = d.data(); out.push({ uid: d.id, nick: v.nick, steps: v.steps | 0 }); }); return out;
