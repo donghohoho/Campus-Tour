@@ -23,7 +23,7 @@ const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
 const EARN_EVERY = 60, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
 // pedometer: walking also fills the bar — every metre on foot is worth WALK_BONUS extra seconds
 // (walking ≈ 3× faster than standing still, running ≈ 5×). A step is STEP_LEN metres.
-const WALK_BONUS = 0.5, STEP_LEN = 0.75;
+const WALK_BONUS = 0.5, STEP_LEN = 0.75, JUMP_RATE = 7; // jumping: 7× (running is ~5×)
 const $ = (s) => document.querySelector(s);
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const petDef = (id) => PETS.find((p) => p.id === id);
@@ -155,7 +155,8 @@ export function initPets(G) {
       W.prog += Math.min(dt, 0.5);
       // pedometer: ground distance since last frame (ignore jumps across the map — respawn, campus change)
       const p = G.player, d = last ? Math.hypot(p.pos.x - last.x, p.pos.z - last.z) : 0;
-      if (d > 0.01 && d < 3 && p.grounded !== false) {
+      if (p.grounded === false) W.prog += Math.min(dt, 0.5) * (JUMP_RATE - 1); // in the air: bar fills at JUMP_RATE× (no steps counted)
+      else if (d > 0.01 && d < 3) {
         const before = Math.floor(W.steps / 1000); W.steps += d / STEP_LEN; W.prog += d * WALK_BONUS;
         if (Math.floor(W.steps / 1000) > before) G.toast(`👣 ${(Math.floor(W.steps / 1000) * 1000).toLocaleString('ko-KR')}보 달성! 걸을수록 코인이 빨리 모여요`, 2.4);
       }
