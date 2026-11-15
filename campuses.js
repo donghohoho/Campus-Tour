@@ -10,6 +10,7 @@
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
 //   spawn      { at: [x, z], look: [x, z] } = fixed spot and view, or start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building' | 'place' (open space: sign only)
+//              kind 'sculpture' = free-standing model at pos (yaw/scale/shift/solids, see client.js);
 //              (a gate or building may carry model: 'assets/models/x.glb' to replace the block, + rot° / height / wall colour;
 //               rot turns the model's front (+Z) in 90° steps until it faces the right road),
 //              pos = approximate [x, z] in metres from the map origin, optional wall/roof colours, note = source
@@ -36,13 +37,13 @@ export const LIGHTING = {
 const soon = (id, name, region) => ({ id, name, region, status: 'soon' });
 
 export const CAMPUSES = [
-  soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   {
     id: 'snu-gwanak', name: '서울대학교 관악캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/snu-gwanak.json', terrain: 'mountain', lighting: 'night', seed: 20261116,
     outsideLabel: '캠퍼스 밖 · 관악산/낙성대',
-    spawn: { at: [-500, 1040], look: [-440, 930], toward: '행정관' }, // 관악로 at the main gate, looking into the campus (gate position estimated from where 관악로 enters)
+    spawn: { at: [-518, 862], look: [-511, 815], toward: '행정관' }, // on the road just outside the gate, looking at it
     landmarks: [
+      { name: '서울대학교 정문', kind: 'sculpture', pos: [-511, 815], yaw: 9, scale: 26, shift: -0.09, height: 23, model: 'assets/models/snu-gwanak-front-gate.glb', solids: [[-0.47, 0.035], [0.37, 0.13]], note: '직접 만든 3D 모델 (샤 조형물) — 위치는 사용자가 준 구글 지도 좌표(FW8X+694), 도로가 아치 아래로 지나감' },
       { name: '대운동장', kind: 'stadium', pos: [-359, 720], note: 'OSM leisure=pitch' },
       { name: '자하연', kind: 'place', pos: [-199, 272], r: 40, note: 'OSM water "자하연"' },
       { name: '버들골', kind: 'place', pos: [152, 41], r: 70, note: 'OSM park "버들골"' },
@@ -82,10 +83,10 @@ export const CAMPUSES = [
   },
   soon('sogang', '서강대학교', 'seoul'),
   soon('skku-seoul', '성균관대학교 인문사회과학캠퍼스', 'seoul'),
+  soon('skku-natural', '성균관대학교 자연과학캠퍼스', 'gyeonggi'),
   soon('hanyang-seoul', '한양대학교 서울캠퍼스', 'seoul'),
   soon('cau-seoul', '중앙대학교 서울캠퍼스', 'seoul'),
-  soon('hufs-seoul', '한국외국어대학교 서울캠퍼스', 'seoul'),
-  soon('uos', '서울시립대학교', 'seoul'),
+  soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   {
     id: 'khu-global', name: '경희대학교 국제캠퍼스', region: 'gyeonggi', status: 'ready',
     data: 'assets/campuses/khu-global.json', terrain: 'hills', lighting: 'night', seed: 20261111,
@@ -103,5 +104,6 @@ export const CAMPUSES = [
     ],
     play: { gems: 30, gemArea: [-350, 450, -420, 520], pals: 18, palArea: [-320, 420, -420, 520], palHome: [-138, -400], treeClear: [[-138, -440, 8]] },
   },
-  soon('skku-natural', '성균관대학교 자연과학캠퍼스', 'gyeonggi'),
+  soon('hufs-seoul', '한국외국어대학교 서울캠퍼스', 'seoul'),
+  soon('uos', '서울시립대학교', 'seoul'),
 ];

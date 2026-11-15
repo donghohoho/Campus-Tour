@@ -250,6 +250,19 @@ function buildWorld(data) {
     const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)); rg.setAttribute('color', new THREE.Float32BufferAttribute(rc, 3)); const rnorm = new Float32Array(rp.length); for (let i = 1; i < rnorm.length; i += 3) rnorm[i] = 1; rg.setAttribute('normal', new THREE.BufferAttribute(rnorm, 3));
     const roofs = new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); roofs.castShadow = roofs.receiveShadow = true; roofs.frustumCulled = false; world.add(roofs);
   }
+  // free-standing models the map has no footprint for (kind 'sculpture'): pos, yaw° (model +X direction), scale = model width in metres,
+  // shift = slide along its width (fraction) so an opening sits on the road, solids = [[xFraction, radiusFraction], …] collision posts
+  for (const l of LMK) if (l.kind === 'sculpture' && l.model && l.pos) {
+    const [x, z] = l.pos, gy = terrainH(x, z), s = l.scale || 20, yaw = ((l.yaw || 0) * Math.PI) / 180, ca = Math.cos(yaw), sa = Math.sin(yaw), myWorld = world;
+    const H = new THREE.Group(); H.position.set(x, gy - 0.2, z); H.rotation.y = -yaw; world.add(H);
+    new GLTFLoader().load(l.model, (g) => {
+      if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = s / size.x;
+      m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.material && o.material.map) { o.material.emissive = new THREE.Color(0x4a4a4a); o.material.emissiveMap = o.material.map; } } });
+      m.position.set(-(box.min.x + box.max.x) / 2 - (l.shift || 0) * size.x, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
+    }, undefined, () => console.warn('sculpture model failed', l.model));
+    for (const [fx, fr] of l.solids || []) { const lx = (fx - (l.shift || 0)) * s; addCircle(x + lx * ca, z + lx * sa, Math.max(0.6, fr * s), gy + (l.height || s)); }
+    places.push({ n: l.name, x, z, top: gy + (l.height || s * 0.9), r: 40 });
+  }
   // named open spaces that the map data doesn't name (kind 'place', pos = centre, r = radius): sign + teleport target
   for (const l of LMK) if (l.kind === 'place' && l.pos) places.push({ n: l.name, x: l.pos[0], z: l.pos[1], top: terrainH(l.pos[0], l.pos[1]) + 4, r: l.r || 50 });
   for (const a of D.areas) if (a.k === 'pitch' && stadiumSet.has(a.n)) { const cx = a.p.reduce((s, p) => s + p[0], 0) / a.p.length, cz = a.p.reduce((s, p) => s + p[1], 0) / a.p.length; places.push({ n: a.n, x: cx, z: cz, top: terrainH(cx, cz) + 6, r: 70 }); }
@@ -497,9 +510,8 @@ function refreshStart() { ready = modelsReady && worldReady; const b = $('#start
 loadModel.then(() => { modelsReady = true; refreshStart(); requestAnimationFrame(frame); });
 function campusButtons(el, onPick, currentId) {
   el.textContent = '';
-  for (const R of REGIONS) {
-    const list = CAMPUSES.filter((c) => c.region === R.id); if (!list.length) continue;
-    const h = document.createElement('h3'); h.textContent = R.name; el.append(h);
+  { // one list in campuses.js order (no Seoul / Gyeonggi split)
+    const list = CAMPUSES;
     const gridEl = document.createElement('div'); gridEl.className = 'campusGrid'; el.append(gridEl);
     for (const c of list) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'campusBtn'; b.dataset.id = c.id;
