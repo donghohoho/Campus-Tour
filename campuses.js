@@ -37,7 +37,19 @@ const soon = (id, name, region) => ({ id, name, region, status: 'soon' });
 
 export const CAMPUSES = [
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
-  soon('snu-gwanak', '서울대학교 관악캠퍼스', 'seoul'),
+  {
+    id: 'snu-gwanak', name: '서울대학교 관악캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/snu-gwanak.json', terrain: 'mountain', lighting: 'night', seed: 20261116,
+    outsideLabel: '캠퍼스 밖 · 관악산/낙성대',
+    spawn: { from: '행정관', toward: '중앙도서관', dist: 28 },
+    landmarks: [
+      { name: '대운동장', kind: 'stadium', pos: [-359, 720], note: 'OSM leisure=pitch' },
+      { name: '자하연', kind: 'place', pos: [-199, 272], r: 40, note: 'OSM water "자하연"' },
+      { name: '버들골', kind: 'place', pos: [152, 41], r: 70, note: 'OSM park "버들골"' },
+      { name: '서울대 정문 예술 공원', kind: 'place', pos: [-464, 892], r: 50, note: 'OSM park — 정문(샤 조형물) 자체는 OSM 건물이 아니라 넣지 않음' },
+    ],
+    play: { pals: 18, palArea: [-500, 450, -1100, 1100], palHome: [-150, 330] },
+  },
   {
     id: 'yonsei-sinchon', name: '연세대학교 신촌캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/yonsei-sinchon.json', terrain: 'mountain', lighting: 'night', seed: 20261115,
