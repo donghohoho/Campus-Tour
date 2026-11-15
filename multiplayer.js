@@ -337,16 +337,20 @@ export function initMultiplayer(G) {
     try { const key = await adminPub; if (!key || !d || !d.body || d.body.room !== roomId || !Array.isArray(d.body.ids) || Math.abs(Date.now() - d.body.t) > 864e5) return;
       if (!(await crypto.subtle.verify(SIG, key, unb64(d.sig), enc(d.body)))) return; for (const id of d.body.ids.slice(0, 500)) killSign(String(id), false); saveSigns(); } catch (_) {}
   }
-  // admin login (?admin=<key>), remembered in this browser
-  (async () => {
+  // admin login: ?admin=<key> once (remembered in this browser), or from the logged-in account (see client.js)
+  async function useAdminKey(dkey) {
     try {
-      const q = new URLSearchParams(location.search), fromUrl = q.get('admin'); if (fromUrl) { store.set('fm:admin', fromUrl); q.delete('admin'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
-      const dkey = store.get('fm:admin', null); if (!dkey || !crypto.subtle) return;
-      adminKey = await crypto.subtle.importKey('jwk', { ...ADMIN_PUB, d: dkey, ext: true }, ECDSA, false, ['sign']);
+      if (!dkey || !crypto.subtle) return false;
+      const k = await crypto.subtle.importKey('jwk', { ...ADMIN_PUB, d: dkey, ext: true }, ECDSA, false, ['sign']);
       // prove it matches the public key before showing admin tools
-      const probe = enc({ probe: 1 }), key = await adminPub; if (!key || !(await crypto.subtle.verify(SIG, key, await crypto.subtle.sign(SIG, adminKey, probe), probe))) { adminKey = null; return; }
-      $('#mpWipe').classList.remove('hidden'); refreshCount();
-    } catch (_) { adminKey = null; }
+      const probe = enc({ probe: 1 }), key = await adminPub; if (!key || !(await crypto.subtle.verify(SIG, key, await crypto.subtle.sign(SIG, k, probe), probe))) return false;
+      adminKey = k; adminD = dkey; $('#mpWipe').classList.remove('hidden'); refreshCount(); return true;
+    } catch (_) { return false; }
+  }
+  let adminD = null;
+  const adminReady = (async () => {
+    const q = new URLSearchParams(location.search), fromUrl = q.get('admin'); if (fromUrl) { store.set('fm:admin', fromUrl); q.delete('admin'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
+    await useAdminKey(store.get('fm:admin', null));
   })();
   $('#mpWipe').addEventListener('click', () => { if (!adminKey || !signs.size) return G.toast('지울 표지판이 없어요', 1.4); if (window.confirm(`이 캠퍼스의 표지판 ${signs.size}개를 모두 지울까요?`)) adminRemove([...signs.keys()]); });
 
@@ -423,5 +427,5 @@ export function initMultiplayer(G) {
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
   const players = () => [...avatars.values()].filter((av) => av.has).map((av) => ({ name: av.name, x: av.cur.x, y: av.cur.y, z: av.cur.z }));
-  return { setIdentity, enter, update, players, typing: () => !!typing };
+  return { useAdminKey, adminKey: async () => { await adminReady; return adminD; }, setIdentity, enter, update, players, typing: () => !!typing };
 }

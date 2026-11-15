@@ -771,7 +771,13 @@ const auth = initAuth();
   };
   if (!auth.available()) { lb.disabled = true; pw.disabled = true; lb.title = '로그인 서버 설정 전이에요'; }
   show(null);
-  auth.onChange(async (u) => { show(u); mp.setIdentity(u); await pets.useAccount(u ? auth : null); });
+  auth.onChange(async (u) => {
+    show(u); mp.setIdentity(u); await pets.useAccount(u ? auth : null);
+    if (u) { // admin follows the account: use the key saved on it, or save this browser's key onto it
+      const saved = await auth.loadAdmin().catch(() => null), local = await mp.adminKey();
+      if (saved) { if (await mp.useAdminKey(saved)) toast('🛡️ 관리자 계정으로 로그인했어요', 2.2); } else if (local) auth.saveAdmin(local).then(() => toast('🛡️ 이 계정을 관리자로 등록했어요 — 다른 기기에서도 로그인만 하면 관리자예요', 3)).catch(() => {});
+    }
+  });
   const go = async () => {
     lb.disabled = true; msg.textContent = '로그인 중…';
     try { const r = await auth.login(nickEl.value, pw.value); if (r.created) toast(`🎉 ${nickEl.value.trim()} 계정을 만들었어요! 이 기기의 코인·펫을 계정으로 옮겼어요`, 3.2); }

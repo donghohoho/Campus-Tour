@@ -57,6 +57,9 @@ export function initAuth() {
     },
     async logout() { if (fb && auth) await fb.signOut(auth); },
     async loadWallet() { if (!user || !db) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().wallet || null : null; },
-    async saveWallet(w) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }); },
+    async saveWallet(w) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }, { merge: true }); },
+    // the admin key travels with the admin's account (only that account can read its own document)
+    async loadAdmin() { if (!user || !db) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().admin || null : null; },
+    async saveAdmin(d) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { admin: d }, { merge: true }); },
   };
 }
