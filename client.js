@@ -585,7 +585,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen || bigOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || tpOpen || bigOpen || rankOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -792,6 +792,25 @@ const auth = initAuth();
   gb.addEventListener('click', () => { const sb = $('#startBtn'); if (sb.disabled) { msg.textContent = '캐릭터를 불러오는 중이에요… 잠시 뒤에 다시 눌러 주세요'; return; } sb.click(); }); // play right away as a guest
   ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
 }
+// ── pedometer leaderboard (L / 🏆): accounts only; total steps ──
+let rankOpen = false;
+async function renderRanking() {
+  const list = $('#rankList'), meEl = $('#rankMe'), acct = auth.user(); list.replaceChildren(); meEl.textContent = '불러오는 중…';
+  let rows; try { rows = await auth.loadRanking(50); } catch (e) { rows = null; }
+  if (!rows) { meEl.textContent = '랭킹을 불러오지 못했어요'; return; }
+  const medal = ['🥇', '🥈', '🥉'];
+  rows.forEach((r, i) => { const li = document.createElement('li'); if (acct && r.uid === acct.uid) li.className = 'me'; const a = document.createElement('span'), b = document.createElement('span'), c = document.createElement('span'); a.className = 'rk'; a.textContent = medal[i] || String(i + 1); b.textContent = r.nick; c.className = 'st'; c.textContent = `👣 ${r.steps.toLocaleString('ko-KR')}보`; li.append(a, b, c); list.append(li); });
+  if (!rows.length) { const li = document.createElement('li'); li.textContent = '아직 기록이 없어요 — 로그인하고 걸어 보세요!'; list.append(li); }
+  if (!acct) meEl.textContent = `게스트는 랭킹에 오르지 않아요 · 로그인하면 내 걸음(지금 ${pets.steps().toLocaleString('ko-KR')}보)이 올라가요`;
+  else { pets.flush(); const rk = await auth.rankOf(pets.steps()).catch(() => null); meEl.textContent = `내 기록: 👣 ${pets.steps().toLocaleString('ko-KR')}보` + (rk ? ` · ${rk}위` : '') + ' (20초마다 반영)'; }
+}
+function rankShow(on) {
+  if (on && (!started || menuOpen)) return; rankOpen = on; $('#rankPanel').classList.toggle('hidden', !on);
+  if (on) { for (const k in keys) keys[k] = false; if (document.pointerLockElement) document.exitPointerLock(); renderRanking(); } else if (!TOUCH) lockPointer();
+}
+$('#rankBtn').addEventListener('click', () => rankShow(!rankOpen));
+$('#rankClose').addEventListener('click', () => rankShow(false));
+window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputElement || !started) return; if (e.code === 'KeyL' && !e.repeat && !(mp && mp.typing())) rankShow(!rankOpen); else if (e.code === 'Escape' && rankOpen) rankShow(false); });
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses

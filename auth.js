@@ -73,7 +73,15 @@ export function initAuth() {
     async deleteSign(id) { await this.ensureUser(); if (fb) await fb.deleteDoc(fb.doc(db, 'signs', id)); },
     async logout() { if (fb && auth) await fb.signOut(auth); },
     async loadWallet() { if (!user || !db) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().wallet || null : null; },
-    async saveWallet(w) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }, { merge: true }); },
+    async saveWallet(w) {
+      if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }, { merge: true });
+      await fb.setDoc(fb.doc(db, 'ranking', user.uid), { nick: user.nick, steps: Math.floor(w.steps || 0), updated: Date.now() }).catch(() => {}); // pedometer leaderboard (accounts only)
+    },
+    async loadRanking(n = 50) {
+      await ready; if (!fb) return null; const snap = await fb.getDocs(fb.query(fb.collection(db, 'ranking'), fb.orderBy('steps', 'desc'), fb.limit(n))), out = [];
+      snap.forEach((d) => { const v = d.data(); out.push({ uid: d.id, nick: v.nick, steps: v.steps | 0 }); }); return out;
+    },
+    async rankOf(steps) { await ready; if (!fb) return null; const c = await fb.getCount(fb.query(fb.collection(db, 'ranking'), fb.where('steps', '>', Math.floor(steps)))); return c.data().count + 1; },
     // the admin key travels with the admin's account (only that account can read its own document)
     async loadAdmin() { if (!user || !db) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().admin || null : null; },
     async saveAdmin(d) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { admin: d }, { merge: true }); },

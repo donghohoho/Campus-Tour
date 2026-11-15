@@ -195,6 +195,13 @@
       #loginBox button.on, #loginBtn { background: #ffd98a; color: #1b2030; border-color: #ffd98a; }
       #loginBox button:disabled { opacity: 0.5; cursor: default; }
       #loginMsg { margin: 0; font-size: 13px; opacity: 0.9; text-align: center; }
+      #rankPanel { left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; width: min(380px, calc(100vw - 24px)); max-height: min(76vh, 620px); overflow-y: auto; padding: 14px 16px; }
+      #rankClose { border: 0; background: transparent; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+      #rankList { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+      #rankList li { display: grid; grid-template-columns: 2.4em 1fr auto; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(40, 60, 45, 0.12); font-size: 14px; }
+      #rankList li.me { background: #fff1c9; border-color: #f0c45a; font-weight: 800; }
+      #rankList .rk { font-weight: 800; text-align: center; }
+      #rankList .st { font-variant-numeric: tabular-nums; color: #3f5146; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -221,6 +228,7 @@
         <dt><kbd>X</kbd></dt><dd>내 표지판 지우기</dd>
         <dt><kbd>P</kbd></dt><dd>접속자 보기</dd>
         <dt><kbd>K</kbd></dt><dd>펫 상점 · 내 펫</dd>
+        <dt><kbd>L</kbd></dt><dd>걸음 랭킹</dd>
         <dt><kbd>T</kbd></dt><dd>텔레포트</dd>
         <dt><kbd>N</kbd></dt><dd>큰 지도 (눌러서 이동)</dd>
         <dt><kbd>V</kbd></dt><dd>마이크 켜기/끄기</dd>
@@ -229,7 +237,7 @@
       </dl>
     </div>
     <div id="campusBadge" class="panel"><b id="campusName">캠퍼스</b><button id="campusBtn" type="button">캠퍼스 변경 <kbd>M</kbd></button></div>
-    <div id="counter" class="panel"><span class="coinIco" aria-hidden="true">🪙</span><span id="count" aria-label="코인">0</span><small id="coinNext"></small><small id="steps" title="걸을수록 다음 코인까지 시간이 빨리 줄어요">👣 0보</small><button id="petBtn" class="mpBtn" type="button" title="펫 상점 (K)">🐾<span class="mpLabel">펫</span> <kbd>K</kbd></button></div>
+    <div id="counter" class="panel"><span class="coinIco" aria-hidden="true">🪙</span><span id="count" aria-label="코인">0</span><small id="coinNext"></small><small id="steps" title="걸을수록 다음 코인까지 시간이 빨리 줄어요">👣 0보</small><button id="rankBtn" class="mpBtn" type="button" title="걸음 랭킹 (L)">🏆<span class="mpLabel">랭킹</span> <kbd>L</kbd></button><button id="petBtn" class="mpBtn" type="button" title="펫 상점 (K)">🐾<span class="mpLabel">펫</span> <kbd>K</kbd></button></div>
     <div id="loc" class="panel">📍 경희대학교 국제캠퍼스</div>
     <canvas id="mini" class="panel" width="190" height="190" aria-label="미니맵"></canvas>
     <div id="attr">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> 기여자 · 지형 SRTM</div>
@@ -302,6 +310,11 @@
       <ul id="tpList"></ul>
     </div>
     <div id="bigMap" class="hidden" role="dialog" aria-label="캠퍼스 지도"><div class="bigMapBox panel"><div class="petHead"><h2>🗺️ 캠퍼스 지도</h2><span class="bigHint">원하는 곳을 누르면 바로 이동해요</span><button id="bigMapClose" type="button" aria-label="닫기">✕</button></div><canvas id="bigMapCanvas" width="600" height="600"></canvas></div></div>
+    <div id="rankPanel" class="panel hidden" role="dialog" aria-labelledby="rankTitle">
+      <div class="petHead"><h2 id="rankTitle">🏆 걸음 랭킹</h2><button id="rankClose" type="button" aria-label="닫기">✕</button></div>
+      <p class="petNote" id="rankMe"></p>
+      <ol id="rankList"></ol>
+    </div>
     <div id="playerList" class="panel hidden" role="dialog" aria-labelledby="plTitle"><h2 id="plTitle">접속 중</h2><table><thead><tr><th>닉네임</th><th>캐릭터</th><th>거리</th><th></th></tr></thead><tbody id="plBody"></tbody></table><p class="keysDesk">P를 한 번 더 누르면 닫혀요 · 🌀 가기를 누르면 그 사람 옆으로 이동</p></div>
     <ul id="chatLog" class="hidden" aria-live="polite" aria-label="채팅"></ul>
     <form id="chatForm" class="panel hidden"><input id="chatInput" type="text" autocomplete="off" enterkeyhint="send" /><button id="chatSend" type="submit">보내기</button></form>
