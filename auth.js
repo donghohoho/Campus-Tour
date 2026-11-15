@@ -86,6 +86,9 @@ export function initAuth() {
     // pet levels (pet-growth.js): field "petGrowth" = { pets: { [petId]: { lv, xp, total, last } }, … }; the caller merges before saving
     async loadPetGrowth() { if (!user || !db || user.anon) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().petGrowth || null : null; },
     async savePetGrowth(g) { if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { petGrowth: JSON.parse(JSON.stringify(g)), updated: Date.now() }, { merge: true }); },
+    // wild pets + bond (wild-pets.js): field "petBond" = { pets: { [petId]: { bond, … } }, tame: { [species]: { gauge, state } }, … }
+    async loadPetBond() { if (!user || !db || user.anon) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().petBond || null : null; },
+    async savePetBond(b) { if (!user || !db || user.anon) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { petBond: JSON.parse(JSON.stringify(b)), updated: Date.now() }, { merge: true }); },
     async loadRanking(n = 50) {
       await ready; if (!fb) return null; const snap = await fb.getDocs(fb.query(fb.collection(db, 'ranking'), fb.orderBy('steps', 'desc'), fb.limit(n))), out = [];
       snap.forEach((d) => { const v = d.data(); out.push({ uid: d.id, nick: v.nick, steps: v.steps | 0 }); }); return out;

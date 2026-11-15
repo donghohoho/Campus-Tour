@@ -16,6 +16,12 @@ export const PETS = [
   { id: 'p3', name: '노랑 말랑이', price: 400, color: 0xffe27a },
   { id: 'p4', name: '민트 말랑이', price: 550, color: 0xa8ecc8 },
   { id: 'p5', name: '보라 말랑이', price: 750, color: 0xcdb6ff },
+  // wild: tamed on campus (wild-pets.js), never sold in the shop
+  { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066 },
+  { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc },
+  { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a },
+  { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74 },
+  { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c },
 ];
 export const MAX_WALK = 5; // pets that can walk with you at once
 // follow spots behind the owner: [metres back, metres to the side]
@@ -122,7 +128,7 @@ export function initPets(G) {
   function render() {
     $('#petCoins').textContent = `🪙 ${W.coins}`;
     const shop = $('#petList'); shop.replaceChildren();
-    for (const d of PETS.filter((p) => !p.starter)) {
+    for (const d of PETS.filter((p) => !p.starter && !p.wild)) {
       const li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('b'), pr = document.createElement('span'), btn = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0'); nm.textContent = d.name; pr.className = 'petPrice'; pr.textContent = `🪙 ${d.price}`;
       const have = W.owned.filter((o) => o.type === d.id).length; btn.type = 'button'; btn.textContent = W.coins >= d.price ? '사기' : `${d.price - W.coins} 부족`; btn.disabled = W.coins < d.price;
@@ -195,5 +201,13 @@ export function initPets(G) {
   const owned = () => W.owned.map(({ id, type, name }) => ({ id, type, name }));
   const activeIds = () => W.actives.filter((id) => W.owned.some((o) => o.id === id));
   const rootOf = (id) => { const pt = pets.find((x) => x.id === id); return pt && pt.root; };
-  return { owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  // a tamed wild pet joins the owned list (wild-pets.js). One per kind: returns null if this kind is already owned
+  function adopt(type, name) {
+    if (!petDef(type) || W.owned.some((o) => o.type === type)) return null;
+    const o = { id: Math.random().toString(36).slice(2, 10), type, name: clean(name, NAME_MAX) || petDef(type).name };
+    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); spawnActive(); hud(); if (open) render();
+    return o.id;
+  }
+  const ownsType = (type) => W.owned.some((o) => o.type === type);
+  return { adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

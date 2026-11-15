@@ -295,6 +295,23 @@
       .pgNote { font-size: 11.5px; color: #5a6b5e; }
       .pgFlash { animation: pgFlash 0.9s ease-out; }
       @keyframes pgFlash { 0% { background: #ffe39a; transform: scale(1.03); } 100% { transform: scale(1); } }
+      /* wild pets + bond (wild-pets.js) */
+      #tameBar { left: 50%; bottom: 132px; transform: translateX(-50%); width: min(300px, calc(100vw - 32px)); padding: 8px 12px; z-index: 6; pointer-events: none; }
+      .tbHead { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; }
+      .tbTrack { height: 9px; border-radius: 99px; background: rgba(40, 60, 45, 0.14); overflow: hidden; margin: 5px 0 3px; }
+      #tameFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff9cb8, #ff5c8a); transition: width 0.35s; }
+      #tameMsg { font-size: 11.5px; color: #5a6b5e; }
+      body.touch #tameBar { bottom: calc(max(6px, env(safe-area-inset-bottom)) + 230px); }
+      #tamePop { left: 50%; top: 30%; transform: translate(-50%, 0) scale(0.9); z-index: 9; display: grid; justify-items: center; gap: 2px; min-width: 230px; padding: 14px 22px 12px; text-align: center; border: 2px solid #ff5c8a; opacity: 0; pointer-events: none; transition: opacity 0.35s, transform 0.35s; }
+      #tamePop.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      #tamePop .tpIcon { font-size: 40px; line-height: 1.1; }
+      #tamePop small { font-weight: 800; color: #e0446f; }
+      #tamePop b { font-size: 18px; }
+      #tamePop .tpNote { font-size: 12px; color: #5a6b5e; }
+      .bdChip { font: 700 11px/1 inherit; padding: 4px 6px; border-radius: 99px; background: #ffe3ec; color: #b0284f; flex: none; }
+      .bdChip[data-s="3"], .bdChip[data-s="4"] { background: #ff5c8a; color: #fff; }
+      .bdFill { background: linear-gradient(90deg, #ffb3c7, #ff5c8a) !important; }
+      #petBond.bond .pgBig { color: #e0446f; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -312,7 +329,7 @@
         <dt><kbd>Shift</kbd></dt><dd>달리기</dd>
         <dt><kbd>Space</kbd></dt><dd>점프</dd>
         <dt>마우스</dt><dd>시점 회전</dd>
-        <dt><kbd>E</kbd></dt><dd>수집품 줍기 · 동물 쓰다듬기</dd>
+        <dt><kbd>E</kbd></dt><dd>줍기 · 쓰다듬기 · 야생 펫 길들이기</dd>
         <dt><kbd>C</kbd></dt><dd>캐릭터 변경</dd>
         <dt><kbd>M</kbd></dt><dd>캠퍼스 변경</dd>
         <dt><kbd>Enter</kbd></dt><dd>채팅</dd>
@@ -400,6 +417,7 @@
       <h3>상점</h3><ul id="petList" class="petRows"></ul>
       <h3>내 펫</h3><ul id="petMine" class="petRows"></ul>
       <h3>성장</h3><div id="petGrowth" class="pgCard empty">펫을 누르면 성장 정보를 볼 수 있어요</div>
+      <h3>친밀도</h3><div id="petBond" class="pgCard empty">펫을 누르면 친밀도를 볼 수 있어요</div>
     </div>
     <div id="collPanel" class="panel hidden" role="dialog" aria-labelledby="collTitle">
       <div class="petHead"><h2 id="collTitle">📖 수집 도감</h2><button id="collClose" type="button" aria-label="닫기">✕</button></div>
@@ -416,6 +434,8 @@
       <p id="questAll" class="hidden">🎉 오늘의 퀘스트를 모두 완료했어요! 내일 또 만나요</p>
       <ul id="questList"></ul>
     </div>
+    <div id="tameBar" class="panel hidden"><div class="tbHead"><b id="tameName"></b><span id="tamePct">0%</span></div><div class="tbTrack"><div id="tameFill"></div></div><small id="tameMsg"></small></div>
+    <div id="tamePop" class="panel hidden" aria-live="polite"></div>
     <div id="collectPop" class="panel hidden" aria-live="polite"></div>
     <div id="tpPanel" class="panel hidden" role="dialog" aria-labelledby="tpTitle">
       <div class="petHead"><h2 id="tpTitle">🌀 텔레포트</h2><button id="tpClose" type="button" aria-label="닫기">✕</button></div>

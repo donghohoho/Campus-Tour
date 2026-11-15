@@ -37,11 +37,11 @@ const localStore = {
   load: () => { try { return norm(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (_) { return null; } },
   save: async (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {} return s; },
 };
-const cloudStore = (api) => ({
-  local: false,
-  load: async () => norm(await api.loadPetGrowth()),
-  save: async (s) => { const merged = mergeGrowth(await api.loadPetGrowth(), s); await api.savePetGrowth(merged); return merged; }, // read → merge → write
-});
+const cloudStore = (api) => {
+  const uid = api.uid && api.uid(); // a save that finishes after an account switch must not land in the other account
+  return { local: false, load: async () => norm(await api.loadPetGrowth()),
+    save: async (s) => { if (api.uid && api.uid() !== uid) return null; const merged = mergeGrowth(await api.loadPetGrowth(), s); if (api.uid && api.uid() !== uid) return null; await api.savePetGrowth(merged); return merged; } }; // read → merge → write
+};
 
 // level-up sparkle
 const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,250,210,1)'); gr.addColorStop(0.35, 'rgba(255,214,90,0.6)'); gr.addColorStop(1, 'rgba(255,200,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
@@ -62,7 +62,7 @@ export function initPetGrowth(G) {
     const add = amount * GROWTH.testMult; r.xp += add; r.total += add; r.last = { src, amt: add, t: Date.now() }; dirty = true;
     let up = 0; while (r.lv < GROWTH.maxLevel && r.xp >= xpToNext(r.lv)) { r.xp -= xpToNext(r.lv); r.lv++; up++; }
     if (r.lv >= GROWTH.maxLevel) r.xp = 0;
-    if (up) levelUp(id, r);
+    if (up) { levelUp(id, r); if (G.onLevelUp) G.onLevelUp(id, r.lv); } // wild-pets.js bond bonus
     return add;
   }
   // give XP to every pet walking with you; capped sources share an hourly budget
@@ -144,6 +144,8 @@ export function initPetGrowth(G) {
   }
 
   return {
+    // XP from another system with its own limits (wild-pets.js: petting) — not capped here, not de-duplicated here
+    grant: (id, n, src) => { const a = addXp(id, n, src); paint(); return a; }, selected: () => sel,
     update, onPlace, onCollect, onQuestDone, decorate, useAccount, state: () => S, level: (id) => ({ ...rec(id) }),
     flush: () => { if (dirty && !saving) persist(); },
     debug: { addXp: (id, n) => { const a = addXp(id, n / GROWTH.testMult, 'test'); paint(); return a; }, setActive: (t) => { lastActive = performance.now() - t; } },
