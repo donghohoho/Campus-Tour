@@ -698,7 +698,7 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 const music = initMusic({ toast, started: () => started });
-$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; music.start(); mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인을 모아 보세요`, 3.6); });
+$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; music.start(); mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인과 숨은 수집품을 모아 보세요`, 3.6); });
 
 // ── simulation ─────────────────────────────────────────────────────────────
 function groundAt(x, z, feet) {
