@@ -45,7 +45,9 @@ function placeholder(def) {
   return g;
 }
 // A pet object that walks after a target: { root, update(dt, x, y, z, yaw, moving), setName(n), dispose() }
-export function createPet(type, name, terrainH, slot = 0) {
+// owning 3 of the same pet makes that kind bigger: ×1.5 at 3, ×2 at 6 (the most)
+export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
+export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   let model = placeholder(def), mixer = null, action = null; body.add(model);
   if (def.model) loadGlb(def.model).then((g) => {
@@ -69,7 +71,7 @@ export function createPet(type, name, terrainH, slot = 0) {
   let placed = false, hopT = 0; const pos = new THREE.Vector3();
   function update(dt, x, y, z, yaw, moving) {
     // aim for a spot behind and to the left of the owner
-    const [bk, sd] = SLOTS[slot % SLOTS.length], tx = x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
+    const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * (0.6 + 0.4 * scale), sd = sd0 * (0.6 + 0.4 * scale), tx = x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (!placed || Math.hypot(tx - pos.x, tz - pos.z) > 25) { pos.set(tx, y, tz); placed = true; }
     const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz), k = 1 - Math.exp(-(d > 0.35 ? 4.5 : 1.5) * dt);
     pos.x += dx * k; pos.z += dz * k; const gy = terrainH(pos.x, pos.z); pos.y += ((Math.abs(y - gy) < 1.5 ? gy : y) - pos.y) * (1 - Math.exp(-10 * dt));
@@ -80,6 +82,7 @@ export function createPet(type, name, terrainH, slot = 0) {
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
   }
   function dispose() { setName(''); if (root.parent) root.parent.remove(root); }
+  root.scale.setScalar(scale);
   return { root, update, setName, dispose, type: def.id };
 }
 
@@ -107,7 +110,7 @@ export function initPets(G) {
   function spawnActive() {
     for (const pt of pets) pt.dispose(); pets = [];
     W.actives = W.actives.filter((id) => W.owned.some((x) => x.id === id)).slice(0, MAX_WALK);
-    W.actives.forEach((id, k) => { const o = W.owned.find((x) => x.id === id), pt = createPet(o.type, o.name, G.terrainH, k); pt.id = id; G.scene.add(pt.root); pets.push(pt); });
+    W.actives.forEach((id, k) => { const o = W.owned.find((x) => x.id === id), pt = createPet(o.type, o.name, G.terrainH, k, sizeFor(countOf(o.type))); pt.id = id; G.scene.add(pt.root); pets.push(pt); });
   }
   spawnActive();
 
@@ -119,7 +122,7 @@ export function initPets(G) {
       const li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('b'), pr = document.createElement('span'), btn = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0'); nm.textContent = d.name; pr.className = 'petPrice'; pr.textContent = `🪙 ${d.price}`;
       const have = W.owned.filter((o) => o.type === d.id).length; btn.type = 'button'; btn.textContent = W.coins >= d.price ? '사기' : `${d.price - W.coins} 부족`; btn.disabled = W.coins < d.price;
-      btn.addEventListener('click', () => buy(d)); li.append(sw, nm, pr, btn); if (have) { const h = document.createElement('small'); h.textContent = `보유 ${have}`; li.append(h); } shop.append(li);
+      btn.addEventListener('click', () => buy(d)); li.append(sw, nm, pr, btn); if (have) { const h = document.createElement('small'); h.textContent = `보유 ${have}` + (have < 3 ? ` · ${3 - have}마리 더 모으면 1.5배로 커져요` : have < 6 ? ` · 1.5배 크기 (6마리면 2배)` : ' · 2배 크기'); li.append(h); } shop.append(li);
     }
     const mine = $('#petMine'); mine.replaceChildren();
     if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 1분마다 코인 10개가 쌓여요!'; mine.append(li); }
@@ -137,7 +140,7 @@ export function initPets(G) {
   function buy(d) {
     if (W.coins < d.price) return;
     W.coins -= d.price; const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name };
-    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
+    const before = sizeFor(countOf(d.id)); W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); if (sizeFor(countOf(d.id)) > before) setTimeout(() => G.toast(`✨ ${d.name} ${countOf(d.id)}마리! ${d.name}들이 ${sizeFor(countOf(d.id))}배로 커졌어요`, 3), 2700); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
     const inputs = $('#petMine').querySelectorAll('input'); const last = inputs[inputs.length - 1]; if (last) { last.focus(); last.select(); }
   }
   function show(on) {
@@ -172,7 +175,8 @@ export function initPets(G) {
     { const p = G.player; for (const pt of pets) pt.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
   }
   addEventListener('pagehide', () => { save(); flush(); }); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
-  function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name })); }
+  function countOf(type) { return W.owned.filter((x) => x.type === type).length; }
+  function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name, s: sizeFor(countOf(o.type)) })); }
   // switch to an account's wallet (first login carries this browser's guest progress over), or back to the guest wallet
   async function useAccount(api, created) {
     if (!api) { flush(); cloud = null; try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || { coins: 0, prog: 0, owned: [], actives: [], steps: 0 }; } catch (_) {} giveStarter(); spawnActive(); hud(); if (open) render(); return; }
