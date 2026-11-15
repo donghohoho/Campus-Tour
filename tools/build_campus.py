@@ -174,11 +174,12 @@ def main():
         def px(X, Y): r, g, b = tile(int(X // 256), int(Y // 256))[int(X % 256), int(Y % 256)]; return r * 256 + g + b / 256 - 32768
         x0, y0 = math.floor(fx - 0.5), math.floor(fy - 0.5); u, v = fx - 0.5 - x0, fy - 0.5 - y0
         return (px(x0, y0) * (1 - u) + px(x0 + 1, y0) * u) * (1 - v) + (px(x0, y0 + 1) * (1 - u) + px(x0 + 1, y0 + 1) * u) * v
-    N, STEP, GH = 151, 12, 900
+    # playable square and terrain grid grow with big campuses (≥ the usual ±700 m / ±900 m)
+    HALF = max(700, math.ceil(max(map(abs, xs + zs)) + 60)); STEP = 12; GH = max(900, math.ceil((HALF + 200) / STEP) * STEP); N = 2 * GH // STEP + 1
     H = [elev(LAT0 + (-GH + j * STEP) / KZ, LON0 + (-GH + i * STEP) / KX) for j in range(N) for i in range(N)]
     mn = min(H); H = [round(h - mn, 1) for h in H]
 
-    out = {'origin': [LAT0, LON0], 'half': 700, 'grid': {'n': N, 'step': STEP, 'half': GH, 'h': H}, 'campus': campus,
+    out = {'origin': [LAT0, LON0], 'half': HALF, 'grid': {'n': N, 'step': STEP, 'half': GH, 'h': H}, 'campus': campus,
            'buildings': B, 'roads': Rd, 'areas': A, 'trees': T}
     os.makedirs(a.out, exist_ok=True)
     json.dump(out, open(f'{a.out}/{a.id}.json', 'w'), ensure_ascii=False, separators=(',', ':'))
