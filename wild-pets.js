@@ -75,11 +75,19 @@ export function initWildPets(G) {
     let best = null, bd = NEAR; for (const w of wild) { const r = w.pet.root.position, d = Math.hypot(p.x - r.x, p.z - r.z); if (d < bd && Math.abs(p.y - r.y) < 2.5) { bd = d; best = w; } } return best;
   }
   function burst(tex, pos, n, up = 2.2, size = 0.3) { for (let i = 0; i < n; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: tex === heartTex ? THREE.NormalBlending : THREE.AdditiveBlending })), a = (i / n) * 6.283; s.position.set(pos.x + Math.cos(a) * 0.3, pos.y + 0.6, pos.z + Math.sin(a) * 0.3); s.scale.setScalar(size); G.scene.add(s); fx.push({ s, vx: Math.cos(a) * 0.8, vy: up + (i % 3) * 0.4, vz: Math.sin(a) * 0.8, life: 1, max: 1 }); } }
+  // a number rising over the animal: "+25" on a pat that lands, "실패" on a miss
+  function floatText(text, color, pos) {
+    const c = document.createElement('canvas'); c.width = 192; c.height = 80; const g = c.getContext('2d');
+    g.font = '800 54px "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 9; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText(text, 96, 42); g.fillStyle = color; g.fillText(text, 96, 42);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false })); s.renderOrder = 22; s.scale.set(0.96, 0.4, 1); s.position.set(pos.x, pos.y + 1.1, pos.z); G.scene.add(s);
+    fx.push({ s, vx: 0, vy: 1.4, vz: 0, life: 1.2, max: 1.2, float: true });
+  }
   function patWild(w) {
     if (!w || w.cd > 0) return false;
     w.cd = w.def.cooldown; const r = tameRec(w.sp);
-    if (Math.random() < w.def.success) { r.gauge = Math.min(100, r.gauge + w.def.gain); dirty = true; burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); w.msg = '기분 좋아해요 ♥'; }
-    else { w.msg = '깜짝 놀라 물러났어요'; const p = G.player.pos, d = Math.hypot(w.x - p.x, w.z - p.z) || 1, nx = w.x + ((w.x - p.x) / d) * 1.5, nz = w.z + ((w.z - p.z) / d) * 1.5; if (G.walkable(nx, nz)) { w.x = nx; w.z = nz; } }
+    if (Math.random() < w.def.success) { r.gauge = Math.min(100, r.gauge + w.def.gain); dirty = true; burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); floatText(`+${w.def.gain}`, '#ff5c8a', w.pet.root.position); w.msg = '기분 좋아해요 ♥'; }
+    else { floatText('실패', '#8a96a8', w.pet.root.position); w.msg = '깜짝 놀라 물러났어요'; const p = G.player.pos, d = Math.hypot(w.x - p.x, w.z - p.z) || 1, nx = w.x + ((w.x - p.x) / d) * 1.5, nz = w.z + ((w.z - p.z) / d) * 1.5; if (G.walkable(nx, nz)) { w.x = nx; w.z = nz; } }
     w.msgT = 1.6;
     if (r.gauge >= 100) tame(w);
     return true;
@@ -102,7 +110,9 @@ export function initWildPets(G) {
   function showBar(w) {
     const el = $('#tameBar'); if (!w) { el.classList.add('hidden'); return; }
     const r = tameRec(w.sp); el.classList.remove('hidden');
-    $('#tameName').textContent = `🐾 야생 ${w.def.name}`; $('#tamePct').textContent = `${Math.floor(r.gauge)}%`; $('#tameFill').style.width = `${r.gauge}%`;
+    const need = Math.ceil(100 / w.def.gain), done = Math.min(need, Math.round(r.gauge / w.def.gain));
+    $('#tameName').textContent = `🐾 야생 ${w.def.name}`; $('#tamePct').textContent = `${Math.floor(r.gauge)} / 100`; $('#tameFill').style.width = `${r.gauge}%`;
+    $('#tameStats').textContent = `쓰다듬기 성공 ${done} / ${need}번 · 1회 +${w.def.gain} · 성공률 ${Math.round(w.def.success * 100)}% · 쿨다운 ${w.def.cooldown}초`;
     $('#tameMsg').textContent = w.msgT > 0 ? w.msg : w.cd > 0 ? `잠시 기다려요… ${w.cd.toFixed(1)}초` : w.def.note;
   }
 
@@ -149,7 +159,7 @@ export function initWildPets(G) {
 
   // ── per frame ──
   function update(dt) {
-    for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { G.scene.remove(f.s); f.s.material.dispose(); fx.splice(i, 1); continue; } f.vy -= 2.5 * dt; f.s.position.x += f.vx * dt; f.s.position.y += f.vy * dt; f.s.position.z += f.vz * dt; f.s.material.opacity = f.life / f.max; }
+    for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { G.scene.remove(f.s); if (f.float) f.s.material.map.dispose(); f.s.material.dispose(); fx.splice(i, 1); continue; } if (!f.float) f.vy -= 2.5 * dt; f.s.position.x += f.vx * dt; f.s.position.y += f.vy * dt; f.s.position.z += f.vz * dt; f.s.material.opacity = f.life / f.max; }
     const p = G.player.pos; let barW = null, barD = BAR_R;
     for (const w of wild) {
       w.cd = Math.max(0, w.cd - dt); w.msgT -= dt;

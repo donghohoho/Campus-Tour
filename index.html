@@ -300,7 +300,8 @@
       .tbHead { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; }
       .tbTrack { height: 9px; border-radius: 99px; background: rgba(40, 60, 45, 0.14); overflow: hidden; margin: 5px 0 3px; }
       #tameFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff9cb8, #ff5c8a); transition: width 0.35s; }
-      #tameMsg { font-size: 11.5px; color: #5a6b5e; }
+      #tameMsg { font-size: 11.5px; color: #5a6b5e; display: block; }
+      #tameStats { display: block; font-size: 11.5px; font-weight: 700; color: #b0284f; font-variant-numeric: tabular-nums; }
       body.touch #tameBar { bottom: calc(max(6px, env(safe-area-inset-bottom)) + 230px); }
       #tamePop { left: 50%; top: 30%; transform: translate(-50%, 0) scale(0.9); z-index: 9; display: grid; justify-items: center; gap: 2px; min-width: 230px; padding: 14px 22px 12px; text-align: center; border: 2px solid #ff5c8a; opacity: 0; pointer-events: none; transition: opacity 0.35s, transform 0.35s; }
       #tamePop.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
@@ -434,7 +435,7 @@
       <p id="questAll" class="hidden">🎉 오늘의 퀘스트를 모두 완료했어요! 내일 또 만나요</p>
       <ul id="questList"></ul>
     </div>
-    <div id="tameBar" class="panel hidden"><div class="tbHead"><b id="tameName"></b><span id="tamePct">0%</span></div><div class="tbTrack"><div id="tameFill"></div></div><small id="tameMsg"></small></div>
+    <div id="tameBar" class="panel hidden"><div class="tbHead"><b id="tameName"></b><span id="tamePct">0%</span></div><div class="tbTrack"><div id="tameFill"></div></div><small id="tameStats"></small><small id="tameMsg"></small></div>
     <div id="tamePop" class="panel hidden" aria-live="polite"></div>
     <div id="collectPop" class="panel hidden" aria-live="polite"></div>
     <div id="tpPanel" class="panel hidden" role="dialog" aria-labelledby="tpTitle">
