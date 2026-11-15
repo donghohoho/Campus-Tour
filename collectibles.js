@@ -135,7 +135,12 @@ export function initCollection(G) {
   // ── HUD counter + collection book ──
   function hud() { const items = list(campusId).length ? list(campusId) : Object.values(ITEMS).flat(); $('#collCount').textContent = `${countIn(items)}/${items.length}`; }
   let fR = 'all', fS = 'all', sel = null, bookCampus = null;
+  let tab = 'items';
+  for (const b of document.querySelectorAll('#bookTabs button')) b.addEventListener('click', () => { tab = b.dataset.t; render(); });
   function render() {
+    for (const b of document.querySelectorAll('#bookTabs button')) { const on = b.dataset.t === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }
+    $('#collView').classList.toggle('hidden', tab !== 'items'); $('#petDex').classList.toggle('hidden', tab !== 'pets');
+    if (tab === 'pets') { if (G.petDex) G.petDex($('#petDex')); return; } // wild-pets.js draws the pet book
     const camps = Object.keys(ITEMS); if (!bookCampus || !ITEMS[bookCampus]) bookCampus = ITEMS[campusId] ? campusId : camps[0];
     const items = list(bookCampus), got = countIn(items), all = Object.values(ITEMS).flat();
     const sub = $('#collSub'); sub.textContent = (G.campusName ? G.campusName(bookCampus) : bookCampus) + (bookCampus !== campusId ? ' · 지금 있는 캠퍼스에는 아직 수집품이 없어요' : '');
@@ -199,5 +204,5 @@ export function initCollection(G) {
 
   // items still to find anywhere (optionally only of minRarity or rarer) — quests.js won't hand out a collect quest that can't be done
   const remaining = (minRarity) => { const k = RARITY_ORDER.indexOf(minRarity || 'common'); return Object.values(ITEMS).flat().filter((it) => !has(it.id) && RARITY_ORDER.indexOf(it.rarity) >= k).length; };
-  return { remaining, setCampus, clear, nearest, collect, update, useAccount, has, open: () => open, show, live: () => live, state: () => S, rarityOf: (l) => RARITY[l.it.rarity] };
+  return { refresh: () => { if (open) render(); }, remaining, setCampus, clear, nearest, collect, update, useAccount, has, open: () => open, show, live: () => live, state: () => S, rarityOf: (l) => RARITY[l.it.rarity] };
 }

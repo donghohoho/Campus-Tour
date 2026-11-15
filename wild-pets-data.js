@@ -9,23 +9,26 @@
 //   BOND      friendship of pets you own (0–100). Kept apart from XP (pet-growth.js) on purpose.
 
 export const SPECIES = {
-  'w-cat': { type: 'cat', name: '캠퍼스 고양이', gain: 25, success: 0.9, cooldown: 2, note: '사람 손을 잘 타는 편이에요' },
-  'w-duck': { type: 'duck', name: '오리', gain: 25, success: 0.85, cooldown: 2, note: '물가를 좋아해요' },
-  'w-squirrel': { type: 'squirrel', name: '다람쥐', gain: 20, success: 0.8, cooldown: 2, note: '도토리를 찾아 바빠요' },
-  'w-rabbit': { type: 'rabbit', name: '산토끼', gain: 20, success: 0.75, cooldown: 2.5, note: '조금 겁이 많아요' },
-  'w-magpie': { type: 'magpie', name: '까치', gain: 15, success: 0.65, cooldown: 3, note: '반짝이는 걸 좋아해요' },
-  'w-hedgehog': { type: 'hedgehog', name: '고슴도치', gain: 15, success: 0.7, cooldown: 3, note: '가시를 세웠다 내렸다 해요' },
-  'w-raccoon': { type: 'raccoon', name: '너구리', gain: 12, success: 0.6, cooldown: 3, note: '경계심이 강해요' },
-  'w-owl': { type: 'owl', name: '부엉이', gain: 10, success: 0.5, cooldown: 4, note: '밤의 숲에서 쉽게 마음을 열지 않아요' },
+  'w-cat': { type: 'cat', name: '캠퍼스 고양이', icon: '🐱', home: '기숙사 주변 · 정문 · 학생회관', sig: true, gain: 25, success: 0.9, cooldown: 2, note: '사람 손을 잘 타는 편이에요' },
+  'w-duck': { type: 'duck', name: '오리', icon: '🦆', home: '사색의 광장 · 르네상스 공원 연못', sig: true, gain: 25, success: 0.85, cooldown: 2, note: '물가를 좋아해요' },
+  'w-squirrel': { type: 'squirrel', name: '다람쥐', icon: '🐿️', home: '공학관 · 도서관 · 대운동장 주변 잔디', gain: 20, success: 0.8, cooldown: 2, note: '도토리를 찾아 바빠요' },
+  'w-rabbit': { type: 'rabbit', name: '산토끼', icon: '🐰', home: '공학관 주변 (공대 토끼)', sig: true, gain: 20, success: 0.75, cooldown: 2.5, note: '조금 겁이 많아요' },
+  'w-magpie': { type: 'magpie', name: '까치', icon: '🐦', home: '전자정보대 · 노천극장 · 실험연구동', gain: 15, success: 0.65, cooldown: 3, note: '반짝이는 걸 좋아해요' },
+  'w-hedgehog': { type: 'hedgehog', name: '고슴도치', icon: '🦔', home: '사색의 광장 가장자리 · 숲 속', gain: 15, success: 0.7, cooldown: 3, note: '가시를 세웠다 내렸다 해요' },
+  'w-raccoon': { type: 'raccoon', name: '너구리', icon: '🦝', home: '르네상스 공원 · 숲 속', gain: 12, success: 0.6, cooldown: 3, note: '경계심이 강해요' },
+  'w-owl': { type: 'owl', name: '부엉이', icon: '🦉', home: '천문대 · 국제학관 · 노천극장 뒤 숲', gain: 10, success: 0.5, cooldown: 4, note: '밤의 숲에서 쉽게 마음을 열지 않아요' },
   // 경희대 국제캠의 명물 (spawn mostly at their own spots, below)
-  'w-goat': { type: 'goat', name: '생대 염소', gain: 20, success: 0.75, cooldown: 2.5, note: '풀을 우물우물 씹고 있어요' },
-  'w-rooster': { type: 'rooster', name: '생대 수탉', gain: 15, success: 0.65, cooldown: 3, note: '꼬끼오! 기세가 등등해요' },
-  'w-gorani': { type: 'gorani', name: '예디대 고라니', gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
+  'w-goat': { type: 'goat', name: '생대 염소', icon: '🐐', home: '생명과학대학 주변', sig: true, gain: 20, success: 0.75, cooldown: 2.5, note: '풀을 우물우물 씹고 있어요' },
+  'w-rooster': { type: 'rooster', name: '생대 수탉', icon: '🐓', home: '생명과학대학 주변', sig: true, gain: 15, success: 0.65, cooldown: 3, note: '꼬끼오! 기세가 등등해요' },
+  'w-gorani': { type: 'gorani', name: '예디대 고라니', icon: '🦌', home: '예술디자인대학 주변', sig: true, gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
 };
 
 // a spot hosts one animal at a time, drawn from its pool: 'kind' (weight 1) or ['kind', weight]. A spot emptied by taming
 // gets a new animal after RESPAWN_SEC. Kinds you already own still appear — you can pet them, just not tame a second one.
 // The campus's signature animals (공대 토끼, 생대 염소·수탉, 사색의 광장 오리, 기숙사 고양이, 예디대 고라니) have ~85% at their spots.
+// the pet book also lists the starter pet, which is never wild
+export const DEX_EXTRA = { fox: { name: '여우', icon: '🦊', home: '처음부터 함께하는 친구', type: 'fox', starter: true } };
+
 export const RESPAWN_SEC = 300;
 const SIG = (main, other) => [[main, 85], [other, 15]];
 export const SPAWNS = {

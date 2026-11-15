@@ -322,6 +322,16 @@
       body.touch #counter.folded > :not(.coinIco):not(#count):not(#hudFold) { display: none !important; }
       #counter.folded #hudFold .arrow { display: inline-block; transform: rotate(90deg); }
       #counter.folded:has(#questBtn.ready) #hudFold::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #e8432f; box-shadow: 0 0 0 2px #fff; }
+      /* pet book (wild-pets.js renderDex) — same cards as the collection book */
+      #collView, #petDex { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
+      #collView.hidden, #petDex.hidden { display: none; }
+      #bookTabs .chip { font-size: 13px; padding: 7px 12px; }
+      .dexGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; overflow-y: auto; padding: 2px; }
+      .dexCard { --rc: #7cc48a; }
+      .dexCard.sig { --rc: #f0b323; }
+      .dexCard .dexBadge { position: absolute; top: 3px; right: 5px; font-size: 11px; font-style: normal; }
+      .dexCard.owned { background: #f3fbf4; }
+      .dexStars { color: #f0b323; letter-spacing: 1px; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -430,13 +440,17 @@
       <h3>친밀도</h3><div id="petBond" class="pgCard empty">펫을 누르면 친밀도를 볼 수 있어요</div>
     </div>
     <div id="collPanel" class="panel hidden" role="dialog" aria-labelledby="collTitle">
-      <div class="petHead"><h2 id="collTitle">📖 수집 도감</h2><button id="collClose" type="button" aria-label="닫기">✕</button></div>
+      <div class="petHead"><h2 id="collTitle">📖 도감</h2><button id="collClose" type="button" aria-label="닫기">✕</button></div>
+      <div id="bookTabs" class="chips" role="tablist"><button type="button" class="chip on" data-t="items" role="tab" aria-selected="true">💎 수집품</button><button type="button" class="chip" data-t="pets" role="tab" aria-selected="false">🐾 펫</button></div>
+      <div id="petDex" class="hidden"></div>
+      <div id="collView">
       <p id="collSub"></p>
       <div class="collProgRow"><div class="collTrack"><div id="collBar"></div></div><span id="collProg">0 / 0</span></div>
       <div id="collRarity" class="chips" role="group" aria-label="희귀도"></div>
       <div id="collState" class="chips" role="group" aria-label="획득 여부"></div>
       <div id="collGrid"></div>
       <div id="collDetail" class="collDetail empty"></div>
+      </div>
     </div>
     <div id="questPanel" class="panel hidden" role="dialog" aria-labelledby="questTitle">
       <div class="petHead"><h2 id="questTitle">📜 오늘의 퀘스트</h2><button id="questClose" type="button" aria-label="닫기">✕</button></div>

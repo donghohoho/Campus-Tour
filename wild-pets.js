@@ -8,20 +8,21 @@
 //   • saved apart from wallet and XP: localStorage 'fm:petBond' (guests) or users/{uid}.petBond (accounts, read-merge-write)
 import * as THREE from 'three';
 import { createPet } from './pets.js';
-import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf } from './wild-pets-data.js';
+import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf, DEX_EXTRA } from './wild-pets-data.js';
 
 const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 2.6, BAR_R = 7;
 const $ = (s) => document.querySelector(s);
 const dayKey = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
 
 // ── saved state ──
-const empty = () => ({ v: 1, pets: {}, tame: {}, seen: [], day: { key: '', places: [] } });
+const empty = () => ({ v: 1, pets: {}, tame: {}, seen: [], met: [], day: { key: '', places: [] } }); // met: kinds seen up close (pet book)
 const normPet = (p) => ({ ...(p || {}), bond: Math.min(BOND.max, Math.max(0, +(p && p.bond) || 0)), lastPat: +(p && p.lastPat) || 0, day: p && p.day && typeof p.day.key === 'string' ? { key: p.day.key, got: +p.day.got || 0, xp: +p.day.xp || 0 } : { key: '', got: 0, xp: 0 } });
 function norm(s) {
   if (!s || typeof s !== 'object') return null; const out = empty();
   for (const [id, p] of Object.entries(s.pets || {})) if (typeof id === 'string' && id.length < 40) out.pets[id] = normPet(p);
   for (const [sp, t] of Object.entries(s.tame || {})) if (SPECIES[sp] && t) out.tame[sp] = { gauge: Math.min(100, Math.max(0, +t.gauge || 0)), state: t.state === 'tamed' ? 'tamed' : 'wild', petId: t.petId || null, t: +t.t || 0 };
   out.seen = Array.isArray(s.seen) ? s.seen.map(String).slice(-SEEN_MAX) : [];
+  out.met = Array.isArray(s.met) ? s.met.filter((k) => SPECIES[k]) : [];
   if (s.day && typeof s.day.key === 'string') out.day = { key: s.day.key, places: Array.isArray(s.day.places) ? s.day.places.map(String).slice(0, 200) : [] };
   return out;
 }
@@ -31,6 +32,7 @@ export function mergeBond(a, b) {
   for (const id of new Set([...Object.keys(a.pets), ...Object.keys(b.pets)])) { const x = a.pets[id], y = b.pets[id]; out.pets[id] = !x ? y : !y ? x : y.bond > x.bond || (y.bond === x.bond && y.lastPat > x.lastPat) ? y : x; }
   for (const sp of new Set([...Object.keys(a.tame), ...Object.keys(b.tame)])) { const x = a.tame[sp], y = b.tame[sp]; out.tame[sp] = !x ? y : !y ? x : x.state !== y.state ? (x.state === 'tamed' ? x : y) : y.gauge > x.gauge ? y : x; }
   out.seen = [...new Set([...a.seen, ...b.seen])].slice(-SEEN_MAX);
+  out.met = [...new Set([...a.met, ...b.met])];
   out.day = a.day.key === b.day.key ? { key: a.day.key, places: [...new Set([...a.day.places, ...b.day.places])] } : a.day.key > b.day.key ? a.day : b.day;
   return out;
 }
@@ -103,7 +105,7 @@ export function initWildPets(G) {
     if (!id) { r.state = 'tamed'; dirty = true; G.toast(`${w.def.name}은(는) 이미 함께하는 친구예요`, 2.4); }
     else { r.state = 'tamed'; r.petId = id; r.t = now(); rec(id).bond = Math.max(rec(id).bond, BOND.tamedStart); dirty = true; saveT = 0; popTamed(w.def); }
     const pos = w.pet.root.position.clone(); burst(goldTex, pos, 22, 2.6, 0.32); burst(heartTex, pos, 8, 1.8, 0.4);
-    w.pet.dispose(); wild = wild.filter((x) => x !== w); gone.set(w.key, now() + RESPAWN_SEC * 1000); showBar(null); persist(); // this spot gets a new animal later
+    w.pet.dispose(); wild = wild.filter((x) => x !== w); gone.set(w.key, now() + RESPAWN_SEC * 1000); if (G.dexChanged) G.dexChanged(); showBar(null); persist(); // this spot gets a new animal later
   }
   function popTamed(def) {
     const el = $('#tamePop'); el.replaceChildren();
@@ -180,6 +182,7 @@ export function initWildPets(G) {
         if (moving) w.yaw = Math.atan2(dx, dz); drive(w, dt, w.yaw, moving);
       }
       if (d < barD) { barD = d; barW = w; }
+      if (d < 8 && G.started() && !S.met.includes(w.sp)) { S.met.push(w.sp); dirty = true; G.toast(`📖 펫 도감에 새 친구: ${w.def.name}`, 2.4); if (G.dexChanged) G.dexChanged(); }
     }
     showBar(G.started() ? barW : null);
     if (!G.started() || !G.worldReady() || document.visibilityState !== 'visible') { lastMetres = null; stillT = 0; return; }
@@ -213,6 +216,44 @@ export function initWildPets(G) {
     el.append(head, track, p1, p2);
   }
 
+  // ── pet book (📖 → 🐾 tab): every kind, unmet ones as silhouettes; owned ones with your pet's level and bond ──
+  let dexSel = null;
+  const stars = (def) => { const tries = Math.ceil(100 / def.gain) / def.success, n = tries <= 5 ? 1 : tries <= 8 ? 2 : tries <= 11 ? 3 : tries <= 16 ? 4 : 5; return '★'.repeat(n) + '☆'.repeat(5 - n); };
+  function renderDex(el) {
+    const kinds = [...Object.entries(DEX_EXTRA), ...Object.entries(SPECIES)], owns = (def) => G.pets.ownsType(def.type), met = (id, def) => def.starter || owns(def) || S.met.includes(id);
+    const nOwn = kinds.filter(([, d]) => owns(d)).length, nMet = kinds.filter(([id, d]) => met(id, d)).length;
+    el.replaceChildren();
+    const sub = document.createElement('p'); sub.id = 'dexSub'; sub.className = 'pgNote'; sub.textContent = `야생 펫은 가까이 가면 도감에 올라가고, 쓰다듬어 길들이면 내 펫이 돼요 · 만난 펫 ${nMet} / ${kinds.length}`;
+    const row = document.createElement('div'); row.className = 'collProgRow'; const tr = document.createElement('div'); tr.className = 'collTrack'; const bar = document.createElement('div'); bar.style.cssText = `height:100%;width:${(nOwn / kinds.length) * 100}%;background:linear-gradient(90deg,#ff9cb8,#f0b323)`; tr.append(bar); const pr = document.createElement('span'); pr.textContent = `보유 ${nOwn} / ${kinds.length}`; row.append(tr, pr);
+    const grid = document.createElement('div'); grid.className = 'dexGrid';
+    for (const [id, def] of kinds) {
+      const m = met(id, def), own = owns(def), b = document.createElement('button'); b.type = 'button';
+      b.className = 'collCard dexCard' + (def.sig ? ' sig' : '') + (own ? ' owned' : '') + (m ? '' : ' locked') + (dexSel === id ? ' sel' : '');
+      const ic = document.createElement('span'); ic.className = 'ccIcon'; ic.textContent = def.icon; b.append(ic);
+      if (!m) { const q = document.createElement('i'); q.textContent = '?'; b.append(q); }
+      const bd = document.createElement('i'); bd.className = 'dexBadge'; bd.textContent = (own ? '✓' : '') + (def.sig ? '⭐' : ''); b.append(bd);
+      const nm = document.createElement('span'); nm.className = 'ccName'; nm.textContent = m ? def.name : '???'; b.append(nm);
+      b.title = m ? def.name : '아직 만나지 못한 펫'; b.addEventListener('click', () => { dexSel = id; renderDex(el); }); grid.append(b);
+    }
+    const det = document.createElement('div'); det.className = 'collDetail';
+    const pick = kinds.find(([id]) => id === dexSel);
+    if (!pick) { det.className += ' empty'; det.textContent = '펫을 누르면 자세히 볼 수 있어요'; }
+    else {
+      const [id, def] = pick, m = met(id, def), own = owns(def), r = S.tame[id];
+      det.style.setProperty('--rc', def.sig ? '#f0b323' : '#7cc48a'); if (!m) det.classList.add('locked');
+      const head = document.createElement('div'); head.className = 'cdHead'; const ic = document.createElement('span'); ic.className = 'cdIcon'; ic.textContent = def.icon;
+      const tx = document.createElement('div'), badge = document.createElement('small'), nm = document.createElement('b'); badge.className = 'rBadge';
+      badge.textContent = (def.sig ? '경희 명물 · ' : '') + (own ? '보유' : m ? '만남' : '미발견'); nm.textContent = m ? def.name : '???'; tx.append(badge, nm); head.append(ic, tx);
+      const lines = [];
+      lines.push(def.starter ? `🐾 ${def.home}` : `${m ? '📍 자주 나타나는 곳' : '힌트'}: ${def.home}`);
+      if (!def.starter) lines.push(`길들이기 난이도 ${stars(def)} · 1회 +${def.gain} · 성공률 ${Math.round(def.success * 100)}% · 쿨다운 ${def.cooldown}초`);
+      if (m && !own && !def.starter) lines.push(`길들이기 게이지 ${Math.floor((r && r.gauge) || 0)} / 100` + (def.note ? ` · ${def.note}` : ''));
+      for (const o of G.pets.owned().filter((o) => o.type === def.type)) { const lv = G.growth.level ? G.growth.level(o.id).lv : 1; lines.push(`🐾 ${o.name} · Lv.${lv} · 💗 ${stageOf(rec(o.id).bond).name} (${Math.floor(rec(o.id).bond)})`); }
+      det.append(head); for (const t of lines) { const p = document.createElement('p'); p.textContent = t; det.append(p); }
+    }
+    el.append(sub, row, grid, det);
+  }
+
   // account switch: same policy as wallet / XP (new account starts with this browser's copy; never write over a failed read)
   async function useAccount(api) {
     if (dirty) await store.save(S).catch(() => {}); dirty = false;
@@ -224,7 +265,7 @@ export function initWildPets(G) {
   }
 
   return {
-    setCampus, clear, nearestWild, patWild, promptWild, nearOwn, patOwn, promptOwn, update, onPlace, onCollect, onQuestDone, onLevelUp, decorate, useAccount,
+    renderDex, setCampus, clear, nearestWild, patWild, promptWild, nearOwn, patOwn, promptOwn, update, onPlace, onCollect, onQuestDone, onLevelUp, decorate, useAccount,
     flush: () => { if (dirty && !saving) persist(); }, state: () => S, respawnNow: () => { for (const k of gone.keys()) gone.set(k, 0); respawnT = 0; }, bondOf: (id) => ({ ...rec(id), stage: stageOf(rec(id).bond).name }), wild: () => wild,
   };
 }
