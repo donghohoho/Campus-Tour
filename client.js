@@ -403,6 +403,25 @@ function nextLeg(n) {
   n.leg = makeLeg(roadRoute(here, [tx, tz]) || [here, [tx, tz]]); n.d = 0; n.goal = to.n; return true;
 }
 const waveTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.font = '72px system-ui, "Apple Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('👋', 48, 52); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+// NPCs nearby copy what you do: an emote (1–4) or a jump, a moment later, turning to you while they do it
+const MIMIC_R = 18, npcEmoTex = new Map();
+const emoTex = (ch) => { if (!npcEmoTex.has(ch)) { const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.font = '72px system-ui, "Apple Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 48, 52); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; npcEmoTex.set(ch, t); } return npcEmoTex.get(ch); };
+let npcAir = false;
+function npcMimic(kind, ch) {
+  if (!started) return;
+  for (const n of npcs) if (Math.hypot(player.pos.x - n.x, player.pos.z - n.z) < MIMIC_R) (n.mimicQ || (n.mimicQ = [])).push({ kind, ch, delay: 0.25 + Math.random() * 0.5 });
+}
+function npcMimicStep(n, dt) {
+  for (const q of n.mimicQ || []) q.delay -= dt; // each copied action waits its own moment (an emote and a jump together → both)
+  while (n.mimicQ && n.mimicQ.length && n.mimicQ[0].delay <= 0) {
+    const q = n.mimicQ.shift(); n.faceT = 2.4;
+    if (q.kind === 'jump') { if (!n.hopY) n.hopV = 4.6; }
+    else { if (n.emo) { n.root.remove(n.emo); n.emo.material.dispose(); } n.emo = new THREE.Sprite(new THREE.SpriteMaterial({ map: emoTex(q.ch), transparent: true, depthTest: false })); n.emo.scale.set(0.5, 0.5, 1); n.emo.position.y = 2.25; n.emo.renderOrder = 21; n.root.add(n.emo); n.emoT = 2.2; }
+  }
+  if (n.hopV || n.hopY) { n.hopV -= 13 * dt; n.hopY = Math.max(0, (n.hopY || 0) + n.hopV * dt); if (!n.hopY) n.hopV = 0; }
+  if (n.emo) { n.emo.position.y += dt * 0.3; if ((n.emoT -= dt) <= 0) { n.root.remove(n.emo); n.emo.material.dispose(); n.emo = null; } }
+  n.faceT = Math.max(0, (n.faceT || 0) - dt);
+}
 function setupNpcs() {
   if (!npcPlan || npcs.length || !charSrc.some(Boolean) || !npcSpots().length) return;
   const avail = charSrc.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), count = LOW ? 2 : 3 + Math.floor(Math.random() * 2), spots = npcSpots();
@@ -419,8 +438,10 @@ function setupNpcs() {
 function updateNpcs(dt) {
   if (!npcs.length) { setupNpcs(); return; }
   const P = player.pos;
+  { const air = !player.grounded; if (air && !npcAir && player.vel.y > 1) npcMimic('jump'); npcAir = air; } // the player just took off
   for (const n of npcs) {
-    const near = started && Math.hypot(P.x - n.x, P.z - n.z) < 4.5; // stop for the player, face them, wave
+    npcMimicStep(n, dt);
+    const near = started && (Math.hypot(P.x - n.x, P.z - n.z) < 4.5 || n.faceT > 0); // stop for the player (or while copying them), face them, wave
     if (near && n.waveCd <= 0) { n.waveT = 2.2; n.waveCd = 25; }
     n.waveCd -= dt; n.waveT -= dt;
     let hd;
@@ -431,7 +452,7 @@ function updateNpcs(dt) {
       const [x, z, h] = routeAt(n.leg, n.d); n.x = x + Math.cos(h) * n.side * Math.min(1, n.d / 6, (n.leg.total - n.d) / 6); n.z = z - Math.sin(h) * n.side * Math.min(1, n.d / 6, (n.leg.total - n.d) / 6); hd = h; // keep to one side of the path
     }
     const moving = !near && n.wait <= 0;
-    n.root.position.set(n.x, groundAt(n.x, n.z, 1e4), n.z);
+    n.root.position.set(n.x, groundAt(n.x, n.z, 1e4) + (n.hopY || 0), n.z);
     if (hd != null) { let a = (hd - n.yaw) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; n.yaw += a * (1 - Math.exp(-5 * dt)); } n.body.rotation.y = n.yaw;
     n.wave.visible = n.waveT > 0; if (n.wave.visible) { n.wave.position.y = 2.15 + Math.sin(n.waveT * 9) * 0.04; n.wave.material.rotation = Math.sin(n.waveT * 10) * 0.35; }
     const far = n.root.position.distanceTo(camera.position) > 160; n.root.visible = !far;
@@ -848,7 +869,7 @@ function updateWorld(dt, t) {
 }
 setPetCamera(camera);
 const pets = initPets({ petRow: (li, o) => { growth.decorate(li, o); wildPets.decorate(li, o); }, scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const mp = initMultiplayer({ teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const mp = initMultiplayer({ onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const coll = initCollection({ onCollect: (it) => { quests.event('collect', it); growth.onCollect(it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const quests = initQuests({ onComplete: (q) => { growth.onQuestDone(q); wildPets.onQuestDone(q); }, toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
   metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
@@ -913,4 +934,4 @@ function frame(now) {
   if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); growth.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { coll, quests, growth, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { npcs: () => npcs, coll, quests, growth, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

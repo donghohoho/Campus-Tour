@@ -287,6 +287,7 @@ export function initMultiplayer(G) {
   // ── actions ──
   function sendChat(text) { addLog(myName, text); bubble(null, text, true); if (net) net.send('ch', { text }); }
   function emote(n) {
+    if (G.onEmote) G.onEmote(n, EMOTES[n]); // client.js: NPCs copy it
     disposeSprite(myEmote); myEmote = emoteSprite(G.pRoot, n, 2.1); myEmoteT = 2.2; G.player.squashV = 6;
     if (G.player.grounded) G.player.jumpBuf = 0.14; if (net) net.send('em', { e: n });
   }
