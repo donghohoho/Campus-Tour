@@ -771,8 +771,11 @@ const auth = initAuth();
   };
   if (!auth.available()) { lb.disabled = true; pw.disabled = true; lb.title = '로그인 서버 설정 전이에요'; }
   show(null);
-  auth.onChange(async (u) => {
-    show(u); mp.setIdentity(u); await pets.useAccount(u ? auth : null);
+  mp.useDB(auth); auth.ready().then(() => auth.ensureUser()).catch(() => {}); // guests: silent anonymous sign-in so their signs can be saved
+  let lastAcct;
+  auth.onChange(async (raw) => {
+    const u = raw && !raw.anon ? raw : null; mp.setIdentity(u, raw && raw.uid); if (u === lastAcct || (u && lastAcct && u.uid === lastAcct.uid)) return; lastAcct = u;
+    show(u); await pets.useAccount(u ? auth : null);
     if (u) { // admin follows the account: use the key saved on it, or save this browser's key onto it
       const saved = await auth.loadAdmin().catch(() => null), local = await mp.adminKey();
       if (saved) { if (await mp.useAdminKey(saved)) toast('🛡️ 관리자 계정으로 로그인했어요', 2.2); } else if (local) auth.saveAdmin(local).then(() => toast('🛡️ 이 계정을 관리자로 등록했어요 — 다른 기기에서도 로그인만 하면 관리자예요', 3)).catch(() => {});
@@ -787,7 +790,7 @@ const auth = initAuth();
   lb.addEventListener('click', go);
   pw.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
   gb.addEventListener('click', () => { const sb = $('#startBtn'); if (sb.disabled) { msg.textContent = '캐릭터를 불러오는 중이에요… 잠시 뒤에 다시 눌러 주세요'; return; } sb.click(); }); // play right away as a guest
-  ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); });
+  ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
 }
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {

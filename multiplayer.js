@@ -122,7 +122,7 @@ export function initMultiplayer(G) {
   nick.addEventListener('input', () => { if (account) return; const v = clean(nick.value, NAME_MAX); if (v) { myName = v; store.set('fm:name', v); } });
   let account = null;
   // logged in: the account nickname is my name and the account id owns my signs (so I can remove them from any device)
-  function setIdentity(u) { account = u; if (u) { myName = u.nick; me = 'u:' + u.uid; } else { me = guestId; myName = guestName(); } nick.value = myName; if (net) net.send('hi', hello()); refreshCount(); }
+  function setIdentity(u, fbUid) { account = u; if (u) myName = u.nick; else myName = guestName(); me = fbUid ? 'u:' + fbUid : guestId; nick.value = myName; if (net) net.send('hi', hello()); refreshCount(); } // fbUid: account or anonymous guest sign-in
   nick.addEventListener('change', () => { nick.value = myName; if (net) net.send('hi', hello()); });
 
   // ── HUD ──
@@ -324,14 +324,16 @@ export function initMultiplayer(G) {
     if (now - lastSign < SIGN_COOLDOWN) { G.toast(`표지판은 ${Math.ceil(SIGN_COOLDOWN - (now - lastSign))}초 뒤에 다시 세울 수 있어요`, 2); return; }
     const p = G.player, fx = Math.sin(p.yaw), fz = Math.cos(p.yaw), x = p.pos.x + fx * 1.6, z = p.pos.z + fz * 1.6;
     const s = { id: uid(), by: me, name: myName, text, x: +x.toFixed(2), y: +p.pos.y.toFixed(2), z: +z.toFixed(2), yaw: +(p.yaw + Math.PI).toFixed(3), t: Date.now() };
-    lastSign = now; addSign(s); if (net) net.send('sg', { list: [s] }); G.toast('표지판을 세웠어요 — 다른 사람들도 볼 수 있어요', 2.2);
+    lastSign = now; addSign(s); if (net) net.send('sg', { list: [s] }); G.toast(`표지판을 세웠어요 — ${DB ? '30일 동안 ' : ''}다른 사람들도 볼 수 있어요`, 2.2);
+    if (DB) DB.saveSign(roomId, s).catch((e) => { console.warn('sign not saved', e); G.toast('표지판을 서버에 저장하지 못했어요 (이 기기에만 남아요)', 2.4); });
   }
   function mySignNear() { const p = G.player.pos; let best = null, bd = 3.2; for (const s of signs.values()) if (s.by === me || adminKey) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } } return best; }
-  function removeNearSign() { const s = mySignNear(); if (!s) return; if (s.by !== me && adminKey) return adminRemove([s.id]); killSign(s.id); if (net) net.send('sd', { id: s.id, by: me }); G.toast('내 표지판을 지웠어요', 1.6); }
+  function removeNearSign() { const s = mySignNear(); if (!s) return; if (s.by !== me && adminKey) return adminRemove([s.id]); killSign(s.id); if (net) net.send('sd', { id: s.id, by: me }); if (DB) DB.deleteSign(s.id).catch(() => {}); G.toast('내 표지판을 지웠어요', 1.6); }
   async function adminRemove(ids) {
     if (!adminKey || !ids.length) return; const body = { room: roomId, ids, t: Date.now() };
     const sig = b64(await crypto.subtle.sign(SIG, adminKey, enc(body))); for (const id of ids) killSign(id, false); saveSigns();
     if (net) net.send('sa', { body, sig }); G.toast(`🛡️ 표지판 ${ids.length}개를 지웠어요`, 1.8);
+    if (DB) { let fail = 0; for (const id of ids) await DB.deleteSign(id).catch(() => fail++); if (fail) G.toast(`⚠️ 서버에서 ${fail}개를 지우지 못했어요 — Firestore의 admins 등록을 확인해 주세요`, 3.2); }
   }
   async function adminCheck(d) { // a removal sent by the admin: verify, then apply
     try { const key = await adminPub; if (!key || !d || !d.body || d.body.room !== roomId || !Array.isArray(d.body.ids) || Math.abs(Date.now() - d.body.t) > 864e5) return;
@@ -377,12 +379,23 @@ export function initMultiplayer(G) {
     });
     n.onStream((stream, peer) => { if (stream.getAudioTracks().length) attachVoice(getAvatar(peer), stream); });
   }
+  // signs live in the database (30 days); P2P only makes new ones appear instantly. The database wins: signs it doesn't have
+  // are dropped, except my own from before (uploaded once). Without a database the old P2P + browser cache behaviour stays.
+  let DB = null;
+  function useDB(api) { DB = api; if (roomId) syncDB(joinTok); }
+  async function syncDB(tok) {
+    if (!DB) return; let list; try { list = await DB.loadSigns(roomId); } catch (e) { console.warn('signs: database unavailable', e); return; }
+    if (!list || tok !== joinTok) return; const ids = new Set(list.map((x) => x.id));
+    for (const sg of [...signs.values()]) if (!ids.has(sg.id)) { if (sg.by === me || sg.by === guestId) DB.saveSign(roomId, sg).catch(() => {}); else killSign(sg.id, false); }
+    dead.clear(); for (const sg of list) addSign({ ...sg, by: 'u:' + sg.by }, false); saveSigns();
+  }
   async function enter(id) {
     if (id === roomId) return; const tok = ++joinTok;
     if (net) { const old = net; net = null; if (mic) { old.removeStream(mic); mic.getTracks().forEach((t) => t.stop()); mic = null; setMicUi(); } old.leave(); }
     for (const p of [...avatars.keys()]) dropAvatar(p); failed.clear();
     for (const id2 of [...signs.keys()]) killSign(id2, false); dead.clear(); roomId = id;
     const saved = store.get(signKey(), null); if (saved) { (saved.d || []).forEach((x) => dead.add(x)); (saved.s || []).forEach((s) => addSign(s, false)); }
+    syncDB(tok);
     bar.classList.remove('hidden'); log.classList.remove('hidden');
     if (MODE === 'off') { refreshCount(); return; }
     setStatus('🔌 연결 중…');
@@ -427,5 +440,5 @@ export function initMultiplayer(G) {
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
   const players = () => [...avatars.values()].filter((av) => av.has).map((av) => ({ name: av.name, x: av.cur.x, y: av.cur.y, z: av.cur.z }));
-  return { useAdminKey, adminKey: async () => { await adminReady; return adminD; }, setIdentity, enter, update, players, typing: () => !!typing };
+  return { useDB, useAdminKey, adminKey: async () => { await adminReady; return adminD; }, setIdentity, enter, update, players, typing: () => !!typing };
 }

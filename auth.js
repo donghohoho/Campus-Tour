@@ -15,6 +15,7 @@ export const FIREBASE_CONFIG = {
   appId: '1:180845335435:web:dd3413e8d145ba0495558e',
 };
 
+export const SIGN_DAYS = 30;
 const NICK_RE = /^[\p{L}\p{N}_ .-]{2,12}$/u;
 const nickToEmail = (nick) => 'u' + [...new TextEncoder().encode(nick.normalize('NFC').toLowerCase())].map((b) => b.toString(16).padStart(2, '0')).join('') + '@campus-tour.app';
 
@@ -24,7 +25,7 @@ export function initAuth() {
   const emit = () => listeners.forEach((f) => f(user));
   if (FIREBASE_CONFIG) ready = import('./vendor/firebase.min.js').then((m) => {
     fb = m; const app = m.initializeApp(FIREBASE_CONFIG); auth = m.getAuth(app); db = m.getFirestore(app);
-    return new Promise((res) => m.onAuthStateChanged(auth, (u) => { user = u ? { uid: u.uid, nick: u.displayName || '' } : null; emit(); res(); }));
+    return new Promise((res) => m.onAuthStateChanged(auth, (u) => { user = u ? { uid: u.uid, nick: u.displayName || '', anon: u.isAnonymous } : null; emit(); res(); }));
   }).catch((e) => { console.warn('firebase unavailable', e); fb = null; });
   const why = (e) => {
     const c = (e && e.code) || '';
@@ -37,7 +38,8 @@ export function initAuth() {
   return {
     available: () => !!FIREBASE_CONFIG,
     ready: () => ready || Promise.resolve(),
-    user: () => user,
+    user: () => (user && !user.anon ? user : null), // a real account (guests may hold an anonymous sign-in, see ensureUser)
+    uid: () => (user ? user.uid : null),
     onChange: (f) => listeners.push(f),
     // log in; if the nickname isn't registered yet, create the account (first come, first served)
     async login(nick, pw) {
@@ -55,6 +57,20 @@ export function initAuth() {
         throw new Error(why(e));
       }
     },
+    // guests get a silent anonymous sign-in the first time they need to write (signs)
+    async ensureUser() { await ready; if (!fb) return null; if (!user) { await fb.signInAnonymously(auth); await new Promise((r) => setTimeout(r, 50)); } return user; },
+    // ── signs, shared by everyone (collection "signs"; Firestore TTL deletes them after 30 days, the game also hides expired ones) ──
+    async loadSigns(campus) {
+      await ready; if (!fb) return null;
+      const snap = await fb.getDocs(fb.query(fb.collection(db, 'signs'), fb.where('campus', '==', campus), fb.limit(400))), now = Date.now(), out = [];
+      snap.forEach((d) => { const v = d.data(); if (v.expires && v.expires.toMillis() > now) out.push({ id: d.id, by: v.by, name: v.name, text: v.text, x: v.x, y: v.y, z: v.z, yaw: v.yaw, t: v.t }); });
+      return out;
+    },
+    async saveSign(campus, sg) {
+      const u = await this.ensureUser(); if (!u) throw new Error('offline');
+      await fb.setDoc(fb.doc(db, 'signs', sg.id), { campus, by: u.uid, name: sg.name, text: sg.text, x: sg.x, y: sg.y, z: sg.z, yaw: sg.yaw, t: sg.t, expires: fb.Timestamp.fromMillis(Date.now() + SIGN_DAYS * 864e5) });
+    },
+    async deleteSign(id) { await this.ensureUser(); if (fb) await fb.deleteDoc(fb.doc(db, 'signs', id)); },
     async logout() { if (fb && auth) await fb.signOut(auth); },
     async loadWallet() { if (!user || !db) return null; const s = await fb.getDoc(fb.doc(db, 'users', user.uid)); return s.exists() ? s.data().wallet || null : null; },
     async saveWallet(w) { if (!user || !db) return; await fb.setDoc(fb.doc(db, 'users', user.uid), { nick: user.nick, wallet: JSON.parse(JSON.stringify(w)), updated: Date.now() }, { merge: true }); },
