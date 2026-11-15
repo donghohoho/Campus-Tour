@@ -86,15 +86,21 @@ function textSprite(lines, { font = 28, pad = 12, bg = 'rgba(16,22,44,0.78)', fg
 const disposeSprite = (sp) => { if (!sp) return; sp.parent && sp.parent.remove(sp); sp.material.map.dispose(); sp.material.dispose(); };
 
 // ── signs ──
-const postGeo = new THREE.BoxGeometry(0.1, 1.3, 0.1), boardGeo = new THREE.BoxGeometry(1.5, 0.78, 0.07), faceGeo = new THREE.PlaneGeometry(1.42, 0.7);
-const woodMat = new THREE.MeshLambertMaterial({ color: 0x8a5a34 }), boardMat = new THREE.MeshLambertMaterial({ color: 0xb98454 });
+// signs are little decorated trees with a hanging name tag carrying the message
+const trunkGeo = new THREE.CylinderGeometry(0.09, 0.12, 0.45, 8), coneGeos = [[0.72, 0.85], [0.56, 0.72], [0.4, 0.6]].map(([r, h]) => new THREE.ConeGeometry(r, h, 10));
+const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a4a2a }), leafMat = new THREE.MeshLambertMaterial({ color: 0x2f7a46, emissive: 0x0f2a18 });
+const starMat = new THREE.MeshLambertMaterial({ color: 0xffd34d, emissive: 0xffc21a, emissiveIntensity: 0.9 }), starGeo = new THREE.OctahedronGeometry(0.13, 0);
+const ballGeo = new THREE.SphereGeometry(0.06, 8, 6), ballMats = [0xff5a5a, 0xffd34d, 0x6ab8ff, 0xffffff].map((c) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.55 }));
+const tagGeo = new THREE.PlaneGeometry(0.96, 0.6), stringMat = new THREE.LineBasicMaterial({ color: 0xf6e7c8 });
 function signFace(text, name) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 252; const g = c.getContext('2d');
-  g.fillStyle = '#f3e3c3'; g.fillRect(0, 0, 512, 252); g.strokeStyle = '#8a5a34'; g.lineWidth = 8; g.strokeRect(4, 4, 504, 244);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 320; const g = c.getContext('2d');
+  g.clearRect(0, 0, 512, 320); g.fillStyle = '#fff7e6'; g.strokeStyle = '#c0392b'; g.lineWidth = 10;
+  g.beginPath(); g.moveTo(70, 10); g.lineTo(492, 10); g.quadraticCurveTo(502, 10, 502, 20); g.lineTo(502, 300); g.quadraticCurveTo(502, 310, 492, 310); g.lineTo(70, 310); g.lineTo(10, 230); g.lineTo(10, 90); g.closePath(); g.fill(); g.stroke(); // tag with a pointed end
+  g.fillStyle = '#c0392b'; g.beginPath(); g.arc(52, 160, 14, 0, 6.3); g.fill(); // eyelet
   g.fillStyle = '#2b2118'; g.textAlign = 'center'; g.textBaseline = 'middle'; const F = (px) => `700 ${px}px "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif`;
-  let px = 44, lines; for (; px >= 26; px -= 4) { g.font = F(px); lines = []; let cur = ''; for (const ch of text) { if (g.measureText(cur + ch).width > 470 && cur) { lines.push(cur); cur = ''; } cur += ch; } lines.push(cur); if (lines.length * px * 1.2 <= 170) break; }
-  const lh = px * 1.2, top = 108 - (lines.length - 1) * lh / 2; lines.slice(0, 5).forEach((l, i) => g.fillText(l, 256, top + i * lh));
-  g.font = F(22); g.fillStyle = '#6b5440'; g.fillText('— ' + name, 256, 222);
+  let px = 46, lines; for (; px >= 26; px -= 4) { g.font = F(px); lines = []; let cur = ''; for (const ch of text) { if (g.measureText(cur + ch).width > 390 && cur) { lines.push(cur); cur = ''; } cur += ch; } lines.push(cur); if (lines.length * px * 1.2 <= 200) break; }
+  const lh = px * 1.2, top = 140 - (lines.length - 1) * lh / 2; lines.slice(0, 5).forEach((l, k) => g.fillText(l, 290, top + k * lh));
+  g.font = F(24); g.fillStyle = '#8a5a34'; g.fillText('— ' + name, 290, 278);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; return tex;
 }
 
@@ -288,15 +294,21 @@ export function initMultiplayer(G) {
   }
   function drawSign(s) {
     const g = new THREE.Group(); g.position.set(s.x, s.y, s.z); g.rotation.y = s.yaw; g.userData.sign = s.id;
-    const post = new THREE.Mesh(postGeo, woodMat); post.position.y = 0.65; post.castShadow = true;
-    const board = new THREE.Mesh(boardGeo, boardMat); board.position.y = 1.5; board.castShadow = true;
-    const mat = new THREE.MeshLambertMaterial({ map: signFace(s.text, s.name), emissive: 0xffffff, emissiveIntensity: 0.32 }); mat.emissiveMap = mat.map;
-    const f1 = new THREE.Mesh(faceGeo, mat); f1.position.set(0, 1.5, 0.04); const f2 = new THREE.Mesh(faceGeo, mat); f2.position.set(0, 1.5, -0.04); f2.rotation.y = Math.PI;
-    g.add(post, board, f1, f2); signGroup.add(g);
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat); trunk.position.y = 0.22; trunk.castShadow = true; g.add(trunk);
+    let y = 0.45; coneGeos.forEach((geo, k) => { const c = new THREE.Mesh(geo, leafMat); c.position.y = y + geo.parameters.height / 2 - k * 0.12; c.castShadow = true; g.add(c); y += geo.parameters.height - 0.32; });
+    const star = new THREE.Mesh(starGeo, starMat); star.position.y = y + 0.42; g.add(star);
+    const h = (s.id.charCodeAt(0) + s.id.charCodeAt(1)) | 0; // ornaments, same pattern for everyone
+    for (let k = 0; k < 7; k++) { const a = k * 2.4 + h, yy = 0.7 + (k % 4) * 0.33, r = 0.62 - (yy - 0.6) * 0.42; const b = new THREE.Mesh(ballGeo, ballMats[(k + h) % 4]); b.position.set(Math.cos(a) * r, yy, Math.sin(a) * r); g.add(b); }
+    // the name tag hangs from a lower branch on a short string, readable from both sides
+    const mat = new THREE.MeshLambertMaterial({ map: signFace(s.text, s.name), transparent: true, alphaTest: 0.3, emissive: 0xffffff, emissiveIntensity: 0.38, side: THREE.DoubleSide }); mat.emissiveMap = mat.map;
+    const tag = new THREE.Mesh(tagGeo, mat); tag.position.set(0, 0.95, 0.74); tag.rotation.set(-0.08, 0, 0.05); g.add(tag);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.42, 1.0, 0.72), new THREE.Vector3(-0.3, 1.32, 0.45)]), stringMat));
+    g.userData.tagMat = mat; signGroup.add(g);
   }
+
   function killSign(id, save = true) {
     signs.delete(id); dead.add(id);
-    for (const g of [...signGroup.children]) if (g.userData.sign === id) { const m = g.children[2].material; m.map.dispose(); m.dispose(); signGroup.remove(g); }
+    for (const g of [...signGroup.children]) if (g.userData.sign === id) { const m = g.userData.tagMat; if (m) { m.map.dispose(); m.dispose(); } g.traverse((o) => { if (o.isLine) o.geometry.dispose(); }); signGroup.remove(g); }
     if (save) saveSigns();
   }
   function placeSign(text) {
