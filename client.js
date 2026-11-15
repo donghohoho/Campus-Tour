@@ -320,9 +320,11 @@ function buildWorld(data) {
   // spawn by the main gate (inside, or outside if dist < 0), facing into the campus
   const SP = campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
-  const d = Math.hypot(lib.x - gate.x, lib.z - gate.z) || 1, SD = SP.dist || 16, [sx, sz] = freeSpot(gate.x + ((lib.x - gate.x) / d) * SD, gate.z + ((lib.z - gate.z) / d) * SD, 5);
-  spawnPoint = { x: sx, z: sz, yaw: Math.atan2(lib.x - gate.x, lib.z - gate.z) };
-  player.pos.set(sx, terrainH(sx, sz), sz); player.yaw = Math.atan2(lib.x - gate.x, lib.z - gate.z); camYaw = player.yaw + Math.PI; camTarget.set(sx, player.pos.y + 1.25, sz); player.vel.set(0, 0, 0); camDistCur = camDist;
+  let sx, sz, syaw;
+  if (SP.at) { [sx, sz] = SP.at; const lk = SP.look ? { x: SP.look[0], z: SP.look[1] } : lib; syaw = Math.atan2(lk.x - sx, lk.z - sz); } // fixed spot (e.g. the street outside a gate the map has no building for)
+  else { const d = Math.hypot(lib.x - gate.x, lib.z - gate.z) || 1, SD = SP.dist || 16; [sx, sz] = freeSpot(gate.x + ((lib.x - gate.x) / d) * SD, gate.z + ((lib.z - gate.z) / d) * SD, 5); syaw = Math.atan2(lib.x - gate.x, lib.z - gate.z); }
+  spawnPoint = { x: sx, z: sz, yaw: syaw };
+  player.pos.set(sx, terrainH(sx, sz), sz); player.yaw = syaw; camYaw = player.yaw + Math.PI; camTarget.set(sx, player.pos.y + 1.25, sz); player.vel.set(0, 0, 0); camDistCur = camDist;
   setCount();
 }
 function updateTufts(px, pz) {

@@ -8,7 +8,7 @@
 //   terrain    terrain character of the site: 'flat' | 'hills' | 'mountain'
 //   lighting   key into LIGHTING below
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
-//   spawn      start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
+//   spawn      { at: [x, z], look: [x, z] } = fixed spot and view, or start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building' | 'place' (open space: sign only)
 //              (a gate or building may carry model: 'assets/models/x.glb' to replace the block, + rot° / height / wall colour;
 //               rot turns the model's front (+Z) in 90° steps until it faces the right road),
@@ -41,7 +41,7 @@ export const CAMPUSES = [
     id: 'snu-gwanak', name: '서울대학교 관악캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/snu-gwanak.json', terrain: 'mountain', lighting: 'night', seed: 20261116,
     outsideLabel: '캠퍼스 밖 · 관악산/낙성대',
-    spawn: { from: '행정관', toward: '중앙도서관', dist: 28 },
+    spawn: { at: [-500, 1040], look: [-440, 930], toward: '행정관' }, // 관악로 at the main gate, looking into the campus (gate position estimated from where 관악로 enters)
     landmarks: [
       { name: '대운동장', kind: 'stadium', pos: [-359, 720], note: 'OSM leisure=pitch' },
       { name: '자하연', kind: 'place', pos: [-199, 272], r: 40, note: 'OSM water "자하연"' },
@@ -54,7 +54,7 @@ export const CAMPUSES = [
     id: 'yonsei-sinchon', name: '연세대학교 신촌캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/yonsei-sinchon.json', terrain: 'mountain', lighting: 'night', seed: 20261115,
     outsideLabel: '캠퍼스 밖 · 신촌/창천동',
-    spawn: { from: '백주년기념관 (201)', toward: '언더우드관 (501)', dist: 40 },
+    spawn: { at: [-171, -852], look: [-150, -700], toward: '언더우드관 (501)' }, // 연세로 in front of the main gate, looking up 백양로 (gate = where 백양로 meets 연세로)
     landmarks: [
       { name: '연세대학교 대운동장', kind: 'stadium', pos: [-468, -600], note: 'OSM leisure=pitch' },
       { name: '언더우드관 (501)', kind: 'building', pos: [-5, -144], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
