@@ -7,6 +7,7 @@ import { CAMPUSES, REGIONS, LIGHTING } from './campuses.js';
 import { initMultiplayer } from './multiplayer.js';
 import { initPets } from './pets.js';
 import { initAuth } from './auth.js';
+import { initMusic } from './music.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -619,7 +620,8 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   hold($('#tChar'), () => { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인을 모아 보세요`, 3.6); });
+const music = initMusic({ toast, started: () => started });
+$('#startBtn').addEventListener('click', () => { if (!ready) return; started = true; music.start(); mp.enter(campus.id); $('#start').classList.add('hidden'); $('#hint').classList.toggle('hidden', TOUCH); if (TOUCH) $('#touchUI').classList.remove('hidden'); else lockPointer(); toast(`${campus.name}에 들어왔어요 — 걸어 다니며 코인을 모아 보세요`, 3.6); });
 
 // ── simulation ─────────────────────────────────────────────────────────────
 function groundAt(x, z, feet) {
