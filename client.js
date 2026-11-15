@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CAMPUSES, REGIONS, LIGHTING } from './campuses.js';
 import { initMultiplayer } from './multiplayer.js';
 import { initPets } from './pets.js';
+import { initAuth } from './auth.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -760,6 +761,28 @@ function updateWorld(dt, t) {
 }
 const pets = initPets({ scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const mp = initMultiplayer({ teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+// ── accounts (nickname + password) or guest ──
+const auth = initAuth();
+{
+  const msg = $('#loginMsg'), pw = $('#pw'), nickEl = $('#nick'), lb = $('#loginBtn'), gb = $('#guestBtn'), ob = $('#logoutBtn');
+  const show = (u) => {
+    const inn = !!u; nickEl.readOnly = inn; pw.value = ''; $('#pwRow').classList.toggle('hidden', inn); lb.classList.toggle('hidden', inn); gb.classList.toggle('hidden', inn); ob.classList.toggle('hidden', !inn);
+    msg.textContent = inn ? `✅ ${u.nick} 님으로 로그인됨 — 코인·펫이 계정에 저장돼요 (어느 기기에서나)` : auth.available() ? '게스트 모드 — 코인·펫은 이 기기에만 저장돼요. 로그인하면 어느 기기에서나 이어서 할 수 있어요' : '게스트 모드 — 코인·펫은 이 기기에만 저장돼요 (계정 기능은 준비 중)';
+  };
+  if (!auth.available()) { lb.disabled = true; pw.disabled = true; lb.title = '로그인 서버 설정 전이에요'; }
+  show(null);
+  auth.onChange(async (u) => { show(u); mp.setIdentity(u); await pets.useAccount(u ? auth : null); });
+  const go = async () => {
+    lb.disabled = true; msg.textContent = '로그인 중…';
+    try { const r = await auth.login(nickEl.value, pw.value); if (r.created) toast(`🎉 ${nickEl.value.trim()} 계정을 만들었어요! 이 기기의 코인·펫을 계정으로 옮겼어요`, 3.2); }
+    catch (e) { msg.textContent = '⚠️ ' + (e.message || e); }
+    lb.disabled = false;
+  };
+  lb.addEventListener('click', go);
+  pw.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
+  gb.addEventListener('click', () => show(null));
+  ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); });
+}
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
 function frame(now) {
   if (!worldReady) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; } // between campuses

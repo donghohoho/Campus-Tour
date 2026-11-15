@@ -86,12 +86,15 @@ export function createPet(type, name, terrainH, slot = 0) {
 export function initPets(G) {
   // G: { scene, player, terrainH(x,z), toast(msg,s), started(), menuOpen(), worldReady(), touch, releaseKeys(), lockPointer() }
   let W = { coins: 0, prog: 0, owned: [], actives: [], steps: 0 };
-  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') W = { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] }; } catch (_) {}
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (_) {} };
-  // starter pet: given once; walks with you the first time
-  for (const d of PETS.filter((p) => p.starter)) if (!W.owned.some((o) => o.type === d.id) && !(W.given || []).includes(d.id)) {
-    const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.actives.length) W.actives = [o.id]; W.given = [...(W.given || []), d.id]; save();
-  }
+  const norm = (s) => (s && typeof s === 'object' ? { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] } : null);
+  try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || W; } catch (_) {}
+  // storage: this browser (guest) or the logged-in account (cloud, written at most every 20 s and when leaving)
+  let cloud = null, dirty = false, flushT = 0;
+  const save = () => { if (cloud) { dirty = true; return; } try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (_) {} };
+  const flush = () => { if (cloud && dirty) { dirty = false; cloud.saveWallet(W).catch(() => { dirty = true; }); } };
+  const giveStarter = () => { for (const d of PETS.filter((p) => p.starter)) if (!W.owned.some((o) => o.type === d.id) && !(W.given || []).includes(d.id)) {
+    const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.actives.length) W.actives = [o.id]; W.given = [...(W.given || []), d.id]; save(); } };
+  giveStarter();
   let saveT = 0, pets = [], open = false, last = null;
 
   // ── HUD ──
@@ -134,7 +137,7 @@ export function initPets(G) {
   function buy(d) {
     if (W.coins < d.price) return;
     W.coins -= d.price; const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name };
-    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
+    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
     const inputs = $('#petMine').querySelectorAll('input'); const last = inputs[inputs.length - 1]; if (last) { last.focus(); last.select(); }
   }
   function show(on) {
@@ -163,11 +166,20 @@ export function initPets(G) {
       last = { x: p.pos.x, z: p.pos.z };
       while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 1.6); if (open) render(); }
       if ((saveT -= dt) <= 0) { saveT = 5; save(); }
+      if (cloud && (flushT -= dt) <= 0) { flushT = 20; flush(); }
     } else last = null;
     if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 0.5; hud(); }
     { const p = G.player; for (const pt of pets) pt.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
   }
-  addEventListener('pagehide', save);
+  addEventListener('pagehide', () => { save(); flush(); }); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name })); }
-  return { update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  // switch to an account's wallet (first login carries this browser's guest progress over), or back to the guest wallet
+  async function useAccount(api, created) {
+    if (!api) { flush(); cloud = null; try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || { coins: 0, prog: 0, owned: [], actives: [], steps: 0 }; } catch (_) {} giveStarter(); spawnActive(); hud(); if (open) render(); return; }
+    const remote = norm(await api.loadWallet().catch(() => null));
+    cloud = api;
+    if (remote) W = remote; else { dirty = true; flush(); } // new account: starts with the guest progress of this browser
+    giveStarter(); spawnActive(); hud(); if (open) render();
+  }
+  return { useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

@@ -186,6 +186,15 @@
       body.touch #bigMapCanvas { width: min(94vw, 78vh); height: min(94vw, 78vh); }
       /* phones zoom the page into any text box smaller than 16px — keep them at 16px on touch screens */
       body.touch input[type="text"], body.touch #chatInput, body.touch #tpSearch, body.touch #nick, body.touch .petRows input { font-size: 16px; }
+      #loginBox { display: grid; gap: 8px; color: #fdf8e8; justify-items: center; }
+      .loginRow { display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; align-items: center; }
+      .loginRow label { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+      #pw { font: 600 15px/1 inherit; width: 150px; padding: 9px 12px; border-radius: 10px; border: 2px solid rgba(255, 253, 246, 0.6); background: rgba(255, 253, 246, 0.92); color: #1d2a22; user-select: text; -webkit-user-select: text; }
+      body.touch #pw { font-size: 16px; }
+      #loginBox button { font: 700 14px/1 inherit; padding: 9px 14px; border-radius: 10px; border: 2px solid rgba(255, 253, 246, 0.6); background: rgba(255, 253, 246, 0.14); color: #fdf8e8; cursor: pointer; }
+      #loginBox button.on, #loginBtn { background: #ffd98a; color: #1b2030; border-color: #ffd98a; }
+      #loginBox button:disabled { opacity: 0.5; cursor: default; }
+      #loginMsg { margin: 0; font-size: 13px; opacity: 0.9; text-align: center; }
       .hidden { display: none !important; }
       #loc { left: 50%; top: 16px; transform: translateX(-50%); font-weight: 700; white-space: nowrap; }
       #mini { right: 16px; bottom: 16px; padding: 0; width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 253, 246, 0.9); }
@@ -246,7 +255,11 @@
           <button class="charBtn" type="button" data-i="4" aria-pressed="false"><img src="assets/char_m2.jpg" alt="" /><span>남자 2</span></button>
           <button class="charBtn" type="button" data-i="5" aria-pressed="false"><img src="assets/char_m3.jpg" alt="" /><span>남자 3</span></button>
         </div>
-        <label class="nickRow">닉네임 <input id="nick" type="text" maxlength="12" autocomplete="nickname" spellcheck="false" /></label>
+        <div id="loginBox">
+          <div class="loginRow"><label>닉네임 <input id="nick" type="text" maxlength="12" autocomplete="username" spellcheck="false" /></label><label id="pwRow">비밀번호 <input id="pw" type="password" maxlength="64" autocomplete="current-password" /></label></div>
+          <div class="loginRow"><button id="loginBtn" type="button">로그인 / 가입</button><button id="guestBtn" type="button" class="on" aria-pressed="true">게스트</button><button id="logoutBtn" type="button" class="hidden">로그아웃</button></div>
+          <p id="loginMsg" aria-live="polite">게스트 모드 — 코인·펫은 이 기기에만 저장돼요</p>
+        </div>
         <button id="startBtn" type="button" disabled>불러오는 중…</button>
       </section>
       <p class="keysDesk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · <kbd>Space</kbd> 점프 · 마우스 시점 · <kbd>C</kbd> 캐릭터 · <kbd>M</kbd> 캠퍼스 · <kbd>Enter</kbd> 채팅 · <kbd>B</kbd> 표지판</p>

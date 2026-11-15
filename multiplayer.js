@@ -113,12 +113,16 @@ export function initMultiplayer(G) {
   const avatars = new Map(); // peerId → avatar
   const signGroup = new THREE.Group(); G.scene.add(signGroup);
   let net = null, roomId = null, joinTok = 0, sendAcc = 0, signs = new Map(), dead = new Set(), lastSign = -1e9, typing = null, myBubble = null, myBubbleT = 0, myEmote = null, myEmoteT = 0, now = 0;
-  const me = store.get('fm:uid', null) || (() => { const u = uid(); store.set('fm:uid', u); return u; })();
-  let myName = clean(store.get('fm:name', ''), NAME_MAX) || '방문자' + Math.floor(1000 + Math.random() * 9000);
+  const guestId = store.get('fm:uid', null) || (() => { const u = uid(); store.set('fm:uid', u); return u; })();
+  let me = guestId, myName = clean(store.get('fm:name', ''), NAME_MAX) || '방문자' + Math.floor(1000 + Math.random() * 9000);
+  const guestName = () => clean(store.get('fm:name', ''), NAME_MAX) || myName;
 
   // ── start-screen nickname ──
   const nick = $('#nick'); nick.value = myName;
-  nick.addEventListener('input', () => { const v = clean(nick.value, NAME_MAX); if (v) { myName = v; store.set('fm:name', v); } });
+  nick.addEventListener('input', () => { if (account) return; const v = clean(nick.value, NAME_MAX); if (v) { myName = v; store.set('fm:name', v); } });
+  let account = null;
+  // logged in: the account nickname is my name and the account id owns my signs (so I can remove them from any device)
+  function setIdentity(u) { account = u; if (u) { myName = u.nick; me = 'u:' + u.uid; } else { me = guestId; myName = guestName(); } nick.value = myName; if (net) net.send('hi', hello()); refreshCount(); }
   nick.addEventListener('change', () => { nick.value = myName; if (net) net.send('hi', hello()); });
 
   // ── HUD ──
@@ -419,5 +423,5 @@ export function initMultiplayer(G) {
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
   const players = () => [...avatars.values()].filter((av) => av.has).map((av) => ({ name: av.name, x: av.cur.x, y: av.cur.y, z: av.cur.z }));
-  return { enter, update, players, typing: () => !!typing };
+  return { setIdentity, enter, update, players, typing: () => !!typing };
 }
