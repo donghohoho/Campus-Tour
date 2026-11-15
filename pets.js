@@ -20,7 +20,7 @@ export const PETS = [
 export const MAX_WALK = 5; // pets that can walk with you at once
 // follow spots behind the owner: [metres back, metres to the side]
 const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
-const EARN_EVERY = 60, EARN_AMOUNT = 10, NAME_MAX = 10, KEY = 'fm:wallet';
+const EARN_EVERY = 6, EARN_AMOUNT = 1, NAME_MAX = 10, KEY = 'fm:wallet';
 // pedometer: walking also fills the bar — every metre on foot is worth WALK_BONUS extra seconds
 // (walking ≈ 3× faster than standing still, running ≈ 5×). A step is STEP_LEN metres.
 const WALK_BONUS = 0.5, STEP_LEN = 0.75, JUMP_RATE = 7; // jumping: 7× (running is ~5×)
@@ -103,7 +103,8 @@ export function initPets(G) {
   // ── HUD ──
   const coinEl = $('#count'), nextEl = $('#coinNext'), stepEl = $('#steps'), panel = $('#petShop');
   const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  function hud() { coinEl.textContent = `${W.coins}`; nextEl.textContent = `+${EARN_AMOUNT}까지 ${fmt(Math.max(0, EARN_EVERY - W.prog))}`; stepEl.textContent = `👣 ${Math.floor(W.steps).toLocaleString('ko-KR')}보`; }
+  function popCoin() { coinEl.textContent = `${W.coins}`; coinEl.classList.remove('pop'); void coinEl.offsetWidth; coinEl.classList.add('pop'); }
+  function hud() { coinEl.textContent = `${W.coins}`; nextEl.textContent = `+${EARN_AMOUNT}까지 ${Math.max(0, EARN_EVERY - W.prog).toFixed(1)}초`; stepEl.textContent = `👣 ${Math.floor(W.steps).toLocaleString('ko-KR')}보`; }
   hud();
 
   // ── the pet walking with me ──
@@ -125,7 +126,7 @@ export function initPets(G) {
       btn.addEventListener('click', () => buy(d)); li.append(sw, nm, pr, btn); if (have) { const h = document.createElement('small'); h.textContent = `보유 ${have}` + (have < 3 ? ` · ${3 - have}마리 더 모으면 1.5배로 커져요` : have < 6 ? ` · 1.5배 크기 (6마리면 2배)` : ' · 2배 크기'); li.append(h); } shop.append(li);
     }
     const mine = $('#petMine'); mine.replaceChildren();
-    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 1분마다 코인 10개가 쌓여요!'; mine.append(li); }
+    if (!W.owned.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = '아직 펫이 없어요. 6초마다 코인 1개가 쌓여요!'; mine.append(li); }
     for (const o of W.owned) {
       const d = petDef(o.type), li = document.createElement('li'), sw = document.createElement('span'), nm = document.createElement('input'), go = document.createElement('button');
       sw.className = 'petSwatch'; sw.style.background = '#' + (d.color || 0xffffff).toString(16).padStart(6, '0');
@@ -167,7 +168,7 @@ export function initPets(G) {
         if (Math.floor(W.steps / 1000) > before) G.toast(`👣 ${(Math.floor(W.steps / 1000) * 1000).toLocaleString('ko-KR')}보 달성! 걸을수록 코인이 빨리 모여요`, 2.4);
       }
       last = { x: p.pos.x, z: p.pos.z };
-      while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); G.toast(`🪙 코인 +${EARN_AMOUNT} (보유 ${W.coins})`, 1.6); if (open) render(); }
+      while (W.prog >= EARN_EVERY) { W.prog -= EARN_EVERY; W.coins += EARN_AMOUNT; save(); popCoin(); if (open) render(); } // too frequent for a toast: the coin counter pops instead
       if ((saveT -= dt) <= 0) { saveT = 5; save(); }
       if (cloud && (flushT -= dt) <= 0) { flushT = 20; flush(); }
     } else last = null;
