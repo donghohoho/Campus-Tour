@@ -173,7 +173,7 @@ function buildWorld(data) {
           new GLTFLoader().load(glm.model, (g) => {
             if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
             const mat = new THREE.MeshLambertMaterial({ color: glm.wall || 0xe9e5d8, emissive: glm.glow || 0x4a4638 });
-            m.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
+            floodlight(m, glm, mat);
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); G.add(sc);
           }, undefined, () => console.warn('gate model failed', glm.model));
           if (glm.gap != null) { const r = Math.max(0.8, 0.04 * s); for (const sd of [-1, 1]) for (let x = glm.gap * s + r; x <= 0.5 * s - r * 0.5; x += r * 1.2) solid(sd * x, r, (glm.solidH || 0.35) * s); } // open gate: solid from the opening's edge outwards
@@ -214,7 +214,7 @@ function buildWorld(data) {
           H.position.set(sx, by + 0.12, sz); H.rotation.y = Math.PI / 2 - phi + ((alm.rot || 0) * Math.PI) / 180; world.add(H);
           new GLTFLoader().load(alm.model, (g) => {
             if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = D / Math.max(size.x, size.z);
-            m.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.material) { o.material.emissive = new THREE.Color(0x3a382f); o.material.emissiveMap = o.material.map; } } });
+            floodlight(m, alm);
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
           }, undefined, () => console.warn('amphitheatre model failed', alm.model));
           const colTop = by + 0.12 + D * 0.34; // columns ring (two rows), open ±55° around the seats
@@ -257,7 +257,7 @@ function buildWorld(data) {
     const H = new THREE.Group(); H.position.set(x, gy - 0.2, z); H.rotation.y = -yaw; world.add(H);
     new GLTFLoader().load(l.model, (g) => {
       if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = s / size.x;
-      m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.material && o.material.map) { o.material.emissive = new THREE.Color(0x4a4a4a); o.material.emissiveMap = o.material.map; } } });
+      floodlight(m, l);
       m.position.set(-(box.min.x + box.max.x) / 2 - (l.shift || 0) * size.x, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
     }, undefined, () => console.warn('sculpture model failed', l.model));
     for (const [fx, fr] of l.solids || []) { const lx = (fx - (l.shift || 0)) * s; addCircle(x + lx * ca, z + lx * sa, Math.max(0.6, fr * s), gy + (l.height || s)); }
@@ -368,6 +368,16 @@ function unloadWorld() {
 }
 // Fit a building model (GLB) onto a footprint: lm.rot (degrees) first turns the model so its long side lies along X and its front faces the
 // direction you want, then it's aligned to the footprint's minimum-area rectangle and stretched to length × width; height = lm.height or the map's.
+// Night "facade lighting" for hand-made models: textured meshes glow with their own texture (lm.light = strength, default 0.55);
+// untextured ones get the plain material `mat` with a matching glow. Without this they read as dark silhouettes at night.
+function floodlight(root, lm, mat) {
+  const k = lm.light ?? 0.55;
+  root.traverse((o) => {
+    if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
+    if (o.material && o.material.map) { o.material.emissive = new THREE.Color(0xfff1dc); o.material.emissiveMap = o.material.map; o.material.emissiveIntensity = k; }
+    else if (mat) { o.material = mat; mat.emissive = new THREE.Color(mat.color).multiplyScalar(0.62 * k / 0.55); }
+  });
+}
 function placeBuildingModel(lm, p, baseY, mapH) {
   let best = null;
   for (let deg = 0; deg < 180; deg += 0.5) {
@@ -395,7 +405,7 @@ function placeBuildingModel(lm, p, baseY, mapH) {
     const m0 = g.scene, m = new THREE.Group(); m0.rotation.y = ((lm.rot || 0) * Math.PI) / 180; m.add(m0); m.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
     const mat = new THREE.MeshLambertMaterial({ color: lm.wall || 0xe7ddca, emissive: lm.glow || 0x2b2822 });
-    m.traverse((o) => { if (o.isMesh) { if (o.material && o.material.map) { o.material.emissive = new THREE.Color(lm.glow || 0x2b2822); o.material.emissiveMap = o.material.map; } else o.material = mat; o.castShadow = o.receiveShadow = true; } /* keep the model texture if it has one */ });
+    floodlight(m, lm, mat);
     m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
     const s = new THREE.Group(); s.add(m); s.scale.set(L / size.x, (lm.height || mapH) / size.y, Wd / size.z); holder.add(s);
   }, undefined, () => console.warn('building model failed', lm.model));
