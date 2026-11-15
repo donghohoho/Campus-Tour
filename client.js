@@ -780,7 +780,7 @@ const auth = initAuth();
   };
   lb.addEventListener('click', go);
   pw.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
-  gb.addEventListener('click', () => show(null));
+  gb.addEventListener('click', () => { const sb = $('#startBtn'); if (sb.disabled) { msg.textContent = '캐릭터를 불러오는 중이에요… 잠시 뒤에 다시 눌러 주세요'; return; } sb.click(); }); // play right away as a guest
   ob.addEventListener('click', async () => { pets.flush(); await auth.logout(); });
 }
 let last = performance.now(), time = 0, slowAcc = 0, slowN = 0;
