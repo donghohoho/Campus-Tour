@@ -10,7 +10,6 @@ import { initAuth } from './auth.js';
 import { initMusic } from './music.js';
 import { initCollection } from './collectibles.js';
 import { initQuests } from './quests.js';
-import { initPetGrowth } from './pet-growth.js';
 import { initWildPets } from './wild-pets.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -808,7 +807,7 @@ window.addEventListener('keydown', (e) => { if (e.target instanceof HTMLInputEle
 function updateHud() {
   const p = player.pos; let best = null, bd = 1e9; for (const pl of places) { const d = Math.hypot(pl.x - p.x, pl.z - p.z); if (d < pl.r && d < bd) { bd = d; best = pl; } }
   if (!campusPoly) campusPoly = D.campus;
-  quests.onPlace(campus.id, best && best.n); growth.onPlace(campus.id, best && best.n); wildPets.onPlace(campus.id, best && best.n); // explore quests: which named place we're standing in
+  quests.onPlace(campus.id, best && best.n); wildPets.onPlace(campus.id, best && best.n); // explore quests: which named place we're standing in
   $('#loc').textContent = best ? `📍 ${best.n}` : campusPoly.some((r) => pip(p.x, p.z, r)) ? '📍 ' + campus.name : '📍 ' + (campus.outsideLabel || '캠퍼스 밖');
   if (bigOpen && (bigT = (bigT || 0) + 1) % 3 === 0) drawBigMap();
   const W = mini.width, R = 170, k = GS / (GHALF * 2), sx = (p.x - R + GHALF) * k, sz = (p.z - R + GHALF) * k;
@@ -857,13 +856,12 @@ function updateWorld(dt, t) {
   }
 }
 setPetCamera(camera);
-const pets = initPets({ petRow: (li, o) => { growth.decorate(li, o); wildPets.decorate(li, o); }, scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const mp = initMultiplayer({ onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const coll = initCollection({ petDex: (el) => wildPets.renderDex(el), onCollect: (it) => { quests.event('collect', it); growth.onCollect(it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const quests = initQuests({ onComplete: (q) => { growth.onQuestDone(q); wildPets.onQuestDone(q); }, toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
+const coll = initCollection({ petDex: (el) => wildPets.renderDex(el), onCollect: (it) => { quests.event('collect', it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const quests = initQuests({ onComplete: (q) => wildPets.onQuestDone(q), toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
   metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
-const growth = initPetGrowth({ onLevelUp: (id, lv) => wildPets.onLevelUp(id, lv), scene, toast, started: () => started, worldReady: () => worldReady, metres: () => pets.metres(), activeIds: () => pets.activeIds(), owned: () => pets.owned(), rootOf: (id) => pets.rootOf(id), now: () => Date.now() });
-const wildPets = initWildPets({ dexChanged: () => coll.refresh(), onPat: () => quests.event('pat'), scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets, growth });
+const wildPets = initWildPets({ dexChanged: () => coll.refresh(), onPat: () => quests.event('pat'), scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets });
 // ── accounts (nickname + password) or guest ──
 const auth = initAuth();
 {
@@ -878,7 +876,7 @@ const auth = initAuth();
   let lastAcct;
   auth.onChange(async (raw) => {
     const u = raw && !raw.anon ? raw : null; mp.setIdentity(u, raw && raw.uid); if (u === lastAcct || (u && lastAcct && u.uid === lastAcct.uid)) return; lastAcct = u;
-    show(u); await pets.useAccount(u ? auth : null); await coll.useAccount(u ? auth : null); await quests.useAccount(u ? auth : null); await growth.useAccount(u ? auth : null); await wildPets.useAccount(u ? auth : null);
+    show(u); await pets.useAccount(u ? auth : null); await coll.useAccount(u ? auth : null); await quests.useAccount(u ? auth : null); await wildPets.useAccount(u ? auth : null);
     if (u) { // admin follows the account: use the key saved on it, or save this browser's key onto it
       const saved = await auth.loadAdmin().catch(() => null), local = await mp.adminKey();
       if (saved) { if (await mp.useAdminKey(saved)) toast('🛡️ 관리자 계정으로 로그인했어요', 2.2); } else if (local) auth.saveAdmin(local).then(() => toast('🛡️ 이 계정을 관리자로 등록했어요 — 다른 기기에서도 로그인만 하면 관리자예요', 3)).catch(() => {});
@@ -893,7 +891,7 @@ const auth = initAuth();
   lb.addEventListener('click', go);
   pw.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
   gb.addEventListener('click', () => { const sb = $('#startBtn'); if (sb.disabled) { msg.textContent = '캐릭터를 불러오는 중이에요… 잠시 뒤에 다시 눌러 주세요'; return; } sb.click(); }); // play right away as a guest
-  ob.addEventListener('click', async () => { pets.flush(); quests.flush(); growth.flush(); wildPets.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
+  ob.addEventListener('click', async () => { pets.flush(); quests.flush(); wildPets.flush(); await auth.logout(); auth.ensureUser().catch(() => {}); });
 }
 // ── pedometer leaderboard (L / 🏆): accounts only; total steps ──
 let rankOpen = false;
@@ -920,7 +918,7 @@ function frame(now) {
   const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; time += dt;
   if (started && rawDt < 0.5) { slowAcc += rawDt; if (++slowN >= 90) { if (slowAcc / slowN > 0.036 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight, false); } slowAcc = 0; slowN = 0; } }
   if (worldReady) updateNpcs(dt);
-  if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); growth.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
+  if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { npcs: () => npcs, coll, quests, growth, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { npcs: () => npcs, coll, quests, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

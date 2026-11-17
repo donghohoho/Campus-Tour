@@ -157,7 +157,7 @@ export function initPets(G) {
       nm.addEventListener('change', () => { o.name = clean(nm.value, NAME_MAX) || d.name; nm.value = o.name; save(); const pt = pets.find((x) => x.id === o.id); if (pt) pt.setName(o.name); });
       const on = W.actives.includes(o.id), full = !on && W.actives.length >= MAX_WALK; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : full ? `최대 ${MAX_WALK}마리` : '데리고 다니기'; go.disabled = full;
       go.addEventListener('click', () => { W.actives = on ? W.actives.filter((x) => x !== o.id) : [...W.actives, o.id].slice(0, MAX_WALK); save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
-      li.append(sw, nm, go); if (G.petRow) G.petRow(li, o); mine.append(li); // pet-growth.js adds the level badge + XP bar
+      li.append(sw, nm, go); if (G.petRow) G.petRow(li, o); mine.append(li); // wild-pets.js adds the bond chip
     }
   }
   function buy(d) {
@@ -210,7 +210,7 @@ export function initPets(G) {
   }
   // quest rewards (quests.js): add coins through this wallet and hand back what to store with the claim
   function addCoins(n) { W.coins += Math.max(0, n | 0); save(); hud(); if (open) render(); return JSON.parse(JSON.stringify(W)); }
-  // read-only views for pet-growth.js
+  // read-only views for wild-pets.js
   const owned = () => W.owned.map(({ id, type, name }) => ({ id, type, name }));
   const activeIds = () => W.actives.filter((id) => W.owned.some((o) => o.id === id));
   const rootOf = (id) => { const pt = pets.find((x) => x.id === id); return pt && pt.root; };

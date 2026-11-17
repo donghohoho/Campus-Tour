@@ -277,24 +277,18 @@
       .qRow button { font: 700 13px/1 inherit; padding: 8px 11px; border-radius: 8px; border: 0; background: #e3e3df; color: #77807a; }
       .qRow button.claim { background: #ffd98a; color: #1b2030; cursor: pointer; animation: qPulse 1.4s ease-in-out infinite; }
       .qRow button.got { background: #b9e4c3; color: #163b22; }
-      /* pet levels (pet-growth.js) */
+      /* pet panel cards + row selection (shared by the bond card, wild-pets.js) */
       .petRows li.pgRow { cursor: pointer; position: relative; }
       .petRows li.pgSel { border-color: #f0b323; box-shadow: 0 0 0 2px rgba(240, 179, 35, 0.35); }
-      .pgLv { font: 800 11px/1 inherit; padding: 4px 6px; border-radius: 99px; background: #1f2d25; color: #ffd98a; flex: none; }
-      .pgLv.max { background: linear-gradient(90deg, #f0b323, #ffd98a); color: #1b2030; }
-      .pgMini { width: 100%; height: 4px; border-radius: 99px; background: rgba(40, 60, 45, 0.12); overflow: hidden; margin-top: -3px; }
       .pgFill { height: 100%; width: 0; background: linear-gradient(90deg, #7cc48a, #f0b323); transition: width 0.3s; }
       .pgCard { padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(40, 60, 45, 0.12); font-size: 13px; }
       .pgCard.empty { color: #5a6b5e; text-align: center; }
-      .pgCard.max { border-color: #f0b323; background: #fffaf0; }
       .pgHead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
       .pgHead b { font-size: 15px; }
       .pgBig { font-weight: 800; color: #c98a00; }
       .pgTrack { height: 9px; border-radius: 99px; background: rgba(40, 60, 45, 0.12); overflow: hidden; margin: 7px 0 5px; }
       .pgCard p { margin: 3px 0 0; }
       .pgNote { font-size: 11.5px; color: #5a6b5e; }
-      .pgFlash { animation: pgFlash 0.9s ease-out; }
-      @keyframes pgFlash { 0% { background: #ffe39a; transform: scale(1.03); } 100% { transform: scale(1); } }
       /* wild pets + bond (wild-pets.js) */
       #tameBar { left: 50%; bottom: 132px; transform: translateX(-50%); width: min(300px, calc(100vw - 32px)); padding: 8px 12px; z-index: 6; pointer-events: none; }
       .tbHead { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; }
@@ -436,7 +430,6 @@
       <p class="petNote">펫은 캠퍼스의 야생 동물을 쓰다듬어 길들여 데려와요 (종류마다 한 마리) · 코인은 6초마다 1개, 걸으면 더 빨리 쌓여요</p>
       <h3>상점</h3><ul id="petList" class="petRows"></ul>
       <h3>내 펫</h3><ul id="petMine" class="petRows"></ul>
-      <h3>성장</h3><div id="petGrowth" class="pgCard empty">펫을 누르면 성장 정보를 볼 수 있어요</div>
       <h3>친밀도</h3><div id="petBond" class="pgCard empty">펫을 누르면 친밀도를 볼 수 있어요</div>
     </div>
     <div id="collPanel" class="panel hidden" role="dialog" aria-labelledby="collTitle">

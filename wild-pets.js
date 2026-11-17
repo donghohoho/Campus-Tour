@@ -2,10 +2,10 @@
 //   • wild animals live at fixed spots on a campus and wander a little; pet them (E) to fill a taming gauge (per-species
 //     gain / success chance / cooldown). Full gauge → the animal joins your pets through pets.js adopt() — one per kind,
 //     after which that spawn stays empty for you. Ownership in the wallet is the source of truth, so nothing is ever doubled.
-//   • bond (0–100, stages 낯섦 → 단짝) for pets you own, separate from XP: petting your own pet (stand still next to it, E),
-//     walking together, new places, and one-off milestones; cooldown + daily cap per pet. Petting also gives a little XP via
-//     pet-growth.js grant(), with its own daily cap (pet-growth never counts pats, so nothing is paid twice).
-//   • saved apart from wallet and XP: localStorage 'fm:petBond' (guests) or users/{uid}.petBond (accounts, read-merge-write)
+//   • bond (0–100, stages 낯섦 → 단짝) for pets you own — the pet's whole relationship with you (pets have no levels or XP):
+//     petting your own pet (stand still next to it, E), walking together, new places, and one-off milestones;
+//     cooldown + daily cap per pet.
+//   • saved apart from the wallet: localStorage 'fm:petBond' (guests) or users/{uid}.petBond (accounts, read-merge-write)
 import * as THREE from 'three';
 import { createPet } from './pets.js';
 import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf, DEX_EXTRA } from './wild-pets-data.js';
@@ -16,7 +16,7 @@ const dayKey = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
 
 // ── saved state ──
 const empty = () => ({ v: 1, pets: {}, tame: {}, seen: [], met: [], day: { key: '', places: [] } }); // met: kinds seen up close (pet book)
-const normPet = (p) => ({ ...(p || {}), bond: Math.min(BOND.max, Math.max(0, +(p && p.bond) || 0)), lastPat: +(p && p.lastPat) || 0, day: p && p.day && typeof p.day.key === 'string' ? { key: p.day.key, got: +p.day.got || 0, xp: +p.day.xp || 0 } : { key: '', got: 0, xp: 0 } });
+const normPet = (p) => ({ ...(p || {}), bond: Math.min(BOND.max, Math.max(0, +(p && p.bond) || 0)), lastPat: +(p && p.lastPat) || 0, day: p && p.day && typeof p.day.key === 'string' ? { key: p.day.key, got: +p.day.got || 0 } : { key: '', got: 0 } }); // (an old day.xp counter is simply dropped)
 function norm(s) {
   if (!s || typeof s !== 'object') return null; const out = empty();
   for (const [id, p] of Object.entries(s.pets || {})) if (typeof id === 'string' && id.length < 40) out.pets[id] = normPet(p);
@@ -49,7 +49,7 @@ const goldTex = glow('255,214,90'), greyTex = glow('210,220,235');
 
 export function initWildPets(G) {
   // G: { scene, toast, player, terrainH, walkable(x,z), solidAt(x,y,z), started(), worldReady(), touch,
-  //      pets: { adopt, ownsType, owned, activeIds, rootOf, metres }, growth: { grant(id, n, src), selected() } }
+  //      pets: { adopt, ownsType, owned, activeIds, rootOf, metres } }
   let S = localStore.load() || empty(), store = localStore, dirty = false, saveT = 0, saving = false;
   let campusId = null, wild = [], stillT = 0, lastMetres = null, uiT = 0, respawnT = 0;
   const gone = new Map(); // spot key → time it gets a new animal (this session)
@@ -128,7 +128,7 @@ export function initWildPets(G) {
   // ── bond ──
   const rec = (id) => (S.pets[id] || (S.pets[id] = normPet(null))); // no record = 0, 낯섦
   function addBond(id, n, src) {
-    const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0, xp: 0 };
+    const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0 };
     const add = Math.min(n, BOND.dailyCap - r.day.got, BOND.max - r.bond); if (add <= 0) return 0;
     const before = stageOf(r.bond); r.bond += add; r.day.got += add; dirty = true;
     const after = stageOf(r.bond); if (after.index > before.index) { const o = G.pets.owned().find((x) => x.id === id); G.toast(`💗 ${o ? o.name : '펫'}와(과) 더 가까워졌어요 — ${after.name}`, 2.8); saveT = 0; }
@@ -147,10 +147,9 @@ export function initWildPets(G) {
   }
   function patOwn(id) {
     if (!id || patWait(id) > 0) return false;
-    const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0, xp: 0 };
+    const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0 };
     r.lastPat = now(); dirty = true; if (G.onPat) G.onPat();
-    const got = addBond(id, BOND.pat.bond, '쓰다듬기'), xp = Math.min(BOND.pat.xp, BOND.patXpDailyCap - r.day.xp);
-    if (xp > 0) { r.day.xp += xp; G.growth.grant(id, xp, '쓰다듬기'); }
+    const got = addBond(id, BOND.pat.bond, '쓰다듬기');
     const root = G.pets.rootOf(id); if (root) burst(heartTex, root.position, 5, 1.6, 0.35);
     if (!got) G.toast('오늘은 충분히 친해졌어요 — 내일 또 쓰다듬어 주세요', 2.2);
     paint(); return true;
@@ -164,7 +163,6 @@ export function initWildPets(G) {
   const bonusAll = (key, n, src) => { if (!once(key)) return; for (const pid of G.pets.activeIds()) addBond(pid, n, src); };
   const onCollect = (it) => it && bonusAll('c:' + it.id, BOND.bonus.collect, '함께 수집');
   const onQuestDone = (q) => q && bonusAll('q:' + q.id, BOND.bonus.questDone, '함께 퀘스트');
-  const onLevelUp = (id, lv) => { if (once(`l:${id}:${lv}`)) addBond(id, BOND.bonus.levelUp, '레벨 업'); };
 
   // ── per frame ──
   function update(dt) {
@@ -199,13 +197,20 @@ export function initWildPets(G) {
   addEventListener('pagehide', () => { if (dirty) store.save(S).catch(() => {}); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty && !saving) persist(); });
 
-  // ── pet panel: bond chip on each row + bond card for the pet selected in the growth card ──
-  function decorate(li, o) { const c = document.createElement('span'); c.className = 'bdChip'; li.insertBefore(c, li.querySelector('.pgMini')); chips.set(o.id, c); paintChip(o.id); }
+  // ── pet panel: bond chip on each "내 펫" row; tap a row to see that pet's bond card ──
+  let sel = null;
+  function decorate(li, o) {
+    const c = document.createElement('span'), st = stageOf(rec(o.id).bond); c.className = 'bdChip'; c.textContent = `💗 ${st.name}`; c.dataset.s = st.index; // filled now: the row isn't in the page yet
+    li.insertBefore(c, li.querySelector('button')); chips.set(o.id, c);
+    li.classList.add('pgRow'); if (!sel || !G.pets.owned().some((x) => x.id === sel)) sel = G.pets.activeIds()[0] || o.id; li.classList.toggle('pgSel', sel === o.id);
+    li.addEventListener('click', (e) => { if (e.target.closest('input, button')) return; sel = o.id; for (const [k, v] of chips) if (v.parentElement) v.parentElement.classList.toggle('pgSel', k === sel); paint(); });
+    queueMicrotask(paint);
+  }
   function paintChip(id) { const c = chips.get(id); if (!c) return; if (!c.isConnected) { chips.delete(id); return; } const st = stageOf(rec(id).bond); c.textContent = `💗 ${st.name}`; c.dataset.s = st.index; }
   function paint() {
     for (const id of [...chips.keys()]) paintChip(id);
     const el = $('#petBond'); if (!el || $('#petShop').classList.contains('hidden')) return;
-    const id = G.growth.selected(), o = G.pets.owned().find((x) => x.id === id);
+    const id = sel, o = G.pets.owned().find((x) => x.id === id);
     if (!o) { el.className = 'pgCard empty'; el.textContent = '펫을 누르면 친밀도를 볼 수 있어요'; return; }
     const r = rec(id), st = stageOf(r.bond), next = BOND.stages[st.index + 1], k = dayKey(now()), today = r.day.key === k ? r.day.got : 0, w = patWait(id);
     el.className = 'pgCard bond'; el.dataset.s = st.index; el.replaceChildren();
@@ -216,7 +221,7 @@ export function initWildPets(G) {
     el.append(head, track, p1, p2);
   }
 
-  // ── pet book (📖 → 🐾 tab): every kind, unmet ones as silhouettes; owned ones with your pet's level and bond ──
+  // ── pet book (📖 → 🐾 tab): every kind, unmet ones as silhouettes; owned ones with your pet's bond ──
   let dexSel = null;
   const stars = (def) => { const tries = Math.ceil(100 / def.gain) / def.success, n = tries <= 5 ? 1 : tries <= 8 ? 2 : tries <= 11 ? 3 : tries <= 16 ? 4 : 5; return '★'.repeat(n) + '☆'.repeat(5 - n); };
   function renderDex(el) {
@@ -248,7 +253,7 @@ export function initWildPets(G) {
       lines.push(def.starter ? `🐾 ${def.home}` : `${m ? '📍 자주 나타나는 곳' : '힌트'}: ${def.home}`);
       if (!def.starter) lines.push(`길들이기 난이도 ${stars(def)} · 1회 +${def.gain} · 성공률 ${Math.round(def.success * 100)}% · 쿨다운 ${def.cooldown}초`);
       if (m && !own && !def.starter) lines.push(`길들이기 게이지 ${Math.floor((r && r.gauge) || 0)} / 100` + (def.note ? ` · ${def.note}` : ''));
-      for (const o of G.pets.owned().filter((o) => o.type === def.type)) { const lv = G.growth.level ? G.growth.level(o.id).lv : 1; lines.push(`🐾 ${o.name} · Lv.${lv} · 💗 ${stageOf(rec(o.id).bond).name} (${Math.floor(rec(o.id).bond)})`); }
+      for (const o of G.pets.owned().filter((o) => o.type === def.type)) { lines.push(`🐾 ${o.name} · 💗 ${stageOf(rec(o.id).bond).name} (${Math.floor(rec(o.id).bond)})`); }
       det.append(head); for (const t of lines) { const p = document.createElement('p'); p.textContent = t; det.append(p); }
     }
     el.append(sub, row, grid, det);
@@ -265,7 +270,7 @@ export function initWildPets(G) {
   }
 
   return {
-    renderDex, setCampus, clear, nearestWild, patWild, promptWild, nearOwn, patOwn, promptOwn, update, onPlace, onCollect, onQuestDone, onLevelUp, decorate, useAccount,
+    renderDex, setCampus, clear, nearestWild, patWild, promptWild, nearOwn, patOwn, promptOwn, update, onPlace, onCollect, onQuestDone, decorate, useAccount,
     flush: () => { if (dirty && !saving) persist(); }, state: () => S, respawnNow: () => { for (const k of gone.keys()) gone.set(k, 0); respawnT = 0; }, bondOf: (id) => ({ ...rec(id), stage: stageOf(rec(id).bond).name }), wild: () => wild,
   };
 }

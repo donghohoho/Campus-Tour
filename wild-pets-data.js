@@ -6,7 +6,7 @@
 //               success   chance that a pat lands (a miss: the animal flinches, no gauge)
 //               cooldown  seconds before the next pat counts
 //   SPAWNS    per campus id: where each wild animal lives (pos = [x, z] like campuses.js) and how far it wanders (roam, m)
-//   BOND      friendship of pets you own (0–100). Kept apart from XP (pet-growth.js) on purpose.
+//   BOND      friendship of pets you own (0–100) — how a pet grows closer to you (there are no pet levels).
 
 export const SPECIES = {
   'w-cat': { type: 'cat', name: '캠퍼스 고양이', icon: '🐱', home: '기숙사 주변 · 정문 · 학생회관', sig: true, gain: 25, success: 0.9, cooldown: 2, note: '사람 손을 잘 타는 편이에요' },
@@ -73,12 +73,11 @@ export const BOND = {
   max: 100,
   stages: [[0, '낯섦'], [20, '익숙함'], [40, '친근함'], [60, '신뢰'], [80, '단짝']], // [from, name] — rewards per stage come later
   tamedStart: 10, // a freshly tamed pet already likes you a little; other pets start at 0
-  pat: { bond: 2, cooldownSec: 45, xp: 5 }, // petting your own pet (stand still next to it, E)
+  pat: { bond: 2, cooldownSec: 45 }, // petting your own pet (stand still next to it, E)
   walk: { metres: 250, bond: 1 }, // walking together
   newPlace: 1, // a named place reached together, first time today
-  bonus: { collect: 1, questDone: 1, levelUp: 3 }, // milestones reached together (each event once)
+  bonus: { collect: 1, questDone: 1 }, // milestones reached together (each event once)
   dailyCap: 15, // most bond a pet can gain per day (Korea date), all sources together
-  patXpDailyCap: 50, // most XP a pet can get from petting per day — on top of pet-growth.js, which never counts pats itself
 };
 
 export const stageOf = (bond) => { let s = BOND.stages[0]; for (const st of BOND.stages) if (bond >= st[0]) s = st; return { from: s[0], name: s[1], index: BOND.stages.indexOf(s) }; };
