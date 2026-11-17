@@ -574,8 +574,9 @@ pRoot.add(pTilt); pTilt.add(pSquash); pSquash.add(pModel); scene.add(pRoot);
 const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 3.4, camDistCur = 3.4, dragging = false, ePressed = false;
 
-const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2' },
-  { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3' },
+// pet: a petting motion for that model (assets/anim, made from the 'Pet' clip of each character's petting GLB — same bones, model unchanged)
+const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1', pet: 'assets/anim/pet1.json' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2', pet: 'assets/anim/pet2.json' },
+  { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3', pet: 'assets/anim/pet3.json' },
   { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' },
   { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' },
   { url: 'assets/character_m3.glb', h: 1.75, rigged: true, name: '남자 3' }];
@@ -588,6 +589,12 @@ function runBlend(u, hs, dt) {
   u.action.setEffectiveWeight(u.w * (1 - u.rw)); u.run.setEffectiveWeight(u.w * u.rw); u.action.timeScale = 0.9 + Math.min(hs, 6) * 0.23; u.run.timeScale = 0.75 + Math.min(hs, 10) * 0.04;
 }
 window.__runBlend = runBlend;
+// play the current character's petting motion, turned toward what is being petted
+function playPet(at) {
+  const u = charModels[charIndex] && charModels[charIndex].userData; if (!u || !u.pet) return;
+  if (at) player.yaw = Math.atan2(at.x - player.pos.x, at.z - player.pos.z);
+  u.pet.reset(); u.pet.play(); u.petT = u.pet.getClip().duration;
+}
 function loadChar(i) {
   if (!CHARS[i]) return Promise.resolve();
   return new Promise((res) => new GLTFLoader().load(CHARS[i].url, (gltf) => {
@@ -601,6 +608,7 @@ function loadChar(i) {
       const walkSrc = gltf.animations.find((a) => /walk/i.test(a.name)) || gltf.animations[0], runSrc = gltf.animations.find((a) => /run/i.test(a.name) && a !== walkSrc);
       const clip = inPlace(walkSrc), mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
       if (runSrc) { const run = mixer.clipAction(inPlace(runSrc)); run.play(); run.setEffectiveWeight(0); holder.userData.run = run; } // optional run cycle, blended in with speed
+      if (CHARS[i].pet) fetch(CHARS[i].pet).then((r) => r.json()).then((j) => { const c = inPlace(THREE.AnimationClip.parse(j)), a = mixer.clipAction(c); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.setEffectiveWeight(0); Object.assign(holder.userData, { pet: a, petW: 0, petT: 0 }); }).catch(() => {}); // petting motion (optional)
     }
     charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null, run: holder.userData.run ? holder.userData.run.getClip() : null };
     holder.add(m); holder.visible = false; pModel.add(holder); charModels[i] = holder; res();
@@ -755,7 +763,9 @@ function updatePlayer(dt, t) {
   const lean = (p.grounded ? 0.05 + 0.2 * sf * sf : THREE.MathUtils.clamp(-p.vel.y * 0.02, -0.18, 0.22)) * Math.min(1, hs / 1.2);
   pTilt.rotation.x += (lean - pTilt.rotation.x) * (1 - Math.exp(-10 * dt));
   const cmod = charModels[charIndex], anim = cmod && cmod.userData.mixer, pk = anim ? 0.35 : 1;
-  if (anim) { const u = cmod.userData, tw = p.grounded ? Math.min(1, hs / 1.0) : 0.55; u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
+  if (anim) { const u = cmod.userData;
+    if (u.pet) { if (hs > 1.2 || !p.grounded) u.petT = 0; u.petT = Math.max(0, u.petT - dt); u.petW += ((u.petT > 0 ? 1 : 0) - u.petW) * (1 - Math.exp(-10 * dt)); u.pet.setEffectiveWeight(u.petW); } // petting: moving cancels it
+    const tw = (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
   const sway = pk * (p.grounded ? Math.sin(p.phase) * (0.035 + 0.035 * sf) * Math.min(1, hs / 1.5) : 0);
   pTilt.rotation.z += (sway + Math.sin(t * 0.9) * 0.008 - pTilt.rotation.z) * (1 - Math.exp(-14 * dt));
   pModel.rotation.y = MODEL_YAW + (p.grounded ? pk * Math.sin(p.phase) * 0.07 * Math.min(1, hs / 1.5) : 0);
@@ -861,7 +871,7 @@ const mp = initMultiplayer({ onEmote: (n, ch) => npcMimic('emote', ch), teleport
 const coll = initCollection({ petDex: (el) => wildPets.renderDex(el), onCollect: (it) => { quests.event('collect', it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const quests = initQuests({ onComplete: (q) => wildPets.onQuestDone(q), toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
   metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
-const wildPets = initWildPets({ dexChanged: () => coll.refresh(), onPat: () => quests.event('pat'), scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets });
+const wildPets = initWildPets({ dexChanged: () => coll.refresh(), onPat: (at) => { quests.event('pat'); playPet(at); }, scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets });
 // ── accounts (nickname + password) or guest ──
 const auth = initAuth();
 {
@@ -921,4 +931,4 @@ function frame(now) {
   if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { npcs: () => npcs, coll, quests, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { playPet, chars: () => charModels, npcs: () => npcs, coll, quests, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

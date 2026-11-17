@@ -91,7 +91,7 @@ export function initWildPets(G) {
   }
   function patWild(w) {
     if (!w || w.cd > 0) return false;
-    w.cd = w.def.cooldown; if (G.onPat) G.onPat(); // daily quest "쓰다듬기"
+    w.cd = w.def.cooldown; if (G.onPat) G.onPat(w.pet.root.position); // daily quest "쓰다듬기" + the petting motion
     if (!tameable(w)) { burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); floatText('♥', '#ff5c8a', w.pet.root.position); w.msg = '좋아해요 ♥'; w.msgT = 1.6; return true; }
     const r = tameRec(w.sp);
     if (Math.random() < w.def.success) { r.gauge = Math.min(100, r.gauge + w.def.gain); dirty = true; burst(heartTex, w.pet.root.position, 4, 1.6, 0.35); floatText(`+${w.def.gain}`, '#ff5c8a', w.pet.root.position); w.msg = '기분 좋아해요 ♥'; }
@@ -148,7 +148,7 @@ export function initWildPets(G) {
   function patOwn(id) {
     if (!id || patWait(id) > 0) return false;
     const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0 };
-    r.lastPat = now(); dirty = true; if (G.onPat) G.onPat();
+    r.lastPat = now(); dirty = true; if (G.onPat) { const rt = G.pets.rootOf(id); G.onPat(rt && rt.position); }
     const got = addBond(id, BOND.pat.bond, '쓰다듬기');
     const root = G.pets.rootOf(id); if (root) burst(heartTex, root.position, 5, 1.6, 0.35);
     if (!got) G.toast('오늘은 충분히 친해졌어요 — 내일 또 쓰다듬어 주세요', 2.2);
