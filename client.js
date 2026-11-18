@@ -654,6 +654,7 @@ async function loadCampus(c) {
   applyLighting(LIGHTING[c.lighting] || LIGHTING.night);
   const r = await fetch(c.data); if (!r.ok) throw new Error('캠퍼스 지도를 불러오지 못했습니다 (' + r.status + ')');
   const data = c.mirror ? mirrorData(await r.json()) : await r.json(); if (tok !== loadToken) return false;
+  for (const b of c.extraBuildings || []) data.buildings.push({ c: 1, k: 'university', ...b, l: b.l || Math.max(1, Math.round(b.h / 4.4)) }); // buildings OpenStreetMap doesn't have (same frame as the map file)
   await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0))); if (tok !== loadToken) return false; // let the loading screen paint
   buildWorld(data); worldReady = true; coll.setCampus(c.id); wildPets.setCampus(c.id);
   $('#campusName').textContent = c.name; $('#loc').textContent = '📍 ' + c.name;

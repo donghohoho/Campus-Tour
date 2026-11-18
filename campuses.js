@@ -16,6 +16,7 @@
 //              pos = approximate [x, z] in metres from the map origin, optional wall/roof colours, note = source
 //   play       collectible / creature counts and the areas they are scattered over
 //   outsideLabel  badge text when the player walks off campus
+//   extraBuildings  buildings missing from OpenStreetMap: { n: name, p: [[x, z], …] footprint, h: height m } — added on load, so a map rebuild keeps them
 
 export const REGIONS = [
   { id: 'seoul', name: '서울' },
@@ -124,6 +125,8 @@ export const CAMPUSES = [
       { name: '축구장', kind: 'stadium', pos: [-349, -29], note: 'OSM leisure=pitch "축구장"' },
       { name: '테니스장', kind: 'place', pos: [-358, -109], r: 20, note: 'OSM pitch "테니스장"' },
     ],
+    // 삼성학술정보관 (the campus's landmark library) is not in OSM: 5-storey block in the empty block north of 글로벌 광장, between 학생회관 and 제1공학관 (user-confirmed spot) — a Tripo model can replace it later
+    extraBuildings: [{ n: '삼성학술정보관', p: [[-25, -32], [60, -32], [60, 15], [-25, 15]], h: 22, l: 5 }],
   },
   {
     id: 'hanyang-seoul', name: '한양대학교 서울캠퍼스', region: 'seoul', status: 'ready',
