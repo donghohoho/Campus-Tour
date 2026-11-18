@@ -26,6 +26,8 @@ export const SPECIES = {
   'w-lion': { type: 'lion', name: '캠퍼스 사자', icon: '🦁', home: '한양대 노천극장 · 백남학술정보관, 경희대 서울캠 평화의전당', sig: true, where: '한양·경희', gain: 10, success: 0.5, cooldown: 3.5, note: '갈기를 쓰다듬어 주면 좋아해요' },
   'w-albatross': { type: 'albatross', name: '서강 알바트로스', icon: '🪶', home: '서강대 알바트로스 공원 · 대운동장', sig: true, where: '서강대', gain: 12, success: 0.55, cooldown: 3, note: '날개를 활짝 펴는 걸 좋아해요' },
   'w-dragon': { type: 'dragon', name: '중앙 청룡', icon: '🐉', home: '중앙대 청룡연못 · 중앙마당', sig: true, where: '중앙대', gain: 8, success: 0.45, cooldown: 4, note: '연못의 전설 — 쉽게 마음을 열지 않아요' },
+  'w-hawk': { type: 'hawk', name: '장산곶매', icon: '🦅', home: '시립대 대학본부 · 배봉산보루', sig: true, where: '시립대', gain: 10, success: 0.5, cooldown: 3.5, note: '시립대의 마스코트 — 전설 속 용맹한 매' },
+  'w-hufs-owl': { type: 'hufs-owl', name: '외대 부엉이', icon: '🦉', home: '외대 본관 · 천장산 숲', sig: true, where: '외대', gain: 10, success: 0.5, cooldown: 3.5, note: '외대의 마스코트 — 밤하늘을 소리 없이 날아요' },
   'w-gorani': { type: 'gorani', name: '예디대 고라니', icon: '🦌', home: '예술디자인대학 주변', sig: true, gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
 };
 
@@ -177,11 +179,11 @@ export const SPAWNS = {
   ],
   'hufs-seoul': [
     { pool: ['w-cat'], pos: [117, -47], roam: 6 }, // 정문 앞 — 정문 바로 안
-    { pool: SIG('w-cat', 'w-magpie'), pos: [-110, 50], roam: 6 }, // 본관
+    { pool: SIG('w-hufs-owl', 'w-cat'), pos: [-110, 50], roam: 6 }, // 본관 — 외대 부엉이
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-14, -87], roam: 6 }, // 도서관
     { pool: ['w-rabbit', 'w-squirrel'], pos: [66, 24], roam: 6 }, // 대운동장
     { pool: ['w-squirrel', 'w-hedgehog'], pos: [-175, 116], roam: 6 }, // 인문과학관
-    { pool: ['w-owl', 'w-raccoon'], pos: [-84, 139], roam: 6 }, // 교수학습개발원 — 천장산 숲
+    { pool: SIG('w-hufs-owl', 'w-owl'), pos: [-84, 139], roam: 6 }, // 교수학습개발원 — 천장산 숲, 외대 부엉이
   ],
   'uos': [
     { pool: ['w-cat'], pos: [-388, 48], roam: 6 }, // 정문 앞 — 정문 바로 안
@@ -189,9 +191,9 @@ export const SPAWNS = {
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-53, 89], roam: 6 }, // 자주터
     { pool: SIG('w-cat', 'w-magpie'), pos: [85, 80], roam: 6 }, // 학생회관
     { pool: SIG('w-cat', 'w-squirrel'), pos: [260, 211], roam: 6 }, // 중앙도서관
-    { pool: ['w-squirrel', 'w-hedgehog'], pos: [-157, 212], roam: 6 }, // 대학본부
+    { pool: SIG('w-hawk', 'w-magpie'), pos: [-157, 212], roam: 6 }, // 대학본부 — 시립대 장산곶매
     { pool: ['w-rabbit', 'w-squirrel'], pos: [-269, 257], roam: 6 }, // 운동장
-    { pool: ['w-owl', 'w-raccoon'], pos: [384, -221], roam: 6 }, // 배봉산보루 — 배봉산 숲
+    { pool: SIG('w-hawk', 'w-owl'), pos: [384, -221], roam: 6 }, // 배봉산보루 — 시립대 장산곶매
     { pool: ['w-raccoon', 'w-hedgehog'], pos: [-260, 351], roam: 6 }, // 스마트연구동
   ],
 };

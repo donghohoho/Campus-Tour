@@ -28,6 +28,8 @@ export const PETS = [
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7, ride: 0.85, run: 2.6, perk: '전력질주' },
   { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 9.5, fall: 4 }, perk: '빠른 비행' }, // soar: up = climb speed, fall = glide sink speed (m/s)
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
+  { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle.glb', tint: 0xb08868, h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
+  { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', h: 0.9, fly: true, ride: 0.75, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
   { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
 ];
@@ -74,7 +76,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
     const m = cloneSkinned(g.scene); if (def.rotY) { m.rotation.y = def.rotY; m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = ((def.h || 0.6) * SIZE) / h;
-    m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
+    m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(def.tint)); } } }); // tint: same model, another colour (장산곶매)
     body.remove(model); model = m; body.add(m);
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
