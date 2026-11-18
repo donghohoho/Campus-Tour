@@ -7,7 +7,7 @@
 //   data       per-campus map file: real building footprints, roads, areas, terrain grid (OpenStreetMap + SRTM)
 //   terrain    terrain character of the site: 'flat' | 'hills' | 'mountain'
 //   lighting   key into LIGHTING below
-//   mirror     false = draw this campus unflipped (default: shown north-up and un-mirrored, see client.js northUp)
+//   mirror     false = the map file is already +z = south (hand-made khu-global.json) — drawn as is; default flips +z-north files so north is up (client.js northUp)
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
 //   spawn      { at: [x, z], look: [x, z] } = fixed spot and view, or start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building' | 'place' (open space: sign only)
@@ -144,6 +144,7 @@ export const CAMPUSES = [
   {
     id: 'khu-global', name: '경희대학교 국제캠퍼스', region: 'gyeonggi', status: 'ready',
     data: 'assets/campuses/khu-global.json', terrain: 'hills', lighting: 'night', seed: 20261111,
+    mirror: false, // this map file was made by hand before tools/build_campus.py and already has +z = south (정문 north)
     outsideLabel: '캠퍼스 밖 · 영통/서천',
     spawn: { from: '경희대학교 국제캠퍼스 정문', toward: '학생회관', dist: -35 }, // negative = outside the gate, looking at it
     landmarks: [
