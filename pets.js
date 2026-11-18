@@ -12,6 +12,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 export const PETS = [
   { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
+  { id: 'sweetpotato', name: '고구마', price: 300, model: 'assets/pets/sweetpotato.glb', h: 0.45, color: 0xb5643c, fly: true }, // shop pet — floats along after you
   // wild: tamed on campus (wild-pets.js), never sold in the shop
   { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066, model: 'assets/pets/cat.glb', h: 0.42 },
   { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc, model: 'assets/pets/rabbit.glb', h: 0.42, rotY: Math.PI / 2 }, // model faces −x
@@ -28,7 +29,7 @@ export const PETS = [
   { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6, fly: true },
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6, fly: true },
-  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 0.6, rotY: Math.PI / 2, fly: true }, // model faces −x
+  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: true, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
 ];
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
@@ -124,7 +125,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   }
   function dispose() { setName(''); blob.geometry.dispose(); blob.material.dispose(); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
-  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0, stats: { run: def.run || 2, jump: def.jump || 1, leap: def.leap || 1, perk: def.perk || '' } };
+  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0, stats: { run: def.run || 2, jump: def.jump || 1, leap: def.leap || 1, soar: !!def.soar, perk: def.perk || '' } };
 }
 
 export function initPets(G) {
@@ -252,7 +253,7 @@ export function initPets(G) {
     return o.id;
   }
   const ownsType = (type) => W.owned.some((o) => o.type === type);
-  // riding (R): get on the first walking pet that can carry you (고라니·호랑이·사자·염소), or get off
+  // riding (R): get on a rideable pet next to you (고라니·호랑이·사자·염소·청룡), or get off
   const nameOf = (pt) => { const o = W.owned.find((x) => x.id === pt.id); return (o && o.name) || (petDef(pt.type) || {}).name; };
   // the closest rideable pet walking with you within r metres (for the "R 올라타기" prompt)
   function nearRideable(pos, r = 4) { let best = null, bd = r; for (const pt of pets) if (pt.seat > 0) { const d = Math.hypot(pt.root.position.x - pos.x, pt.root.position.z - pos.z); if (d < bd) { bd = d; best = pt; } } return best && { id: best.id, name: nameOf(best) }; }

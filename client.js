@@ -690,7 +690,7 @@ function rideToggle() {
   if (r.on) { toast(`🐾 ${r.name} 타기!${r.perk ? ` 특기: ${r.perk}` : ''} · 달리면(Shift) 빨라요 · R로 내리기`, 2.6); player.squashV = 5; }
   else if (r.off) toast('🐾 내렸어요', 1.2);
   else if (r.far) toast('펫 가까이 가서 R을 눌러 올라타세요', 1.8);
-  else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소를 데리고 다닐 때 R', 2.6);
+  else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소·청룡을 데리고 다닐 때 R', 2.6);
   const b = document.querySelector('#tRide'); if (b) b.setAttribute('aria-pressed', String(!!pets.riding()));
 }
 function petting() { const u = charModels[charIndex] && charModels[charIndex].userData; return !!(u && u.pet && u.petT > 0); }
@@ -857,8 +857,13 @@ function updatePlayer(dt, t) {
   if (len > 0) p.yaw += angDiff(p.yaw, Math.atan2(dx, dz)) * (1 - Math.exp(-13 * dt));
   p.jumpBuf -= dt; p.coyote = p.grounded ? 0.12 : p.coyote - dt;
   if (p.jumpBuf > 0 && p.coyote > 0) { p.vel.y = 9.4 * (rs ? rs.jump : 1); if (rs && rs.leap > 1) { p.vel.x *= rs.leap; p.vel.z *= rs.leap; p.leaping = true; } /* ridden pets: 염소 jumps high, 고라니 leaps far */ p.grounded = false; p.coyote = 0; p.jumpBuf = 0; p.squashV = 5; }
-  if (!p.grounded && p.vel.y > 0 && !keys.Space) p.vel.y -= 22 * dt;
-  p.vel.y -= 26 * dt;
+  if (rs && rs.soar && !p.grounded) { // on the 청룡: hold Space to climb, let go to glide down gently (not above 60 m over the ground)
+    const top = terrainH(p.pos.x, p.pos.z) + 60;
+    if (keys.Space && p.pos.y < top) p.vel.y += (7 - p.vel.y) * (1 - Math.exp(-4 * dt)); else p.vel.y = Math.max(p.vel.y - 9 * dt, -3.5);
+  } else {
+    if (!p.grounded && p.vel.y > 0 && !keys.Space) p.vel.y -= 22 * dt;
+    p.vel.y -= 26 * dt;
+  }
   const ox = p.pos.x, oz = p.pos.z; p.pos.x += p.vel.x * dt; p.pos.z += p.vel.z * dt; pushOut(p.pos, ox, oz);
   p.pos.x = Math.max(-HALF, Math.min(HALF, p.pos.x)); p.pos.z = Math.max(-HALF, Math.min(HALF, p.pos.z));
   const was = p.grounded; p.pos.y += p.vel.y * dt; const g = groundAt(p.pos.x, p.pos.z, p.pos.y);
