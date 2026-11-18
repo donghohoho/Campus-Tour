@@ -670,7 +670,7 @@ const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 3.4, camDistCur = 3.4, dragging = false, ePressed = false;
 
 // pet: a petting motion for that model (assets/anim, made from the 'Pet' clip of each character's petting GLB — same bones, model unchanged)
-const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1', pet: 'assets/anim/pet1.json' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2', pet: 'assets/anim/pet2.json' },
+const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1', pet: 'assets/anim/pet1.json', ride: 'assets/anim/ride1.json' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2', pet: 'assets/anim/pet2.json' },
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3', pet: 'assets/anim/pet3.json' },
   { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' },
   { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' },
@@ -707,7 +707,7 @@ function sitPose(cmod, target, yaw, dt) {
   const w = u.sitW; if (!w) return; const B = sitBones(cmod); pRoot.updateMatrixWorld(true);
   const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw); // forward, and the character's left
   if (B.hips) { B.hips.getWorldPosition(_v3); const hipH = _v3.y - pRoot.position.y; pRoot.position.y -= Math.max(0, hipH - (B.legs.length ? 0.12 : 0.3)) * w; pRoot.updateMatrixWorld(true); }
-  for (const L of B.legs) {
+  for (const L of u.ride ? [] : B.legs) { // a character with its own Ride clip gets its legs from the clip
     aimBone(L.th, L.sh, _v3.set(fx * 0.72 + lx * L.s * 0.42, -0.55, fz * 0.72 + lz * L.s * 0.42).normalize(), w); // thigh: forward, apart, a bit down
     aimBone(L.sh, L.ft, _v3.set(-fx * 0.2 + lx * L.s * 0.22, -1, -fz * 0.2 + lz * L.s * 0.22).normalize(), w); // shin: hanging down the pet's side
   }
@@ -741,6 +741,7 @@ function loadChar(i) {
       const clip = inPlace(walkSrc), mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
       if (runSrc) { const run = mixer.clipAction(inPlace(runSrc)); run.play(); run.setEffectiveWeight(0); holder.userData.run = run; } // optional run cycle, blended in with speed
       if (CHARS[i].pet) fetch(CHARS[i].pet).then((r) => r.json()).then((j) => { const c = inPlace(THREE.AnimationClip.parse(j)), a = mixer.clipAction(c); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.setEffectiveWeight(0); Object.assign(holder.userData, { pet: a, petW: 0, petT: 0 }); }).catch(() => {}); // petting motion (optional)
+      if (CHARS[i].ride) fetch(CHARS[i].ride).then((r) => r.json()).then((j) => { const a = mixer.clipAction(inPlace(THREE.AnimationClip.parse(j))); a.play(); a.setEffectiveWeight(0); Object.assign(holder.userData, { ride: a, rideW: 0 }); }).catch(() => {}); // riding pose (optional; otherwise the legs are bent in code)
     }
     charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null, run: holder.userData.run ? holder.userData.run.getClip() : null };
     holder.add(m); holder.visible = false; pModel.add(holder); charModels[i] = holder; res();
@@ -905,6 +906,7 @@ function updatePlayer(dt, t) {
   pTilt.rotation.x += (lean - pTilt.rotation.x) * (1 - Math.exp(-10 * dt));
   const cmod = charModels[charIndex], anim = cmod && cmod.userData.mixer, pk = anim ? 0.35 : 1;
   if (anim) { const u = cmod.userData;
+    if (u.ride) { u.rideW += ((pets.riding() && !(pets.rideStats() || {}).stand ? 1 : 0) - u.rideW) * (1 - Math.exp(-8 * dt)); u.ride.setEffectiveWeight(u.rideW); } // riding clip (여자 1)
     if (u.pet) { if (!p.grounded) u.petT = 0; u.petT = Math.max(0, u.petT - dt); u.petW += ((u.petT > 0 ? 1 : 0) - u.petW) * (1 - Math.exp(-10 * dt)); u.pet.setEffectiveWeight(u.petW); } // petting: moving cancels it
     const tw = pets.riding() ? 0 : (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); /* riding: the pet does the walking */ u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); sitReset(cmod); u.mixer.update(dt); }
   const sway = pk * (p.grounded ? Math.sin(p.phase) * (0.035 + 0.035 * sf) * Math.min(1, hs / 1.5) : 0);
