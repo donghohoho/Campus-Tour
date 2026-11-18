@@ -74,11 +74,13 @@
       #stick { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border-radius: 50%; background: rgba(255, 253, 246, 0.16); border: 2px solid rgba(255, 253, 246, 0.55); pointer-events: auto; touch-action: none; }
       #stick.on { background: rgba(255, 253, 246, 0.26); }
       #stickKnob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(255, 253, 246, 0.9); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); pointer-events: none; }
-      #touchBtns { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto auto; grid-template-areas: "act jump" "char run"; gap: 12px; align-items: end; justify-items: center; }
+      #touchBtns { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto auto; grid-template-areas: "act jump" "char run" "ride ride"; gap: 12px; align-items: end; justify-items: center; }
       .tbtn { pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255, 253, 246, 0.7); background: rgba(22, 30, 56, 0.6); color: #fdf8e8; font: 700 13px/1.1 inherit; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
       .tbtn:active { background: rgba(255, 217, 138, 0.55); }
       #tJump { grid-area: jump; width: 84px; height: 84px; font-size: 15px; background: rgba(255, 217, 138, 0.82); color: #1b2030; border-color: #ffd98a; }
       #tRun { grid-area: run; }
+      #tRide { grid-area: ride; height: 44px; width: 100%; font-size: 13px; }
+      #tRide[aria-pressed="true"] { background: rgba(240, 179, 35, 0.85); color: #1b2030; }
       #tRun[aria-pressed="true"] { background: #ffd98a; color: #1b2030; }
       #tAct { grid-area: act; background: rgba(255, 92, 138, 0.75); }
       #tChar { grid-area: char; width: 56px; height: 56px; font-size: 12px; }
@@ -366,6 +368,7 @@
         <dt><kbd>Space</kbd></dt><dd>점프</dd>
         <dt>마우스</dt><dd>시점 회전</dd>
         <dt><kbd>E</kbd></dt><dd>줍기 · 쓰다듬기 · 야생 펫 길들이기</dd>
+        <dt><kbd>R</kbd></dt><dd>펫 타기 / 내리기 (고라니·호랑이·사자·염소)</dd>
         <dt><kbd>C</kbd></dt><dd>캐릭터 변경</dd>
         <dt><kbd>M</kbd></dt><dd>캠퍼스 변경</dd>
         <dt><kbd>Enter</kbd></dt><dd>채팅</dd>
@@ -429,6 +432,7 @@
         <button id="tJump" class="tbtn" type="button">점프</button>
         <button id="tChar" class="tbtn" type="button">캐릭터</button>
         <button id="tRun" class="tbtn" type="button" aria-pressed="false">달리기</button>
+        <button id="tRide" class="tbtn" type="button" aria-pressed="false">타기</button>
       </div>
     </div>
     <div id="campusMenu" class="hidden" role="dialog" aria-modal="true" aria-labelledby="campusMenuTitle">

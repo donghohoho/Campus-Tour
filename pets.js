@@ -4,6 +4,7 @@
 //   • the pets you walk with follow you in a little formation and are shown to other players (multiplayer.js sends [{t: type, n: name}, …])
 // Saved per device in localStorage (no server).
 //
+// ride: seat height in metres (as drawn) — the pet can be ridden (R)
 // PETS: add a 3D model with `model: 'assets/pets/<file>.glb'` (+ `h` = height in metres). Without a model a placeholder creature is drawn.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -20,12 +21,12 @@ export const PETS = [
   { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d, model: 'assets/pets/squirrel.glb', h: 0.32, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
   { id: 'magpie', name: '까치', wild: true, color: 0x33384a, model: 'assets/pets/magpie.glb', h: 0.36, fly: true },
-  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8 },
+  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8, ride: 0.95 },
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b, model: 'assets/pets/rooster.glb', h: 0.5, rotY: -Math.PI / 2 }, // model faces +x
-  { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0 },
-  { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7 },
+  { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0, ride: 1.1 },
+  { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7, ride: 0.85 },
   { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6, fly: true },
-  { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75 },
+  { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85 },
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6, fly: true },
   { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 0.6, rotY: Math.PI / 2, fly: true }, // model faces −x
 ];
@@ -98,6 +99,11 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     if (holdT > 0 && moving) holdT = 0; holdT = Math.max(0, holdT - dt);
     // aim for a spot behind and to the left of the owner
     const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * 1.35 * (0.6 + 0.4 * scale), sd = sd0 * 1.35 * (0.6 + 0.4 * scale); // ×1.35: room for the bigger (SIZE) pets
+    if (exact === 'ride') { // carrying its owner: exactly under them, facing where they face
+      pos.set(x, y, z); placed = true; hopT += dt * (moving ? 10 : 2); body.position.y = moving ? Math.abs(Math.sin(hopT)) * 0.06 : 0; body.rotation.z = 0; lift = 0;
+      let a = (yaw - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-14 * dt));
+      root.position.set(x, y - 0.03, z); if (plate) plate.visible = false; if (mixer) { action.timeScale = moving ? 1.6 : 0.4; mixer.update(dt); } return;
+    }
     let tx = exact ? x : x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = exact ? z : z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (holdT > 0 && placed) { tx = pos.x; tz = pos.z; }
     if (!placed || Math.hypot(tx - pos.x, tz - pos.z) > 25) { pos.set(tx, y, tz); placed = true; }
@@ -118,7 +124,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   }
   function dispose() { setName(''); blob.geometry.dispose(); blob.material.dispose(); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
-  return { root, update, hold, setName, dispose, type: def.id };
+  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0 };
 }
 
 export function initPets(G) {
@@ -140,7 +146,7 @@ export function initPets(G) {
   const giveStarter = () => { for (const d of PETS.filter((p) => p.starter)) if (!W.owned.some((o) => o.type === d.id) && !(W.given || []).includes(d.id)) {
     const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name }; W.owned.unshift(o); if (!W.actives.length) W.actives = [o.id]; W.given = [...(W.given || []), d.id]; save(); } };
   giveStarter();
-  let saveT = 0, pets = [], open = false, last = null;
+  let saveT = 0, pets = [], open = false, last = null, rideId = null;
 
   // ── HUD ──
   const coinEl = $('#count'), nextEl = $('#coinNext'), stepEl = $('#steps'), panel = $('#petShop');
@@ -217,7 +223,8 @@ export function initPets(G) {
       if (cloud && (flushT -= dt) <= 0) { flushT = 20; flush(); }
     } else last = null;
     if ((update.h = (update.h || 0) - dt) <= 0) { update.h = 0.5; hud(); }
-    { const p = G.player; for (const pt of pets) pt.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5); }
+    if (rideId && !pets.some((pt) => pt.id === rideId)) rideId = null; // the ridden pet was put away
+    { const p = G.player; for (const pt of pets) pt.update(dt, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.speed > 0.5, pt.id === rideId ? 'ride' : undefined); }
   }
   addEventListener('pagehide', () => { save(); flush(); }); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   function countOf(type) { return W.owned.filter((x) => x.type === type).length; }
@@ -245,5 +252,12 @@ export function initPets(G) {
     return o.id;
   }
   const ownsType = (type) => W.owned.some((o) => o.type === type);
-  return { hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  // riding (R): get on the first walking pet that can carry you (고라니·호랑이·사자·염소), or get off
+  function toggleRide() {
+    if (rideId) { rideId = null; return { off: true }; }
+    const pt = pets.find((x) => x.seat > 0); if (!pt) return { none: true };
+    rideId = pt.id; const o = W.owned.find((x) => x.id === pt.id); return { on: true, name: (o && o.name) || (petDef(pt.type) || {}).name };
+  }
+  const riding = () => { const pt = rideId && pets.find((x) => x.id === rideId); return pt ? pt.seat : 0; };
+  return { toggleRide, riding, hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

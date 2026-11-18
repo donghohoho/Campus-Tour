@@ -113,6 +113,23 @@ function terrainH(x, z) {
   return (GH[k] * (1 - a) + GH[k + 1] * a) * (1 - b) + (GH[k + GN] * (1 - a) + GH[k + GN + 1] * a) * b;
 }
 // 0 grass · 1 park · 2 wood · 3 paved · 4 water · 5 building
+// Collision from a hand-made model's own shape: sample its triangles, and wherever the model reaches body height
+// (0.25–2.2 m above the ground there) on a 0.6 m grid, add a solid post as tall as the model is in that cell.
+// Openings (an arch over the road, the gap between gate pillars, under a colonnade's lintel) stay walkable.
+function meshCollider(root) {
+  root.updateMatrixWorld(true); const C = 0.6, cells = new Map(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), q = new THREE.Vector3();
+  const hit = (x, y, z) => { const k = Math.floor(x / C) + ',' + Math.floor(z / C); let e = cells.get(k); if (!e) cells.set(k, (e = { top: -1e9, body: false, x: (Math.floor(x / C) + 0.5) * C, z: (Math.floor(z / C) + 0.5) * C, g: null })); if (y > e.top) e.top = y; if (!e.body) { if (e.g == null) e.g = terrainH(e.x, e.z); if (y > e.g + 0.25 && y < e.g + 2.2) e.body = true; } };
+  root.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return; const pos = o.geometry.attributes.position, idx = o.geometry.index, n = idx ? idx.count : pos.count, M = o.matrixWorld;
+    for (let t = 0; t + 2 < n; t += 3) {
+      a.fromBufferAttribute(pos, idx ? idx.getX(t) : t).applyMatrix4(M); b.fromBufferAttribute(pos, idx ? idx.getX(t + 1) : t + 1).applyMatrix4(M); c.fromBufferAttribute(pos, idx ? idx.getX(t + 2) : t + 2).applyMatrix4(M);
+      const m = Math.max(1, Math.min(24, Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / (C * 0.7))));
+      for (let i = 0; i <= m; i++) for (let j = 0; j <= m - i; j++) { const u = i / m, v = j / m; q.copy(a).multiplyScalar(1 - u - v).addScaledVector(b, u).addScaledVector(c, v); hit(q.x, q.y, q.z); }
+    }
+  });
+  let k = 0; for (const e of cells.values()) if (e.body) { addCircle(e.x, e.z, C * 0.62, e.top); k++; }
+  return k;
+}
 function cls(x, z) {
   const i = ((x + GHALF) / (GHALF * 2) * MS) | 0, j = ((z + GHALF) / (GHALF * 2) * MS) | 0; if (i < 0 || j < 0 || i >= MS || j >= MS) return 3;
   const v = mask[(j * MS + i) * 4]; return v < 30 ? 0 : v < 85 ? 1 : v < 135 ? 2 : v < 185 ? 3 : v < 230 ? 4 : 5;
@@ -205,9 +222,9 @@ function buildWorld(data) {
             const mat = new THREE.MeshLambertMaterial({ color: glm.wall || 0xe9e5d8, emissive: glm.glow || 0x4a4638 });
             floodlight(m, glm, mat);
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); if (northUp(campus)) sc.rotation.y = Math.PI; G.add(sc); // flipped footprint → turn the (real) model round so it faces the same way
+            meshCollider(sc);
           }, undefined, () => console.warn('gate model failed', glm.model));
-          if (glm.gap != null) { const r = Math.max(0.8, 0.04 * s); for (const sd of [-1, 1]) for (let x = glm.gap * s + r; x <= 0.5 * s - r * 0.5; x += r * 1.2) solid(sd * x, r, (glm.solidH || 0.35) * s); } // open gate: solid from the opening's edge outwards
-          else for (const sd of [-1, 1]) { solid(sd * 0.125 * s, 0.05 * s, 0.41 * s); for (let x = 0.19 * s; x <= 0.49 * s; x += 4) solid(sd * x, 2.4, 0.22 * s); }
+          void solid; // collision comes from the model's own shape once it has loaded (meshCollider)
           places.push({ n: src.n, x: gx, z: gz, top: gy + 0.42 * s, r: 55 }); continue;
         }
         const stone = new THREE.MeshLambertMaterial({ color: 0xe9e5d8, emissive: 0x4a4638 }), pale = new THREE.MeshLambertMaterial({ color: 0xf6f3ea, emissive: 0x5c584a }), dark = new THREE.MeshLambertMaterial({ color: 0x55534d });
@@ -246,9 +263,8 @@ function buildWorld(data) {
             if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = D / Math.max(size.x, size.z);
             floodlight(m, alm);
             m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
+            meshCollider(sc); // the columns themselves are solid; the gaps between them are not
           }, undefined, () => console.warn('amphitheatre model failed', alm.model));
-          const colTop = by + 0.12 + D * 0.34; // columns ring (two rows), open ±55° around the seats
-          for (const R of [D * 0.47, D * 0.41]) for (let t = 0; t < 360; t += 360 / Math.max(24, Math.round((Math.PI * 2 * R) / 1.4))) { const ang = phi + Math.PI + (t * Math.PI) / 180, off = Math.abs(((t + 180) % 360) - 180); if (off > 125) continue; addCircle(sx + Math.cos(ang) * R, sz + Math.sin(ang) * R, 1.1, colTop); } // a closed wall of pillars
         }
         places.push({ n: src.n, x: sx, z: sz, top: by + 7, r: 65 }); continue;
       }
@@ -290,8 +306,8 @@ function buildWorld(data) {
       if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3()), k = s / size.x;
       floodlight(m, l);
       m.position.set(-(box.min.x + box.max.x) / 2 - (l.shift || 0) * size.x, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
+      meshCollider(sc); // collision follows the model's shape
     }, undefined, () => console.warn('sculpture model failed', l.model));
-    for (const [fx, fr, fz = 0] of l.solids || []) { const lx = (fx - (l.shift || 0)) * s, lz = fz * s; addCircle(x + lx * ca - lz * sa, z + lx * sa + lz * ca, Math.max(0.6, fr * s), gy + (l.height || s)); } // [x, radius, z] as fractions of the model width
     places.push({ n: l.name, x, z, top: gy + (l.height || s * 0.9), r: 40 });
   }
   // named open spaces that the map data doesn't name (kind 'place', pos = centre, r = radius): sign + teleport target
@@ -669,9 +685,18 @@ function runBlend(u, hs, dt) {
 }
 window.__runBlend = runBlend;
 // play the current character's petting motion, turned toward what is being petted
+function rideToggle() {
+  const r = pets.toggleRide();
+  if (r.on) { toast(`🐾 ${r.name} 타기! 달리면(Shift) 2배 빨라요 · R로 내리기`, 2.4); player.squashV = 5; }
+  else if (r.off) toast('🐾 내렸어요', 1.2);
+  else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소를 데리고 다닐 때 R', 2.6);
+  const b = document.querySelector('#tRide'); if (b) b.setAttribute('aria-pressed', String(!!pets.riding()));
+}
+function petting() { const u = charModels[charIndex] && charModels[charIndex].userData; return !!(u && u.pet && u.petT > 0); }
 function playPet(at) {
-  const u = charModels[charIndex] && charModels[charIndex].userData; if (!u || !u.pet) return;
+  const u = charModels[charIndex] && charModels[charIndex].userData; if (!u || !u.pet || u.petT > 0 || pets.riding()) return;
   if (at) player.yaw = Math.atan2(at.x - player.pos.x, at.z - player.pos.z);
+  player.vel.x = player.vel.z = 0; // stand still for it (input is ignored until it ends — updatePlayer)
   u.pet.reset(); u.pet.play(); u.petT = u.pet.getClip().duration;
 }
 function loadChar(i) {
@@ -763,7 +788,7 @@ $('#menuClose').addEventListener('click', closeMenu);
 
 // ── input ──────────────────────────────────────────────────────────────────
 const keys = Object.create(null), locked = () => document.pointerLockElement === canvas;
-window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || (coll && coll.open()) || (quests && quests.open()) || tpOpen || bigOpen || rankOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = true; if (e.code === 'KeyC' && !keys.KeyC) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
+window.addEventListener('keydown', (e) => { if (!started || e.target instanceof HTMLInputElement || (mp && mp.typing()) || (pets && pets.open()) || (coll && coll.open()) || (quests && quests.open()) || tpOpen || bigOpen || rankOpen) return; if (menuOpen) { if (e.code === 'KeyM' || e.code === 'Escape') closeMenu(); return; } if (e.code === 'KeyM') { if (worldReady) openMenu(); return; } if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && !keys.Space) player.jumpBuf = 0.14; if (e.code === 'KeyE' && !keys.KeyE) ePressed = !petting(); if (e.code === 'KeyR' && !e.repeat && !petting()) rideToggle(); if (e.code === 'KeyC' && !keys.KeyC && !petting()) { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); } keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 const lockPointer = () => { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
@@ -793,7 +818,8 @@ const stick = { x: 0, y: 0, id: null }; let touchRun = false;
   const hold = (el, down, up) => { el.addEventListener('pointerdown', (e) => { e.preventDefault(); if (started && !menuOpen) down(); }); if (up) for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, up); };
   hold($('#tJump'), () => { player.jumpBuf = 0.14; keys.Space = true; }, () => { keys.Space = false; });
   hold($('#tRun'), () => { touchRun = !touchRun; $('#tRun').setAttribute('aria-pressed', String(touchRun)); });
-  hold($('#tAct'), () => { ePressed = true; });
+  hold($('#tAct'), () => { ePressed = !petting(); });
+  hold($('#tRide'), () => { if (!petting()) rideToggle(); });
   hold($('#tChar'), () => { const n = nextChar(); if (!setChar(n, true)) toast('다른 캐릭터를 불러오지 못했어요', 1.6); });
   for (const b of document.querySelectorAll('#touchUI button')) b.addEventListener('contextmenu', (e) => e.preventDefault());
 }
@@ -818,11 +844,13 @@ function pushOut(p, prevX, prevZ) {
   }
 }
 function updatePlayer(dt, t) {
-  const p = player, cl = (v) => Math.max(-1, Math.min(1, v));
-  const f = cl((keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - stick.y), s = cl((keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + stick.x);
+  const p = player, cl = (v) => Math.max(-1, Math.min(1, v)), busy = petting(); // while petting: no walking, jumping or other motions until it finishes
+  if (busy) p.jumpBuf = 0;
+  const f = busy ? 0 : cl((keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - stick.y), s = busy ? 0 : cl((keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + stick.x);
   const fxx = -Math.sin(camYaw), fzz = -Math.cos(camYaw); let dx = fxx * f - fzz * s, dz = fzz * f + fxx * s; const len = Math.hypot(dx, dz);
   const inWater = cls(p.pos.x, p.pos.z) === 4 && p.grounded, running = (keys.ShiftLeft || keys.ShiftRight || touchRun) && len > 0;
-  let max = (running ? 8.6 : 4.1) * Math.min(1, len); if (inWater) max *= 0.5; if (len > 0) { dx /= len; dz /= len; }
+  const seat = pets.riding(); // on a rideable pet: running is twice as fast
+  let max = (running ? 8.6 * (seat ? 2 : 1) : 4.1) * Math.min(1, len); if (inWater) max *= 0.5; if (len > 0) { dx /= len; dz /= len; }
   const acc = p.grounded ? 11 : 3.5, k = 1 - Math.exp(-acc * dt);
   p.vel.x += (dx * max - p.vel.x) * k; p.vel.z += (dz * max - p.vel.z) * k;
   if (len > 0) p.yaw += angDiff(p.yaw, Math.atan2(dx, dz)) * (1 - Math.exp(-13 * dt));
@@ -844,12 +872,12 @@ function updatePlayer(dt, t) {
   pTilt.rotation.x += (lean - pTilt.rotation.x) * (1 - Math.exp(-10 * dt));
   const cmod = charModels[charIndex], anim = cmod && cmod.userData.mixer, pk = anim ? 0.35 : 1;
   if (anim) { const u = cmod.userData;
-    if (u.pet) { if (hs > 1.2 || !p.grounded) u.petT = 0; u.petT = Math.max(0, u.petT - dt); u.petW += ((u.petT > 0 ? 1 : 0) - u.petW) * (1 - Math.exp(-10 * dt)); u.pet.setEffectiveWeight(u.petW); } // petting: moving cancels it
-    const tw = (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
+    if (u.pet) { if (!p.grounded) u.petT = 0; u.petT = Math.max(0, u.petT - dt); u.petW += ((u.petT > 0 ? 1 : 0) - u.petW) * (1 - Math.exp(-10 * dt)); u.pet.setEffectiveWeight(u.petW); } // petting: moving cancels it
+    const tw = pets.riding() ? 0 : (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); /* riding: the pet does the walking */ u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
   const sway = pk * (p.grounded ? Math.sin(p.phase) * (0.035 + 0.035 * sf) * Math.min(1, hs / 1.5) : 0);
   pTilt.rotation.z += (sway + Math.sin(t * 0.9) * 0.008 - pTilt.rotation.z) * (1 - Math.exp(-14 * dt));
   pModel.rotation.y = MODEL_YAW + (p.grounded ? pk * Math.sin(p.phase) * 0.07 * Math.min(1, hs / 1.5) : 0);
-  pRoot.position.set(p.pos.x, p.pos.y + bob, p.pos.z); pRoot.rotation.y = p.yaw;
+  { const seat = pets.riding(); pRoot.position.set(p.pos.x, p.pos.y + (seat ? seat : bob), p.pos.z); if (seat) { pTilt.rotation.x = 0; pTilt.rotation.z = 0; } } pRoot.rotation.y = p.yaw; // riding: sit on the pet's back
   if (p.grounded && hs > 6) { p.runDust -= dt; if (p.runDust <= 0) { p.runDust = 0.11; spawnFx(dustTex, p.pos.x - dx * 0.3, p.pos.y + 0.12, p.pos.z - dz * 0.3, rr(-0.4, 0.4), 0.5, rr(-0.4, 0.4), 0.5, 0.35, 1.4); } }
 }
 const camPos = new THREE.Vector3(), dir = new THREE.Vector3();
@@ -948,7 +976,7 @@ function updateWorld(dt, t) {
 }
 setPetCamera(camera);
 const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const mp = initMultiplayer({ signFix: (s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
+const mp = initMultiplayer({ busy: () => petting(), signFix: (s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
     if (!northUp(campus) && +s.t === NORTH_UP_SINCE) { // converted while this campus was briefly (wrongly) flipped — e.g. khu-global, kept in this device's sign cache: undo
       const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE - 1 };
     }
