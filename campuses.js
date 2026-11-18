@@ -82,7 +82,18 @@ export const CAMPUSES = [
     ],
     play: { gems: 30, gemArea: [-450, 450, -600, 600], pals: 18, palArea: [-450, 450, -600, 600], palHome: [286, 76], treeClear: [[367, 26, 10]] },
   },
-  soon('sogang', '서강대학교', 'seoul'),
+  {
+    id: 'sogang', name: '서강대학교', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/sogang.json', terrain: 'hills', lighting: 'night', seed: 20261118,
+    outsideLabel: '캠퍼스 밖 · 신수동/노고산동',
+    spawn: { from: '정문경비초소', toward: '본관', dist: 22 }, // just inside the main gate (백범로 side), looking up at 본관
+    landmarks: [
+      { name: '서강대학교 대운동장', kind: 'stadium', pos: [12, -169], note: 'OSM leisure=pitch' },
+      { name: '청년광장', kind: 'place', pos: [-153, -80], r: 30, note: 'OSM pitch "청년광장"' },
+      { name: '알바트로스 공원', kind: 'place', pos: [-225, -67], r: 30, note: 'OSM park "알바트로스 공원" — 정문 옆' },
+      { name: '곤자가 플라자', kind: 'place', pos: [197, -127], r: 25, note: 'OSM park "곤자가프라자"' },
+    ],
+  },
   soon('skku-seoul', '성균관대학교 인문사회과학캠퍼스', 'seoul'),
   soon('skku-natural', '성균관대학교 자연과학캠퍼스', 'gyeonggi'),
   soon('hanyang-seoul', '한양대학교 서울캠퍼스', 'seoul'),
