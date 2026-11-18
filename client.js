@@ -228,7 +228,8 @@ function buildWorld(data) {
         }
         places.push({ n: src.n, x: sx, z: sz, top: by + 7, r: 65 }); continue;
       }
-      const top = avgT + src.h, bot = minT - 1.5, sgn = area > 0 ? 1 : -1, floorH = src.h / Math.max(1, src.l);
+      const lh = look.get(src.n), hh = lh && !lh.model && lh.height ? lh.height : src.h; // a recoloured landmark may also set its height (e.g. low hanok halls)
+      const top = avgT + hh, bot = minT - 1.5, sgn = area > 0 ? 1 : -1, floorH = hh / Math.max(1, lh && lh.height ? 1 : src.l);
       const pal = src.c ? campusWalls : src.k === 'apartments' ? aptWalls : otherWalls;
       C.set(pal[idx % pal.length]); if (look.get(src.n)?.wall) C.set(look.get(src.n).wall); const cr = C.r, cg = C.g, cb = C.b;
       const custom = look.get(src.n)?.model ? look.get(src.n) : null; // a hand-made 3D model replaces the extruded block (collision still uses the footprint)
