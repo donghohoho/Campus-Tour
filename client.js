@@ -353,7 +353,7 @@ const dustTex = canvasTex((g, s) => { const gr = g.createRadialGradient(s / 2, s
 const KEEP_TEX = new Set([glowTex, heartTex, dustTex]); // shared across campuses — never disposed
 function disposeMaterial(mat) { for (const k of ['map', 'emissiveMap']) { const t = mat[k]; if (t && !KEEP_TEX.has(t)) t.dispose(); } mat.dispose(); }
 // Free everything the current campus allocated (GPU buffers, textures, collision grids) before another one is built.
-// ── strolling NPCs: a few random characters wander between named places on campus along the roads; they stop and wave 👋 when you come close ──
+// ── strolling NPCs: random characters (count by campus size)  wander between named places on campus along the roads; they stop and wave 👋 when you come close ──
 const npcGroup = new THREE.Group(); scene.add(npcGroup);
 let npcs = [], npcPlan = null, roadGraph = null;
 function clearNpcs() { for (const n of npcs) npcGroup.remove(n.root); npcs = []; roadGraph = null; }
@@ -411,9 +411,20 @@ function npcMimicStep(n, dt) {
   if (n.emo) { n.emo.position.y += dt * 0.3; if ((n.emoT -= dt) <= 0) { n.root.remove(n.emo); n.emo.material.dispose(); n.emo = null; } }
   n.faceT = Math.max(0, (n.faceT || 0) - dt);
 }
+// how many NPCs: by campus area (8.5 ha 외대 → 8 … 70 ha+ 경희대 국제캠·연세대·서울대 → 20); phones / low mode 6–8
+function campusHa() {
+  const rings = !D || !D.campus || !D.campus.length ? [] : typeof D.campus[0][0] === 'number' ? [D.campus] : D.campus; let a = 0;
+  for (const r of rings) { let s = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; s += p[0] * q[1] - q[0] * p[1]; } a += Math.abs(s) / 2; }
+  return a / 1e4 || 30;
+}
+function npcCountFor() {
+  const t = Math.min(1, Math.max(0, (campusHa() - 10) / 60));
+  return LOW ? Math.round(6 + 2 * t) : Math.round(8 + 12 * t);
+}
+const NPC_ACTIVE_R = 80; // NPCs further than this from the player are hidden and their animation paused (they still walk their routes)
 function setupNpcs() {
   if (!npcPlan || npcs.length || !charSrc.some(Boolean) || !npcSpots().length) return;
-  const avail = charSrc.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), count = LOW ? 2 : 3 + Math.floor(Math.random() * 2), spots = npcSpots();
+  const avail = charSrc.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), count = npcCountFor(), spots = npcSpots();
   for (let k = 0; k < count; k++) {
     const ci = avail[Math.floor(Math.random() * avail.length)], src = charSrc[ci], m = cloneSkinned(src.model); m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
     const root = new THREE.Group(), body = new THREE.Group(); body.add(m); root.add(body); npcGroup.add(root);
@@ -441,11 +452,12 @@ function updateNpcs(dt) {
       const [x, z, h] = routeAt(n.leg, n.d); n.x = x + Math.cos(h) * n.side * Math.min(1, n.d / 6, (n.leg.total - n.d) / 6); n.z = z - Math.sin(h) * n.side * Math.min(1, n.d / 6, (n.leg.total - n.d) / 6); hd = h; // keep to one side of the path
     }
     const moving = !near && n.wait <= 0;
+    const far = Math.hypot(P.x - n.x, P.z - n.z) > NPC_ACTIVE_R; n.root.visible = !far;
+    if (far) { n.yaw = hd ?? n.yaw; n.wave.visible = false; continue; } // resting: no ground lookup, no animation, not drawn
     n.root.position.set(n.x, groundAt(n.x, n.z, 1e4) + (n.hopY || 0), n.z);
     if (hd != null) { let a = (hd - n.yaw) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; n.yaw += a * (1 - Math.exp(-5 * dt)); } n.body.rotation.y = n.yaw;
     n.wave.visible = n.waveT > 0; if (n.wave.visible) { n.wave.position.y = 2.15 + Math.sin(n.waveT * 9) * 0.04; n.wave.material.rotation = Math.sin(n.waveT * 10) * 0.35; }
-    const far = n.root.position.distanceTo(camera.position) > 160; n.root.visible = !far;
-    if (n.mixer && !far) { n.act.timeScale = moving ? 0.75 : 0; if (!moving) n.act.time = 0; n.mixer.update(dt); }
+    if (n.mixer) { n.act.timeScale = moving ? 0.75 : 0; if (!moving) n.act.time = 0; n.mixer.update(dt); }
   }
 }
 function unloadWorld() {
