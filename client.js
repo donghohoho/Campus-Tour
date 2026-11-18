@@ -1017,13 +1017,17 @@ function updateWorld(dt, t) {
 }
 setPetCamera(camera);
 const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const mp = initMultiplayer({ busy: () => petting(), signFix: (s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
+// signs keep the height they were placed at; the ground under them has since been reshaped (north-up flip,
+// smoothed roads), so on load each one is set back onto the surface under it — the ground, or the roof / stage it
+// stood on (searched from a little above where it was, and never from below the ground)
+const settleSign = (s) => { const x = +s.x, z = +s.z; if (!Number.isFinite(x) || !Number.isFinite(z)) return s; const feet = Math.max((+s.y || 0) + 1.5, terrainH(x, z) + 0.5); return { ...s, y: groundAt(x, z, feet) }; };
+const mp = initMultiplayer({ busy: () => petting(), signFix: (s0) => settleSign(((s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
     if (!northUp(campus) && +s.t === NORTH_UP_SINCE) { // converted while this campus was briefly (wrongly) flipped — e.g. khu-global, kept in this device's sign cache: undo
       const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE - 1 };
     }
     if (!northUp(campus) || campus.mirror || !(+s.t < NORTH_UP_SINCE)) return s;
     const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE }; // t moved up = marked as converted
-  }, onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+  })(s0)), onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const coll = initCollection({ toWorld: (x, z) => mapToWorld(x, z), petDex: (el) => wildPets.renderDex(el), stampBook: (el) => stamps.render(el), onCollect: (it) => { quests.event('collect', it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const stamps = initStamps({ toast, started: () => started, payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin(), campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, refreshBook: () => coll.refresh() });
 const quests = initQuests({ onComplete: (q) => wildPets.onQuestDone(q), toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },

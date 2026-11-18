@@ -442,5 +442,5 @@ export function initMultiplayer(G) {
     const near = !!mySignNear(); if (near !== update.near) { update.near = near; delBtn.classList.toggle('hidden', !near); }
   }
   const players = () => [...avatars.values()].filter((av) => av.has).map((av) => ({ name: av.name, x: av.cur.x, y: av.cur.y, z: av.cur.z }));
-  return { useDB, useAdminKey, adminKey: async () => { await adminReady; return adminD; }, setIdentity, enter, update, players, typing: () => !!typing };
+  return { useDB, useAdminKey, adminKey: async () => { await adminReady; return adminD; }, setIdentity, enter, update, players, signs: () => [...signs.values()], typing: () => !!typing };
 }
