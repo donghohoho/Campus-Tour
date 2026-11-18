@@ -42,6 +42,7 @@ const WALK_BONUS = 0.5, STEP_LEN = 0.75, JUMP_RATE = 7; // jumping: 7× (running
 const $ = (s) => document.querySelector(s);
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const petDef = (id) => PETS.find((p) => p.id === id);
+const SIZE = 2; // every pet is drawn this much bigger than its `h` (h = real-life height; the game reads better with chunkier pets)
 
 // ── pet models: GLB if given, else a round placeholder creature ──
 const loader = new GLTFLoader(), glbCache = new Map();
@@ -67,10 +68,10 @@ let camRef = null; export const setPetCamera = (c) => { camRef = c; };
 export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
 export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  let model = placeholder(def), mixer = null, action = null; body.add(model);
+  let model = placeholder(def), mixer = null, action = null; model.scale.setScalar(SIZE); model.userData.s = SIZE; body.add(model);
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
-    const m = cloneSkinned(g.scene); if (def.rotY) { m.rotation.y = def.rotY; m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = (def.h || 0.6) / h;
+    const m = cloneSkinned(g.scene); if (def.rotY) { m.rotation.y = def.rotY; m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = ((def.h || 0.6) * SIZE) / h;
     m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
     body.remove(model); model = m; body.add(m);
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
@@ -83,12 +84,12 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     x.fillStyle = 'rgba(60,40,70,0.6)'; x.beginPath(); x.roundRect(0, 0, w, 36, 12); x.fill(); x.fillStyle = '#fff4fb'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐾 ' + n, w / 2, 19);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     plate = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: false })); plate.renderOrder = 19; plate.center.set(0.5, 0);
-    plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
+    plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) * SIZE + 0.2; root.add(plate);
   }
   setName(name);
   // soft contact shadow under the pet (night scenes have few real shadows, so without it pets looked like they float)
   const blob = new THREE.Mesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0.42, color: 0x000000 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.045; blob.renderOrder = 1; root.add(blob);
-  { const r = Math.max(0.28, (def.h || 0.6) * 0.55); blob.geometry = new THREE.PlaneGeometry(r * 2, r * 2); }
+  { const r = Math.max(0.28, (def.h || 0.6) * SIZE * 0.55); blob.geometry = new THREE.PlaneGeometry(r * 2, r * 2); }
   let placed = false, hopT = 0, holdT = 0, lift = 0; const pos = new THREE.Vector3();
   // hold(s): stay put (facing the owner) for s seconds or until the owner walks off — used while being petted
   function hold(s) { holdT = s; }
@@ -96,7 +97,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   function update(dt, x, y, z, yaw, moving, exact) {
     if (holdT > 0 && moving) holdT = 0; holdT = Math.max(0, holdT - dt);
     // aim for a spot behind and to the left of the owner
-    const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * (0.6 + 0.4 * scale), sd = sd0 * (0.6 + 0.4 * scale);
+    const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * 1.35 * (0.6 + 0.4 * scale), sd = sd0 * 1.35 * (0.6 + 0.4 * scale); // ×1.35: room for the bigger (SIZE) pets
     let tx = exact ? x : x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = exact ? z : z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (holdT > 0 && placed) { tx = pos.x; tz = pos.z; }
     if (!placed || Math.hypot(tx - pos.x, tz - pos.z) > 25) { pos.set(tx, y, tz); placed = true; }
@@ -105,9 +106,9 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
-    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? 0.9 : 1.7) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? 1.0 : 2.0) : 0) - lift) * (1 - Math.exp(-3 * dt));
     const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
-    root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
+    root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) * SIZE + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
     blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
     body.rotation.z = fly ? Math.sin(hopT * 0.23) * 0.12 : 0; // a gentle bank while gliding
     const want = holdT > 0 ? Math.atan2(x - pos.x, z - pos.z) : d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));

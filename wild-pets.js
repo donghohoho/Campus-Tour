@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { createPet } from './pets.js';
 import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf, DEX_EXTRA } from './wild-pets-data.js';
 
-const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 2.6, BAR_R = 7;
+const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 3.2, BAR_R = 7; // NEAR: E-to-pet range (pets are drawn 2× — pets.js SIZE)
 const $ = (s) => document.querySelector(s);
 const dayKey = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
 
