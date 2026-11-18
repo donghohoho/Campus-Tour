@@ -674,7 +674,7 @@ const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여�
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3', pet: 'assets/anim/pet3.json', ride: 'assets/anim/ride3.json' },
   { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1', pet: 'assets/anim/pet_m1.json', ride: 'assets/anim/ride_m1.json' },
   { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2', pet: 'assets/anim/pet_m2.json', ride: 'assets/anim/ride_m2.json' },
-  { url: 'assets/character_m3.glb', h: 1.75, rigged: true, name: '남자 3' }];
+  { url: 'assets/character_m3.glb', h: 1.75, rigged: true, name: '남자 3', pet: 'assets/anim/pet_m3.json', ride: 'assets/anim/ride_m3.json' }];
 const nextChar = () => { for (let k = 1; k <= CHARS.length; k++) { const n = (charIndex + k) % CHARS.length; if (charModels[n]) return n; } return charIndex; };
 const charModels = [], charSrc = []; let charIndex = 0; // charSrc: the loaded model + walk clip, cloned for other players
 // walk ↔ run: with a run clip the walk fades out between 5 and 7.5 m/s; without one the walk just speeds up
