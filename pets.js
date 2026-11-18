@@ -70,7 +70,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
     const m = cloneSkinned(g.scene); if (def.rotY) { m.rotation.y = def.rotY; m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = (def.h || 0.6) / h;
-    m.scale.setScalar(s); m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
+    m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
     body.remove(model); model = m; body.add(m);
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
@@ -105,7 +105,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     root.position.set(pos.x, pos.y + lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0), pos.z);
     body.rotation.z = fly ? Math.sin(hopT * 0.23) * 0.12 : 0; // a gentle bank while gliding
     const want = holdT > 0 ? Math.atan2(x - pos.x, z - pos.z) : d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
-    if (!action && !fly) model.scale.y = 1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03);
+    if (!action && !fly) { const b = model.userData.s || 1; model.scale.y = b * (1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03)); } // idle 'breathing' around the model's own scale (it used to reset y to 1 → tall and thin)
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
     if (plate && camRef) { const cd = camRef.position.distanceTo(root.position), o = Math.max(0, Math.min(1, (cd - 3.5) / 3)); plate.visible = o > 0.02; plate.material.opacity = o; }
   }
