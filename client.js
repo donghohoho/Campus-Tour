@@ -911,7 +911,7 @@ function updatePlayer(dt, t) {
   pTilt.rotation.z += (sway + Math.sin(t * 0.9) * 0.008 - pTilt.rotation.z) * (1 - Math.exp(-14 * dt));
   pModel.rotation.y = MODEL_YAW + (p.grounded ? pk * Math.sin(p.phase) * 0.07 * Math.min(1, hs / 1.5) : 0);
   { const seat = pets.riding(); pRoot.position.set(p.pos.x, p.pos.y + (seat ? seat : bob), p.pos.z); if (seat) { pTilt.rotation.x = 0; pTilt.rotation.z = 0; } } pRoot.rotation.y = p.yaw; // riding: sit on the pet's back
-  sitPose(cmod, pets.riding() ? 1 : 0, p.yaw, dt);
+  { const rs2 = pets.rideStats(); sitPose(cmod, rs2 && !rs2.stand ? 1 : 0, p.yaw, dt); } // the 은행잎 is ridden standing
   if (p.grounded && hs > 6) { p.runDust -= dt; if (p.runDust <= 0) { p.runDust = 0.11; spawnFx(dustTex, p.pos.x - dx * 0.3, p.pos.y + 0.12, p.pos.z - dz * 0.3, rr(-0.4, 0.4), 0.5, rr(-0.4, 0.4), 0.5, 0.35, 1.4); } }
 }
 const camPos = new THREE.Vector3(), dir = new THREE.Vector3();
