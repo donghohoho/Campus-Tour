@@ -249,12 +249,12 @@ export function initMultiplayer(G) {
   // ── avatars ──
   function hello() { return { name: myName, char: G.charIndex(), pet: G.myPet() }; }
   function setRemotePet(av, info) { // info: [{t, n}, …] (or one {t, n} from older clients)
-    const list = (Array.isArray(info) ? info : info ? [info] : []).slice(0, MAX_WALK).filter((x) => x && PETS.some((p) => p.id === x.t)).map((x) => ({ t: x.t, n: clean(x.n, 10), s: [1, 1.5, 2].includes(x.s) ? x.s : 1 }));
+    const list = (Array.isArray(info) ? info : info ? [info] : []).slice(0, MAX_WALK).filter((x) => x && PETS.some((p) => p.id === x.t)).map((x) => ({ t: x.t, n: clean(x.n, 10), s: [1, 1.5, 2].includes(x.s) ? x.s : 1, k: typeof x.k === 'string' ? x.k.slice(0, 12) : null }));
     av.pets = av.pets || [];
     while (av.pets.length > list.length) av.pets.pop().dispose();
     list.forEach((x, k) => {
-      let pt = av.pets[k]; if (pt && (pt.type !== x.t || pt.sz !== x.s)) { pt.dispose(); pt = null; }
-      if (!pt) { pt = createPet(x.t, x.n, G.terrainH, k, x.s); pt.sz = x.s; pt.nm = x.n; G.scene.add(pt.root); av.pets[k] = pt; } else if (pt.nm !== x.n) { pt.setName(x.n); pt.nm = x.n; }
+      let pt = av.pets[k]; if (pt && (pt.type !== x.t || pt.sz !== x.s || pt.sk !== x.k)) { pt.dispose(); pt = null; }
+      if (!pt) { pt = createPet(x.t, x.n, G.terrainH, k, x.s, x.k); pt.sz = x.s; pt.sk = x.k; pt.nm = x.n; G.scene.add(pt.root); av.pets[k] = pt; } else if (pt.nm !== x.n) { pt.setName(x.n); pt.nm = x.n; }
     });
   }
   function pickChar(i) { return G.charSrc[i] ? i : G.charSrc.findIndex(Boolean); }

@@ -38,6 +38,18 @@ export const PETS = [
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
 
+// skins: recolour a pet you own (bought per pet with coins; switching between skins you bought is free).
+// tint multiplies the model's own texture; glow adds a little emissive (황금, 무지개빛).
+export const SKINS = [
+  { id: 'gold', name: '황금', tint: 0xffcf40, glow: 0x5a3c00, price: 300 },
+  { id: 'rose', name: '벚꽃', tint: 0xffa8cf, price: 150 },
+  { id: 'mint', name: '민트', tint: 0x9cf0cf, price: 150 },
+  { id: 'sky', name: '하늘', tint: 0x9cc8ff, price: 150 },
+  { id: 'violet', name: '라벤더', tint: 0xc4a8ff, price: 150 },
+  { id: 'night', name: '밤하늘', tint: 0x5a5f80, price: 200 },
+  { id: 'ember', name: '노을', tint: 0xff8a5c, glow: 0x3a0f00, price: 200 },
+];
+const skinDef = (id) => SKINS.find((k) => k.id === id) || null;
 export const MAX_WALK = 1; // pets that can walk with you at once (one: picking another swaps it in)
 // follow spots behind the owner: [metres back, metres to the side]
 const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
@@ -72,8 +84,8 @@ function placeholder(def) {
 // name tags fade out when the camera is close (your own pets walk between you and the camera)
 let camRef = null; export const setPetCamera = (c) => { camRef = c; };
 export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
-export function createPet(type, name, terrainH, slot = 0, scale = 1) {
-  const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null) {
+  const def = petDef(type) || PETS[0], sk = skinDef(skin), root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   let model = placeholder(def), mixer = null, action = null; model.scale.setScalar(SIZE); model.userData.s = SIZE; body.add(model);
   // fit a loaded model to this pet: turn (rotX/rotY), scale to its height (or length), stand it on the ground, tint
   const fit = (g) => {
@@ -81,7 +93,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = def.len ? (def.len * SIZE) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 1e-3) : ((def.h || 0.6) * SIZE) / h; // len: size by length (a flat leaf)
     m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s;
     if (def.len) { m.position.x = (-(box.min.x + box.max.x) / 2) * s; m.position.z = (-(box.min.z + box.max.z) / 2) * s; } /* flat rides: centred under you */
-    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(def.tint)); } } }); // tint: same model, another colour (장산곶매)
+    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint || sk) { o.material = o.material.clone(); if (def.tint) o.material.color.multiply(new THREE.Color(def.tint)); if (sk) { o.material.color.multiply(new THREE.Color(sk.tint)); if (sk.glow && o.material.emissive) o.material.emissive.setHex(sk.glow); } } } }); // tint: same model, another colour (장산곶매); sk: the owner's skin
     return m;
   };
   if (def.model) loadGlb(def.model).then((g) => {
@@ -153,7 +165,7 @@ export function initPets(G) {
     if (!refunded) return; save(); flush(); hud();
     const tell = () => { if (!G.started()) return setTimeout(tell, 1000); G.toast(`🐾 말랑이 펫이 사라졌어요 — 산 값 🪙 ${refunded}을(를) 돌려드렸어요`, 4.5); refunded = 0; }; tell();
   }
-  const norm0 = (s) => (s && typeof s === 'object' ? { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] } : null);
+  const norm0 = (s) => (s && typeof s === 'object' ? { coins: Math.max(0, s.coins | 0), prog: Math.max(0, +s.prog || 0), owned: Array.isArray(s.owned) ? s.owned.filter((o) => o && petDef(o.type)).map((o) => ({ id: String(o.id), type: o.type, name: clean(o.name, NAME_MAX) || petDef(o.type).name, skin: skinDef(o.skin) ? o.skin : null, skins: Array.isArray(o.skins) ? o.skins.filter((k) => skinDef(k)) : [] })) : [], actives: Array.isArray(s.actives) ? s.actives.map(String).slice(0, MAX_WALK) : s.active ? [String(s.active)] : [], steps: Math.max(0, +s.steps || 0), given: Array.isArray(s.given) ? s.given : [] } : null);
   try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || W; } catch (_) {}
   // storage: this browser (guest) or the logged-in account (cloud, written at most every 20 s and when leaving)
   let cloud = null, dirty = false, flushT = 0;
@@ -175,10 +187,29 @@ export function initPets(G) {
   function spawnActive() {
     for (const pt of pets) pt.dispose(); pets = [];
     W.actives = W.actives.filter((id) => W.owned.some((x) => x.id === id)).slice(0, MAX_WALK);
-    W.actives.forEach((id, k) => { const o = W.owned.find((x) => x.id === id), pt = createPet(o.type, o.name, G.terrainH, k, sizeFor(countOf(o.type))); pt.id = id; G.scene.add(pt.root); pets.push(pt); });
+    W.actives.forEach((id, k) => { const o = W.owned.find((x) => x.id === id), pt = createPet(o.type, o.name, G.terrainH, k, sizeFor(countOf(o.type)), o.skin); pt.id = id; G.scene.add(pt.root); pets.push(pt); });
   }
   spawnActive();
 
+  // skins: a row of colour chips under each pet in 내 펫 — buy one with coins, then switch freely
+  function skinRow(li, o) {
+    if (!Array.isArray(o.skins)) o.skins = []; // pets made before skins existed
+    const row = document.createElement('div'); row.className = 'skinRow';
+    const lab = document.createElement('small'); lab.textContent = '🎨 스킨'; row.append(lab);
+    for (const k of [null, ...SKINS]) {
+      const b = document.createElement('button'), id = k ? k.id : null, have = !k || o.skins.includes(id), on = (o.skin || null) === id;
+      b.type = 'button'; b.className = 'skinChip' + (on ? ' on' : '') + (have ? '' : ' locked'); b.style.setProperty('--c', k ? '#' + k.tint.toString(16).padStart(6, '0') : '#ffffff');
+      b.title = k ? `${k.name}${have ? '' : ` · 🪙 ${k.price}`}` : '기본'; b.setAttribute('aria-label', b.title); b.textContent = have ? (on ? '✓' : '') : '🪙';
+      b.addEventListener('click', () => {
+        if (!have) { if (W.coins < k.price) { G.toast(`🪙 ${k.price - W.coins} 부족해요 — ${k.name} 스킨은 🪙 ${k.price}`, 2); return; } if (!confirmBuy(b, k)) return; W.coins -= k.price; o.skins.push(id); G.toast(`🎨 ${o.name}에게 ${k.name} 스킨! (🪙 ${k.price})`, 2.2); }
+        o.skin = id; save(); flush(); spawnActive(); hud(); render();
+      });
+      row.append(b);
+    }
+    li.append(row);
+  }
+  // first tap on a locked skin arms it ("한 번 더 누르면 구매"), the second buys — no accidental purchases
+  function confirmBuy(b, k) { if (b.dataset.arm) return true; for (const x of document.querySelectorAll('.skinChip[data-arm]')) { delete x.dataset.arm; x.textContent = '🪙'; } b.dataset.arm = '1'; b.textContent = k.price; G.toast(`${k.name} 스킨 🪙 ${k.price} — 한 번 더 누르면 살게요`, 2); return false; }
   // ── shop / my pets panel ──
   function render() {
     $('#petCoins').textContent = `🪙 ${W.coins}`;
@@ -201,7 +232,7 @@ export function initPets(G) {
       nm.addEventListener('change', () => { o.name = clean(nm.value, NAME_MAX) || d.name; nm.value = o.name; save(); const pt = pets.find((x) => x.id === o.id); if (pt) pt.setName(o.name); });
       const on = W.actives.includes(o.id), full = !on && W.actives.length >= MAX_WALK; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : full ? '이 펫으로 바꾸기' : '데리고 다니기';
       go.addEventListener('click', () => { W.actives = on ? W.actives.filter((x) => x !== o.id) : [...W.actives, o.id].slice(-MAX_WALK); /* over the limit: the newest one replaces the oldest */ save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
-      li.append(sw, nm, go); if (G.petRow) G.petRow(li, o); mine.append(li); // wild-pets.js adds the bond chip
+      li.append(sw, nm, go); if (G.petRow) G.petRow(li, o); skinRow(li, o); mine.append(li); // wild-pets.js adds the bond chip
     }
   }
   function buy(d) {
@@ -244,7 +275,7 @@ export function initPets(G) {
   }
   addEventListener('pagehide', () => { save(); flush(); }); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   function countOf(type) { return W.owned.filter((x) => x.type === type).length; }
-  function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name, s: sizeFor(countOf(o.type)) })); }
+  function current() { return W.actives.map((id) => W.owned.find((x) => x.id === id)).filter(Boolean).map((o) => ({ t: o.type, n: o.name, s: sizeFor(countOf(o.type)), k: o.skin || null })); }
   // switch to an account's wallet (first login carries this browser's guest progress over), or back to the guest wallet
   async function useAccount(api, created) {
     if (!api) { flush(); cloud = null; try { W = norm(JSON.parse(localStorage.getItem(KEY) || 'null')) || { coins: 0, prog: 0, owned: [], actives: [], steps: 0 }; } catch (_) {} giveStarter(); spawnActive(); hud(); if (open) render(); return; }
