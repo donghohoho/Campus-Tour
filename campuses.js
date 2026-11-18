@@ -114,7 +114,17 @@ export const CAMPUSES = [
       { name: '진사식당', kind: 'building', pos: [291, -110], wall: 0x9c3b2e, roof: 0x3f4247, height: 7, note: '조선 성균관 한옥 — 단청 붉은 기둥·회색 기와, 높이는 추정' },
     ],
   },
-  soon('skku-natural', '성균관대학교 자연과학캠퍼스', 'gyeonggi'),
+  {
+    id: 'skku-natural', name: '성균관대학교 자연과학캠퍼스', region: 'gyeonggi', status: 'ready',
+    data: 'assets/campuses/skku-natural.json', terrain: 'hills', lighting: 'night', seed: 20261120,
+    outsideLabel: '캠퍼스 밖 · 율전동/일월저수지',
+    spawn: { at: [-20, -320], look: [-17, -134] }, // the road in from 일월로 (south gate side), looking up to 글로벌 광장
+    landmarks: [
+      { name: '글로벌 광장', kind: 'place', pos: [-17, -134], r: 45, note: 'OSM park "글로벌 광장"' },
+      { name: '축구장', kind: 'stadium', pos: [-349, -29], note: 'OSM leisure=pitch "축구장"' },
+      { name: '테니스장', kind: 'place', pos: [-358, -109], r: 20, note: 'OSM pitch "테니스장"' },
+    ],
+  },
   soon('hanyang-seoul', '한양대학교 서울캠퍼스', 'seoul'),
   soon('cau-seoul', '중앙대학교 서울캠퍼스', 'seoul'),
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
