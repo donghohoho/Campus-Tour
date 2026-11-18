@@ -140,8 +140,9 @@ export function initCollection(G) {
   for (const b of document.querySelectorAll('#bookTabs button')) b.addEventListener('click', () => { tab = b.dataset.t; render(); });
   function render() {
     for (const b of document.querySelectorAll('#bookTabs button')) { const on = b.dataset.t === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }
-    $('#collView').classList.toggle('hidden', tab !== 'items'); $('#petDex').classList.toggle('hidden', tab !== 'pets');
+    $('#collView').classList.toggle('hidden', tab !== 'items'); $('#petDex').classList.toggle('hidden', tab !== 'pets'); $('#stampBook').classList.toggle('hidden', tab !== 'stamps');
     if (tab === 'pets') { if (G.petDex) G.petDex($('#petDex')); return; } // wild-pets.js draws the pet book
+    if (tab === 'stamps') { if (G.stampBook) G.stampBook($('#stampBook')); return; } // stamps.js draws the stamp rally page
     const camps = Object.keys(ITEMS); if (!bookCampus || !ITEMS[bookCampus]) bookCampus = ITEMS[campusId] ? campusId : camps[0];
     const items = list(bookCampus), got = countIn(items), all = Object.values(ITEMS).flat();
     const sub = $('#collSub'), cname = (c) => (G.campusName ? G.campusName(c) : c); sub.replaceChildren();

@@ -319,7 +319,28 @@
       #counter.folded:has(#questBtn.ready) #hudFold::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #e8432f; box-shadow: 0 0 0 2px #fff; }
       /* pet book (wild-pets.js renderDex) — same cards as the collection book */
       #collView, #petDex { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
-      #collView.hidden, #petDex.hidden { display: none; }
+      #collView.hidden, #petDex.hidden, #stampBook.hidden { display: none; }
+      #stampBook { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; overflow-y: auto; }
+      .stampSub { margin: 0; font-size: 12px; color: #5a6b5e; }
+      .stampGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; padding: 2px; }
+      .stampCard { --ink: #7a2a2a; display: grid; justify-items: center; gap: 3px; padding: 8px 4px 7px; border-radius: 12px; background: #f6f7f4; text-align: center; }
+      .stampCard.here { outline: 2px dashed #9fd7a8; }
+      .stampCard b { font-size: 11.5px; line-height: 1.25; color: #33443a; word-break: keep-all; }
+      .stampCard small { font-size: 10.5px; color: #8a978c; }
+      .stampFace { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; line-height: 1.1; text-align: center; word-break: keep-all; padding: 4px; box-sizing: border-box; color: #b8bfb6; border: 2px dashed #c9d0c6; }
+      .stampCard.got .stampFace, #stampPop .stampFace { color: var(--ink); border: 3px double var(--ink); background: radial-gradient(circle, rgba(255,255,255,0.9) 55%, transparent 56%), color-mix(in srgb, var(--ink) 12%, #fff); transform: rotate(-12deg); box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 4px var(--ink); }
+      .stampMs { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+      .stampMs li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 10px; background: #f6f7f4; font-size: 12.5px; }
+      .stampMs button { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 0; background: #e3e7e1; color: #6d7a6f; white-space: nowrap; }
+      .stampMs button.claim { background: #f0b323; color: #3a2a00; font-weight: 700; cursor: pointer; }
+      .stampMs button.got { background: #dff1e2; color: #3c7a48; }
+      #stampPop { --ink: #7a2a2a; left: 50%; top: 24%; transform: translate(-50%, 0); z-index: 9; display: grid; justify-items: center; gap: 4px; min-width: 220px; padding: 16px 22px 12px; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+      #stampPop.show { opacity: 1; }
+      #stampPop .stampFace { width: 88px; height: 88px; font-size: 17px; }
+      #stampPop.show .stampFace { animation: stampIn 0.55s cubic-bezier(.2,1.6,.4,1); }
+      #stampPop b { font-size: 15px; }
+      #stampPop small { font-size: 12px; color: #6d7a6f; }
+      @keyframes stampIn { 0% { transform: rotate(-30deg) scale(2.2); opacity: 0; } 60% { transform: rotate(-10deg) scale(0.92); opacity: 1; } 100% { transform: rotate(-12deg) scale(1); } }
       #bookTabs .chip { font-size: 13px; padding: 7px 12px; }
       .dexGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; overflow-y: auto; padding: 2px; }
       .dexCard { --rc: #7cc48a; }
@@ -435,8 +456,9 @@
     </div>
     <div id="collPanel" class="panel hidden" role="dialog" aria-labelledby="collTitle">
       <div class="petHead"><h2 id="collTitle">📖 도감</h2><button id="collClose" type="button" aria-label="닫기">✕</button></div>
-      <div id="bookTabs" class="chips" role="tablist"><button type="button" class="chip on" data-t="items" role="tab" aria-selected="true">💎 수집품</button><button type="button" class="chip" data-t="pets" role="tab" aria-selected="false">🐾 펫</button></div>
+      <div id="bookTabs" class="chips" role="tablist"><button type="button" class="chip on" data-t="items" role="tab" aria-selected="true">💎 수집품</button><button type="button" class="chip" data-t="pets" role="tab" aria-selected="false">🐾 펫</button><button type="button" class="chip" data-t="stamps" role="tab" aria-selected="false">🎫 스탬프</button></div>
       <div id="petDex" class="hidden"></div>
+      <div id="stampBook" class="hidden"></div>
       <div id="collView">
       <p id="collSub"></p>
       <div class="collProgRow"><div class="collTrack"><div id="collBar"></div></div><span id="collProg">0 / 0</span></div>
@@ -455,6 +477,7 @@
     <div id="tameBar" class="panel hidden"><div class="tbHead"><b id="tameName"></b><span id="tamePct">0%</span></div><div class="tbTrack"><div id="tameFill"></div></div><small id="tameStats"></small><small id="tameMsg"></small></div>
     <div id="tamePop" class="panel hidden" aria-live="polite"></div>
     <div id="collectPop" class="panel hidden" aria-live="polite"></div>
+    <div id="stampPop" class="panel hidden" aria-live="polite"></div>
     <div id="tpPanel" class="panel hidden" role="dialog" aria-labelledby="tpTitle">
       <div class="petHead"><h2 id="tpTitle">🌀 텔레포트</h2><button id="tpClose" type="button" aria-label="닫기">✕</button></div>
       <input id="tpSearch" type="text" placeholder="건물·장소·플레이어 이름 검색" autocomplete="off" spellcheck="false" />
