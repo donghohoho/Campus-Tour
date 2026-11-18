@@ -435,7 +435,7 @@ function npcMimicStep(n, dt) {
   if (n.emo) { n.emo.position.y += dt * 0.3; if ((n.emoT -= dt) <= 0) { n.root.remove(n.emo); n.emo.material.dispose(); n.emo = null; } }
   n.faceT = Math.max(0, (n.faceT || 0) - dt);
 }
-// how many NPCs: by campus area (8.5 ha 외대 → 16 … 70 ha+ 경희대 국제캠·연세대·서울대 → 40); phones / low mode 10–16
+// how many NPCs: by campus area (8.5 ha 외대 → 32 … 70 ha+ 경희대 국제캠·연세대·서울대 → 80); phones / low mode 20–32
 function campusHa() {
   const rings = !D || !D.campus || !D.campus.length ? [] : typeof D.campus[0][0] === 'number' ? [D.campus] : D.campus; let a = 0;
   for (const r of rings) { let s = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; s += p[0] * q[1] - q[0] * p[1]; } a += Math.abs(s) / 2; }
@@ -443,7 +443,7 @@ function campusHa() {
 }
 function npcCountFor() {
   const t = Math.min(1, Math.max(0, (campusHa() - 10) / 60));
-  return LOW ? Math.round(10 + 6 * t) : Math.round(16 + 24 * t);
+  return LOW ? Math.round(20 + 12 * t) : Math.round(32 + 48 * t);
 }
 const NPC_ACTIVE_R = 80; // NPCs further than this from the player are hidden and their animation paused (they still walk their routes)
 // NPCs are low-poly snowmen: a handful of flat-shaded shapes with shared geometry/materials (no skeleton, no
@@ -485,7 +485,7 @@ function setupNpcs() {
   for (let k = 0; k < count; k++) {
     const { body, arms } = makeSnowman(), root = new THREE.Group(); root.add(body); npcGroup.add(root);
     const wave = new THREE.Sprite(new THREE.SpriteMaterial({ map: waveTex, transparent: true, depthTest: false })); wave.scale.set(0.55, 0.55, 1); wave.position.y = 2.25; wave.visible = false; wave.renderOrder = 21; root.add(wave);
-    const start = k < 3 ? { x: npcPlan.from[0], z: npcPlan.from[1] } : spots[Math.floor(Math.random() * spots.length)], [sx, sz] = k === 0 ? [start.x, start.z] : freeSpot(start.x, start.z, 25); // a few start by the gate so arriving feels lively
+    const start = k < 5 ? { x: npcPlan.from[0], z: npcPlan.from[1] } : spots[Math.floor(Math.random() * spots.length)], [sx, sz] = k === 0 ? [start.x, start.z] : freeSpot(start.x, start.z, 25); // a few start by the gate so arriving feels lively
     const n = { root, body, arms, ph: Math.random() * 6.28, mixer: null, act: null, wave, x: sx, z: sz, speed: 0.8 + Math.random() * 0.4, side: (Math.random() * 2 - 1) * 1.5, wait: Math.random() * 3, yaw: Math.random() * 6.28, waveT: 0, waveCd: 0, leg: null, d: 0 };
     nextLeg(n); npcs.push(n);
   }
