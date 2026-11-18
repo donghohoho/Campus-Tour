@@ -64,7 +64,8 @@ export function initWildPets(G) {
     let r = Math.random() * pool.reduce((a, [, wt]) => a + wt, 0), id = pool[0][0]; for (const [k, wt] of pool) { r -= wt; if (r <= 0) { id = k; break; } } // weighted: signature animals win at their spots
     const def = SPECIES[id];
     const pet = createPet(def.type, `야생 ${def.name}`, G.terrainH, 0, 1); G.scene.add(pet.root);
-    const w = { key, sp: id, def, home: sp.pos, roam: sp.roam || 6, x: sp.pos[0], z: sp.pos[1], tx: sp.pos[0], tz: sp.pos[1], timer: Math.random() * 3, yaw: 0, cd: 0, msg: '', msgT: 0, pet };
+    const [hx, hz] = G.toWorld ? G.toWorld(sp.pos[0], sp.pos[1]) : sp.pos; // spots are in the map file's frame
+    const w = { key, sp: id, def, home: [hx, hz], roam: sp.roam || 6, x: hx, z: hz, tx: hx, tz: hz, timer: Math.random() * 3, yaw: 0, cd: 0, msg: '', msgT: 0, pet };
     wild.push(w); drive(w, 0, Math.random() * 6.283, false); // placed at its spot right away (far ones aren't animated)
   }
   const tameable = (w) => !G.pets.ownsType(w.def.type); // one per kind: once you have one, the rest are just friends to pet

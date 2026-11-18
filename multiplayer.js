@@ -295,6 +295,7 @@ export function initMultiplayer(G) {
   function saveSigns() { store.set(signKey(), { s: [...signs.values()], d: [...dead].slice(-300) }); }
   function addSign(s, save = true) {
     if (!s || typeof s.id !== 'string' || dead.has(s.id) || signs.has(s.id)) return false;
+    if (G.signFix) s = G.signFix(s) || s; // client.js: old-frame signs → north-up frame
     const sg = { id: clean(s.id, 24), by: clean(s.by, 24), name: clean(s.name, NAME_MAX) || '익명', text: clean(s.text, SIGN_MAX), x: num(s.x), y: num(s.y), z: num(s.z), yaw: num(s.yaw), t: num(s.t) };
     if (!sg.text || Math.abs(sg.x) > 2000 || Math.abs(sg.z) > 2000) return false;
     signs.set(sg.id, sg); drawSign(sg);

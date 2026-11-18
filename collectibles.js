@@ -60,8 +60,9 @@ export function initCollection(G) {
 
   // ── world objects ──
   function build(it) {
-    const R = RARITY[it.rarity] || RARITY.common, L = LOOK[it.rarity] || LOOK.common, g = new THREE.Group(), y = G.groundY(it.pos[0], it.pos[1]);
-    g.position.set(it.pos[0], y, it.pos[1]);
+    const [wx, wz] = G.toWorld ? G.toWorld(it.pos[0], it.pos[1]) : it.pos; // data is in the map file's frame
+    const R = RARITY[it.rarity] || RARITY.common, L = LOOK[it.rarity] || LOOK.common, g = new THREE.Group(), y = G.groundY(wx, wz);
+    g.position.set(wx, y, wz);
     const gem = new THREE.Group(); gem.position.y = 1.05; g.add(gem);
     const crystal = new THREE.Mesh(L.geo, L.mat); crystal.scale.setScalar(R.size); crystal.castShadow = true; gem.add(crystal);
     if (it.rarity === 'epic' || it.rarity === 'legendary') { const h = new THREE.Mesh(haloGeo, L.ring); h.scale.setScalar(R.size); h.rotation.x = Math.PI / 2.4; gem.add(h); }

@@ -7,6 +7,7 @@
 //   data       per-campus map file: real building footprints, roads, areas, terrain grid (OpenStreetMap + SRTM)
 //   terrain    terrain character of the site: 'flat' | 'hills' | 'mountain'
 //   lighting   key into LIGHTING below
+//   mirror     false = draw this campus unflipped (default: shown north-up and un-mirrored, see client.js northUp)
 //   seed       random seed for trees, props and collectibles (keeps a campus identical on every visit)
 //   spawn      { at: [x, z], look: [x, z] } = fixed spot and view, or start next to `from`, `dist` metres toward `toward` (both are place names from the map); negative dist = the other side, still facing `toward`
 //   landmarks  named places with special treatment: kind 'gate' | 'amphitheatre' | 'dome' | 'stadium' | 'building' | 'place' (open space: sign only)
@@ -55,7 +56,7 @@ export const CAMPUSES = [
   {
     id: 'yonsei-sinchon', name: '연세대학교 신촌캠퍼스', region: 'seoul', status: 'ready',
     data: 'assets/campuses/yonsei-sinchon.json', terrain: 'mountain', lighting: 'night', seed: 20261115,
-    mirror: true, // shown flipped north↔south (reported as mirrored); coordinates below stay as in the map file
+    mirror: true, // (now the default for every campus — see client.js northUp); coordinates below stay as in the map file
     outsideLabel: '캠퍼스 밖 · 신촌/창천동',
     spawn: { at: [-171, -852], look: [-150, -700], toward: '언더우드관 (501)' }, // 연세로 in front of the main gate, looking up 백양로 (gate = where 백양로 meets 연세로)
     landmarks: [

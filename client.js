@@ -109,7 +109,7 @@ function freeSpot(cx, cz, rad, ok = (c) => c < 4) { for (let t = 0; t < 400; t++
 
 function buildWorld(data) {
   seed = campus.seed || 20261111;
-  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = campus.mirror ? mirrorPlay(campus.play || {}) : campus.play || {}, LMK = campus.mirror ? mirrorLandmarks(campus.landmarks || []) : campus.landmarks || [];
+  const L = LIGHTING[campus.lighting] || LIGHTING.night, PLAY = northUp(campus) ? mirrorPlay(campus.play || {}) : campus.play || {}, LMK = northUp(campus) ? mirrorLandmarks(campus.landmarks || []) : campus.landmarks || [];
   const lmSet = (k) => new Set(LMK.filter((l) => l.kind === k).map((l) => l.name)), gateSet = lmSet('gate'), amphSet = lmSet('amphitheatre'), domeSet = lmSet('dome'), stadiumSet = lmSet('stadium');
   const look = new Map(LMK.filter((l) => l.wall || l.roof || l.model).map((l) => [l.name, l]));
   D = data; GN = D.grid.n; GSTEP = D.grid.step; GHALF = D.grid.half; GH = Float32Array.from(D.grid.h); HALF = D.half;
@@ -180,7 +180,7 @@ function buildWorld(data) {
             if (world !== myWorld) return; const m = g.scene, box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
             const mat = new THREE.MeshLambertMaterial({ color: glm.wall || 0xe9e5d8, emissive: glm.glow || 0x4a4638 });
             floodlight(m, glm, mat);
-            m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); G.add(sc);
+            m.position.set(-(box.min.x + box.max.x) / 2, -box.min.y - 0.4 / (s / size.x), -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(s / size.x); if (northUp(campus)) sc.rotation.y = Math.PI; G.add(sc); // flipped footprint → turn the (real) model round so it faces the same way
           }, undefined, () => console.warn('gate model failed', glm.model));
           if (glm.gap != null) { const r = Math.max(0.8, 0.04 * s); for (const sd of [-1, 1]) for (let x = glm.gap * s + r; x <= 0.5 * s - r * 0.5; x += r * 1.2) solid(sd * x, r, (glm.solidH || 0.35) * s); } // open gate: solid from the opening's edge outwards
           else for (const sd of [-1, 1]) { solid(sd * 0.125 * s, 0.05 * s, 0.41 * s); for (let x = 0.19 * s; x <= 0.49 * s; x += 4) solid(sd * x, 2.4, 0.22 * s); }
@@ -327,7 +327,7 @@ function buildWorld(data) {
   { const cm = new THREE.MeshLambertMaterial({ color: L.clouds.color, emissive: L.clouds.emissive, fog: false, flatShading: true }); for (let i = 0; i < 22; i++) { const gp = new THREE.Group(); for (let k = 0; k < 5; k++) { const pz = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(12, 24), 1), cm); pz.position.set(rr(-30, 30), rr(-4, 5), rr(-12, 12)); pz.scale.y = 0.55; gp.add(pz); } gp.position.set(rr(-1300, 1300), rr(230, 330), rr(-1300, 1300)); world.add(gp); clouds.push(gp); } }
   // (the lawn creatures are gone — wild pets from wild-pets.js live on the campus instead)
   // spawn by the main gate (inside, or outside if dist < 0), facing into the campus
-  const SP = campus.mirror ? mirrorSpawn(campus.spawn || {}) : campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
+  const SP = northUp(campus) ? mirrorSpawn(campus.spawn || {}) : campus.spawn || {}, gate = places.find((p) => p.n === SP.from) || places[0] || { x: 0, z: 0 };
   const lib = places.find((p) => p.n === SP.toward) || { x: gate.x, z: gate.z + 100 };
   let sx, sz, syaw;
   if (SP.at) { [sx, sz] = SP.at; const lk = SP.look ? { x: SP.look[0], z: SP.look[1] } : lib; syaw = Math.atan2(lk.x - sx, lk.z - sz); } // fixed spot (e.g. the street outside a gate the map has no building for)
@@ -470,7 +470,13 @@ function floodlight(root, lm, mat) {
     else if (mat) { o.material = mat; mat.emissive = new THREE.Color(mat.color).multiplyScalar(0.62 * k / 0.55); }
   });
 }
-// campus.mirror: show that campus flipped north↔south (z → −z). Applied to its map file and to every coordinate in its campuses.js entry.
+// Map files use +z = north. three.js puts +z toward the viewer, so drawn as-is a campus comes out mirrored (east on the
+// left when facing north) and the minimap has south on top. So every campus is shown flipped north↔south (z → −z):
+// the world matches the real campus and north is up on the maps. Applied to the map file and to every coordinate in
+// its campuses.js entry (and, via mapToWorld, to collectibles / wild-pet spots). `mirror: false` turns it off for a campus.
+const northUp = (c) => !!c && c.mirror !== false;
+const mapToWorld = (x, z) => (northUp(campus) ? [x, -z] : [x, z]);
+const NORTH_UP_SINCE = 1794974300000; // signs placed before this were stored in the old (unflipped) frame
 function mirrorData(d) {
   const f = (p) => [p[0], -p[1]], fl = (a) => a.map(f);
   for (const b of d.buildings) b.p = fl(b.p); for (const r of d.roads) r.p = fl(r.p); for (const a of d.areas) a.p = fl(a.p);
@@ -484,7 +490,8 @@ function mirrorPlay(pl) {
   if (q.treeClear) q.treeClear = q.treeClear.map((t) => [t[0], -t[1], t[2]]); return q;
 }
 function mirrorSpawn(sp) { const q = { ...sp }; if (q.at) q.at = [q.at[0], -q.at[1]]; if (q.look) q.look = [q.look[0], -q.look[1]]; return q; }
-function mirrorLandmarks(list) { return list.map((l) => ({ ...l, pos: l.pos && [l.pos[0], -l.pos[1]], yaw: l.yaw != null ? -l.yaw : l.yaw })); }
+// a facing angle θ (deg) flips to 180° − θ: the real (unmirrored) model then faces the mirrored direction — sculpture yaw, building-model rot
+function mirrorLandmarks(list) { return list.map((l) => ({ ...l, pos: l.pos && [l.pos[0], -l.pos[1]], yaw: l.yaw != null ? 180 - l.yaw : l.yaw, rot: l.model && l.kind === 'building' ? (540 - (l.rot || 0)) % 360 : l.rot })); }
 function placeBuildingModel(lm, p, baseY, mapH) {
   let best = null;
   for (let deg = 0; deg < 180; deg += 0.5) {
@@ -653,8 +660,8 @@ async function loadCampus(c) {
   const tok = ++loadToken; unloadWorld(); refreshStart(); campus = c;
   applyLighting(LIGHTING[c.lighting] || LIGHTING.night);
   const r = await fetch(c.data); if (!r.ok) throw new Error('캠퍼스 지도를 불러오지 못했습니다 (' + r.status + ')');
-  const data = c.mirror ? mirrorData(await r.json()) : await r.json(); if (tok !== loadToken) return false;
-  for (const b of c.extraBuildings || []) data.buildings.push({ c: 1, k: 'university', ...b, l: b.l || Math.max(1, Math.round(b.h / 4.4)) }); // buildings OpenStreetMap doesn't have (same frame as the map file)
+  const data = northUp(c) ? mirrorData(await r.json()) : await r.json(); if (tok !== loadToken) return false;
+  for (const b of c.extraBuildings || []) data.buildings.push({ c: 1, k: 'university', ...b, p: northUp(c) ? b.p.map(([x, z]) => [x, -z]) : b.p, l: b.l || Math.max(1, Math.round(b.h / 4.4)) }); // buildings OpenStreetMap doesn't have (same frame as the map file)
   await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0))); if (tok !== loadToken) return false; // let the loading screen paint
   buildWorld(data); worldReady = true; coll.setCampus(c.id); wildPets.setCampus(c.id);
   $('#campusName').textContent = c.name; $('#loc').textContent = '📍 ' + c.name;
@@ -869,11 +876,14 @@ function updateWorld(dt, t) {
 }
 setPetCamera(camera);
 const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const mp = initMultiplayer({ onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
-const coll = initCollection({ petDex: (el) => wildPets.renderDex(el), onCollect: (it) => { quests.event('collect', it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const mp = initMultiplayer({ signFix: (s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
+    if (!northUp(campus) || campus.mirror || !(+s.t < NORTH_UP_SINCE)) return s;
+    const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE }; // t moved up = marked as converted
+  }, onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
+const coll = initCollection({ toWorld: (x, z) => mapToWorld(x, z), petDex: (el) => wildPets.renderDex(el), onCollect: (it) => { quests.event('collect', it); wildPets.onCollect(it); }, scene, player, toast, touch: TOUCH, groundY: (x, z) => groundAt(x, z, terrainH(x, z) + 1.5), worldReady: () => worldReady, campusName: (id) => (CAMPUSES.find((c) => c.id === id) || { name: id }).name, started: () => started, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const quests = initQuests({ onComplete: (q) => wildPets.onQuestDone(q), toast, touch: TOUCH, started: () => started, worldReady: () => worldReady, menuOpen: () => menuOpen, typing: () => mp.typing(), lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; },
   metres: () => pets.metres(), petsWalking: () => pets.walking(), remaining: (r) => coll.remaining(r), payCoins: (n) => pets.addCoins(n), coinPop: () => pets.popCoin() });
-const wildPets = initWildPets({ dexChanged: () => coll.refresh(), onPat: (at) => { quests.event('pat'); playPet(at); }, scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets });
+const wildPets = initWildPets({ toWorld: (x, z) => mapToWorld(x, z), dexChanged: () => coll.refresh(), onPat: (at) => { quests.event('pat'); playPet(at); }, scene, toast, player, terrainH, walkable, solidAt, touch: TOUCH, started: () => started, worldReady: () => worldReady, pets });
 // ── accounts (nickname + password) or guest ──
 const auth = initAuth();
 {
