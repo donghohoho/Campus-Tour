@@ -30,6 +30,7 @@ export const PETS = [
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
   { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle.glb', tint: 0xb08868, h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
   { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', h: 0.9, fly: true, ride: 0.75, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
+  { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
   { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
 ];

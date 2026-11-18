@@ -28,6 +28,7 @@ export const SPECIES = {
   'w-dragon': { type: 'dragon', name: '중앙 청룡', icon: '🐉', home: '중앙대 청룡연못 · 중앙마당', sig: true, where: '중앙대', gain: 8, success: 0.45, cooldown: 4, note: '연못의 전설 — 쉽게 마음을 열지 않아요' },
   'w-hawk': { type: 'hawk', name: '장산곶매', icon: '🦅', home: '시립대 대학본부 · 배봉산보루', sig: true, where: '시립대', gain: 10, success: 0.5, cooldown: 3.5, note: '시립대의 마스코트 — 전설 속 용맹한 매' },
   'w-hufs-owl': { type: 'hufs-owl', name: '외대 부엉이', icon: '🦉', home: '외대 본관 · 천장산 숲', sig: true, where: '외대', gain: 10, success: 0.5, cooldown: 3.5, note: '외대의 마스코트 — 밤하늘을 소리 없이 날아요' },
+  'w-crane': { type: 'crane', name: '서울대 학', icon: '🪽', home: '서울대 자하연 · 버들골', sig: true, where: '서울대', gain: 10, success: 0.5, cooldown: 3.5, note: '관악의 학 — 긴 날개로 우아하게 날아요' },
   'w-gorani': { type: 'gorani', name: '예디대 고라니', icon: '🦌', home: '예술디자인대학 주변', sig: true, gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
 };
 
@@ -92,8 +93,8 @@ export const SPAWNS = {
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-308, 120], roam: 6 }, // 학생회관
     { pool: SIG('w-cat', 'w-magpie'), pos: [-228, 145], roam: 6 }, // 중앙도서관
     { pool: SIG('w-duck', 'w-magpie'), pos: [-208, 263], roam: 6 }, // 자하연 — 자하연 오리
-    { pool: SIG('w-duck', 'w-squirrel'), pos: [-165, 325], roam: 6 }, // 자하연식당
-    { pool: ['w-rabbit', 'w-squirrel'], pos: [156, 44], roam: 6 }, // 버들골
+    { pool: SIG('w-crane', 'w-duck'), pos: [-165, 325], roam: 6 }, // 자하연식당 — 서울대 학
+    { pool: SIG('w-crane', 'w-rabbit'), pos: [156, 44], roam: 7 }, // 버들골 — 서울대 학
     { pool: ['w-squirrel', 'w-hedgehog'], pos: [68, 189], roam: 6 }, // 사범대학
     { pool: ['w-magpie', 'w-squirrel'], pos: [-285, -385], roam: 6 }, // 공과대학
     { pool: ['w-owl', 'w-raccoon'], pos: [-600, 1618], roam: 6 }, // 청룡산 — 산 숲
