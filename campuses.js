@@ -139,7 +139,18 @@ export const CAMPUSES = [
       { name: '살곶이체육공원', kind: 'place', pos: [251, -259], r: 40, note: 'OSM park — 캠퍼스 남동쪽' },
     ],
   },
-  soon('cau-seoul', '중앙대학교 서울캠퍼스', 'seoul'),
+  {
+    id: 'cau-seoul', name: '중앙대학교 서울캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/cau-seoul.json', terrain: 'hills', lighting: 'night', seed: 20261118,
+    outsideLabel: '캠퍼스 밖 · 흑석동',
+    spawn: { at: [156, 290], look: [150, 205] }, // on 흑석로 at the main gate, looking in along the road past 영신관
+    landmarks: [
+      { name: '중앙대학교 정문', kind: 'place', pos: [150, 268], r: 18, note: '흑석로 쪽 정문 — OSM에 정문 건물이 없어 표지만' },
+      { name: '영신관', kind: 'building', pos: [107, 174], wall: 0xa0523a, roof: 0x5a4a42, note: '정문 옆 붉은 벽돌 건물 (1938) — 중앙대 상징' },
+      { name: '청룡연못', kind: 'place', pos: [45, 137], r: 25, note: 'OSM water "청룡연못" — 청룡상이 있는 연못' },
+      { name: '중앙마당', kind: 'place', pos: [101, 216], r: 30, note: 'OSM park "중앙마당"' },
+    ],
+  },
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   {
     id: 'khu-global', name: '경희대학교 국제캠퍼스', region: 'gyeonggi', status: 'ready',
