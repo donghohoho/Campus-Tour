@@ -182,6 +182,15 @@ export const CAMPUSES = [
     ],
     play: { gems: 30, gemArea: [-350, 450, -420, 520], pals: 18, palArea: [-320, 420, -420, 520], palHome: [-138, -400], treeClear: [[-138, -440, 8]] },
   },
-  soon('hufs-seoul', '한국외국어대학교 서울캠퍼스', 'seoul'),
+  {
+    id: 'hufs-seoul', name: '한국외국어대학교 서울캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/hufs-seoul.json', terrain: 'hills', lighting: 'night', seed: 20261120,
+    outsideLabel: '캠퍼스 밖 · 이문동',
+    spawn: { at: [132, -52], look: [40, -22] }, // on 이문로 at the main gate (경비실), looking in toward 대운동장/본관
+    landmarks: [
+      { name: '한국외대 정문', kind: 'place', pos: [112, -42], r: 15, note: '이문로 쪽 정문 (경비실 옆) — OSM에 정문 건물이 없어 표지만' },
+      { name: '대운동장', kind: 'place', pos: [64, 19], r: 35, note: 'OSM pitch "대운동장"' },
+    ],
+  },
   soon('uos', '서울시립대학교', 'seoul'),
 ];
