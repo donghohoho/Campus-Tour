@@ -12,7 +12,6 @@ import { initCollection } from './collectibles.js';
 import { initQuests } from './quests.js';
 import { initStamps } from './stamps.js';
 import { initWildPets } from './wild-pets.js';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const MODEL_YAW = 0, PR = 0.38;
 const $ = (s) => document.querySelector(s);
@@ -378,7 +377,7 @@ const dustTex = canvasTex((g, s) => { const gr = g.createRadialGradient(s / 2, s
 const KEEP_TEX = new Set([glowTex, heartTex, dustTex]); // shared across campuses — never disposed
 function disposeMaterial(mat) { for (const k of ['map', 'emissiveMap']) { const t = mat[k]; if (t && !KEEP_TEX.has(t)) t.dispose(); } mat.dispose(); }
 // Free everything the current campus allocated (GPU buffers, textures, collision grids) before another one is built.
-// ── strolling NPCs: random characters (count by campus size)  wander between named places on campus along the roads; they stop and wave 👋 when you come close ──
+// ── strolling NPCs: snowmen (count by campus size)  wander between named places on campus along the roads; they stop and wave 👋 when you come close ──
 const npcGroup = new THREE.Group(); scene.add(npcGroup);
 let npcs = [], npcPlan = null, roadGraph = null;
 function clearNpcs() { for (const n of npcs) npcGroup.remove(n.root); npcs = []; roadGraph = null; }
@@ -436,7 +435,7 @@ function npcMimicStep(n, dt) {
   if (n.emo) { n.emo.position.y += dt * 0.3; if ((n.emoT -= dt) <= 0) { n.root.remove(n.emo); n.emo.material.dispose(); n.emo = null; } }
   n.faceT = Math.max(0, (n.faceT || 0) - dt);
 }
-// how many NPCs: by campus area (8.5 ha 외대 → 8 … 70 ha+ 경희대 국제캠·연세대·서울대 → 20); phones / low mode 6–8
+// how many NPCs: by campus area (8.5 ha 외대 → 16 … 70 ha+ 경희대 국제캠·연세대·서울대 → 40); phones / low mode 10–16
 function campusHa() {
   const rings = !D || !D.campus || !D.campus.length ? [] : typeof D.campus[0][0] === 'number' ? [D.campus] : D.campus; let a = 0;
   for (const r of rings) { let s = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; s += p[0] * q[1] - q[0] * p[1]; } a += Math.abs(s) / 2; }
@@ -444,19 +443,50 @@ function campusHa() {
 }
 function npcCountFor() {
   const t = Math.min(1, Math.max(0, (campusHa() - 10) / 60));
-  return LOW ? Math.round(6 + 2 * t) : Math.round(8 + 12 * t);
+  return LOW ? Math.round(10 + 6 * t) : Math.round(16 + 24 * t);
 }
 const NPC_ACTIVE_R = 80; // NPCs further than this from the player are hidden and their animation paused (they still walk their routes)
+// NPCs are low-poly snowmen: a handful of flat-shaded shapes with shared geometry/materials (no skeleton, no
+// animation mixer), so 40 of them cost little. Each gets its own scarf colour and hat.
+const SNOW = (() => {
+  const L = (c, e = 0) => new THREE.MeshLambertMaterial({ color: c, emissive: e || 0x000000, flatShading: true });
+  return {
+    snow: L(0xf4f7fb, 0x3a4250), coal: L(0x26272b), carrot: L(0xf08a24, 0x4a2205), stick: L(0x6b4a2e),
+    scarves: [0xd8343a, 0x2f6fd6, 0x2f9e5a, 0xf0b323, 0x8a4fd1, 0xff7aa8, 0x20a8b8].map((c) => L(c, new THREE.Color(c).multiplyScalar(0.18).getHex())),
+    hatBlack: L(0x2a2a30), hatBand: L(0xc0303a),
+    g: {
+      b0: new THREE.IcosahedronGeometry(0.46, 1), b1: new THREE.IcosahedronGeometry(0.34, 1), b2: new THREE.IcosahedronGeometry(0.25, 1),
+      dot: new THREE.IcosahedronGeometry(0.035, 0), nose: new THREE.ConeGeometry(0.045, 0.24, 6).rotateX(Math.PI / 2).translate(0, 0, 0.12),
+      scarf: new THREE.TorusGeometry(0.22, 0.06, 5, 12).rotateX(Math.PI / 2), tail: new THREE.BoxGeometry(0.1, 0.32, 0.05).translate(0, -0.16, 0),
+      arm: new THREE.CylinderGeometry(0.018, 0.024, 0.5, 4).rotateZ(Math.PI / 2).translate(0.25, 0, 0), twig: new THREE.CylinderGeometry(0.012, 0.014, 0.14, 4).rotateZ(-0.9).translate(0.47, 0.05, 0),
+      top: new THREE.CylinderGeometry(0.15, 0.15, 0.26, 10), brim: new THREE.CylinderGeometry(0.25, 0.25, 0.025, 12), band: new THREE.CylinderGeometry(0.155, 0.155, 0.05, 10),
+      beanie: new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), pom: new THREE.IcosahedronGeometry(0.065, 0),
+    },
+  };
+})();
+function makeSnowman() {
+  const S = SNOW, g = S.g, body = new THREE.Group(), mesh = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; body.add(m); return m; };
+  const k = 0.92 + Math.random() * 0.16; body.scale.setScalar(k);
+  mesh(g.b0, S.snow, 0, 0.42, 0).scale.set(1, 0.92, 1); mesh(g.b1, S.snow, 0, 1.0, 0); mesh(g.b2, S.snow, 0, 1.46, 0);
+  for (const sx of [-1, 1]) mesh(g.dot, S.coal, sx * 0.085, 1.52, 0.215);
+  mesh(g.nose, S.carrot, 0, 1.47, 0.22);
+  for (let i = 0; i < 5; i++) { const a = (i - 2) * 0.32; mesh(g.dot, S.coal, Math.sin(a) * 0.15, 1.38 - Math.cos(a) * 0.04 + 0.02, 0.2).scale.setScalar(0.7); } // smile
+  for (let i = 0; i < 3; i++) mesh(g.dot, S.coal, 0, 1.12 - i * 0.17 - (i === 2 ? 0.03 : 0), 0.33 - i * 0.015);
+  const sc = S.scarves[(Math.random() * S.scarves.length) | 0]; mesh(g.scarf, sc, 0, 1.27, 0); mesh(g.tail, sc, 0.11, 1.25, 0.18).rotation.z = 0.15;
+  const arms = [-1, 1].map((sd) => { const a = new THREE.Group(); a.position.set(sd * 0.27, 1.08, 0); a.scale.x = sd; const st = new THREE.Mesh(g.arm, S.stick), tw = new THREE.Mesh(g.twig, S.stick); a.add(st, tw); a.rotation.z = sd * 0.35; body.add(a); return a; });
+  const hat = Math.random();
+  if (hat < 0.4) { mesh(g.brim, S.hatBlack, 0, 1.66, 0); mesh(g.top, S.hatBlack, 0, 1.8, 0); mesh(g.band, S.hatBand, 0, 1.71, 0); }
+  else if (hat < 0.8) { const c = S.scarves[(Math.random() * S.scarves.length) | 0]; mesh(g.beanie, c, 0, 1.6, 0); mesh(g.pom, S.snow, 0, 1.82, 0); }
+  return { body, arms };
+}
 function setupNpcs() {
-  if (!npcPlan || npcs.length || !charSrc.some(Boolean) || !npcSpots().length) return;
-  const avail = charSrc.map((c, i) => (c ? i : -1)).filter((i) => i >= 0), count = npcCountFor(), spots = npcSpots();
+  if (!npcPlan || npcs.length || !npcSpots().length) return;
+  const count = npcCountFor(), spots = npcSpots();
   for (let k = 0; k < count; k++) {
-    const ci = avail[Math.floor(Math.random() * avail.length)], src = charSrc[ci], m = cloneSkinned(src.model); m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
-    const root = new THREE.Group(), body = new THREE.Group(); body.add(m); root.add(body); npcGroup.add(root);
-    const wave = new THREE.Sprite(new THREE.SpriteMaterial({ map: waveTex, transparent: true, depthTest: false })); wave.scale.set(0.55, 0.55, 1); wave.position.y = 2.15; wave.visible = false; wave.renderOrder = 21; root.add(wave);
-    let mixer = null, act = null; if (src.clip) { mixer = new THREE.AnimationMixer(m); act = mixer.clipAction(src.clip); act.play(); }
-    const start = k === 0 ? { x: npcPlan.from[0], z: npcPlan.from[1] } : spots[Math.floor(Math.random() * spots.length)], [sx, sz] = k === 0 ? [start.x, start.z] : freeSpot(start.x, start.z, 25);
-    const n = { root, body, mixer, act, wave, x: sx, z: sz, speed: 1.0 + Math.random() * 0.45, side: (Math.random() * 2 - 1) * 1.5, wait: Math.random() * 3, yaw: Math.random() * 6.28, waveT: 0, waveCd: 0, leg: null, d: 0 };
+    const { body, arms } = makeSnowman(), root = new THREE.Group(); root.add(body); npcGroup.add(root);
+    const wave = new THREE.Sprite(new THREE.SpriteMaterial({ map: waveTex, transparent: true, depthTest: false })); wave.scale.set(0.55, 0.55, 1); wave.position.y = 2.25; wave.visible = false; wave.renderOrder = 21; root.add(wave);
+    const start = k < 3 ? { x: npcPlan.from[0], z: npcPlan.from[1] } : spots[Math.floor(Math.random() * spots.length)], [sx, sz] = k === 0 ? [start.x, start.z] : freeSpot(start.x, start.z, 25); // a few start by the gate so arriving feels lively
+    const n = { root, body, arms, ph: Math.random() * 6.28, mixer: null, act: null, wave, x: sx, z: sz, speed: 0.8 + Math.random() * 0.4, side: (Math.random() * 2 - 1) * 1.5, wait: Math.random() * 3, yaw: Math.random() * 6.28, waveT: 0, waveCd: 0, leg: null, d: 0 };
     nextLeg(n); npcs.push(n);
   }
 }
@@ -482,7 +512,11 @@ function updateNpcs(dt) {
     n.root.position.set(n.x, groundAt(n.x, n.z, 1e4) + (n.hopY || 0), n.z);
     if (hd != null) { let a = (hd - n.yaw) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; n.yaw += a * (1 - Math.exp(-5 * dt)); } n.body.rotation.y = n.yaw;
     n.wave.visible = n.waveT > 0; if (n.wave.visible) { n.wave.position.y = 2.15 + Math.sin(n.waveT * 9) * 0.04; n.wave.material.rotation = Math.sin(n.waveT * 10) * 0.35; }
-    if (n.mixer) { n.act.timeScale = moving ? 0.75 : 0; if (!moving) n.act.time = 0; n.mixer.update(dt); }
+    if (n.arms) { // snowman: waddle side to side while walking, wave a stick arm when greeting
+      n.ph += dt * (moving ? 7 : 1.5); const w = moving ? 1 : 0.25;
+      n.body.rotation.z = Math.sin(n.ph) * 0.09 * w; n.body.position.y = Math.abs(Math.sin(n.ph)) * 0.05 * w;
+      const r = n.arms[1]; r.rotation.z = n.waveT > 0 ? 1.3 + Math.sin(n.waveT * 12) * 0.35 : 0.35 + Math.sin(n.ph) * 0.08 * w; n.arms[0].rotation.z = -0.35 - Math.sin(n.ph) * 0.08 * w;
+    }
   }
 }
 function unloadWorld() {
