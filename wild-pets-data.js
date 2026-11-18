@@ -29,6 +29,7 @@ export const SPECIES = {
   'w-hawk': { type: 'hawk', name: '장산곶매', icon: '🦅', home: '시립대 대학본부 · 배봉산보루', sig: true, where: '시립대', gain: 10, success: 0.5, cooldown: 3.5, note: '시립대의 마스코트 — 전설 속 용맹한 매' },
   'w-hufs-owl': { type: 'hufs-owl', name: '외대 부엉이', icon: '🦉', home: '외대 본관 · 천장산 숲', sig: true, where: '외대', gain: 10, success: 0.5, cooldown: 3.5, note: '외대의 마스코트 — 밤하늘을 소리 없이 날아요' },
   'w-crane': { type: 'crane', name: '서울대 학', icon: '🪽', home: '서울대 자하연 · 버들골', sig: true, where: '서울대', gain: 10, success: 0.5, cooldown: 3.5, note: '관악의 학 — 긴 날개로 우아하게 날아요' },
+  'w-ginkgo': { type: 'ginkgo', name: '은행잎', icon: '🍂', home: '성균관대 명륜당 · 비천당, 율전 글로벌 광장 · 학생회관', sig: true, where: '성균관대', gain: 10, success: 0.5, cooldown: 3.5, note: '명륜당 은행나무에서 날아온 잎 — 올라타면 하늘을 날아요' },
   'w-gorani': { type: 'gorani', name: '예디대 고라니', icon: '🦌', home: '예술디자인대학 주변', sig: true, gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
 };
 
@@ -127,8 +128,8 @@ export const SPAWNS = {
     { pool: ['w-cat'], pos: [203, -210], roam: 6 }, // 정문 앞 — 정문 바로 안
     { pool: SIG('w-cat', 'w-magpie'), pos: [30, 39], roam: 6 }, // 학생회관
     { pool: SIG('w-cat', 'w-squirrel'), pos: [160, 71], roam: 6 }, // 600주년기념관
-    { pool: SIG('w-magpie', 'w-squirrel'), pos: [252, -107], roam: 6 }, // 명륜당 — 명륜당 까치
-    { pool: SIG('w-magpie', 'w-cat'), pos: [134, -35], roam: 6 }, // 비천당
+    { pool: SIG('w-ginkgo', 'w-magpie'), pos: [252, -107], roam: 6 }, // 명륜당 — 은행나무의 은행잎
+    { pool: SIG('w-ginkgo', 'w-cat'), pos: [134, -35], roam: 6 }, // 비천당 — 은행잎
     { pool: ['w-squirrel', 'w-hedgehog'], pos: [-6, 122], roam: 6 }, // 금잔디광장
     { pool: ['w-owl', 'w-raccoon'], pos: [-275, 393], roam: 6 }, // 와룡공원
     { pool: ['w-rabbit', 'w-squirrel'], pos: [-142, 60], roam: 6 }, // 대운동장
@@ -137,10 +138,10 @@ export const SPAWNS = {
     { pool: ['w-cat'], pos: [-20, -304], roam: 6 }, // 정문 앞 — 정문 바로 안
     { pool: SIG('w-duck', 'w-magpie'), pos: [-95, -436], roam: 6 }, // 일월저수지 — 일월저수지 오리
     { pool: SIG('w-duck', 'w-squirrel'), pos: [-83, -440], roam: 6 }, // 일월저수지
-    { pool: SIG('w-cat', 'w-squirrel'), pos: [-79, 19], roam: 6 }, // 학생회관
+    { pool: SIG('w-ginkgo', 'w-cat'), pos: [-79, 19], roam: 6 }, // 학생회관 — 은행잎
     { pool: SIG('w-cat', 'w-rabbit'), pos: [-77, 336], roam: 6 }, // 기숙사 인관 — 기숙사 고양이
     { pool: SIG('w-cat', 'w-magpie'), pos: [250, 259], roam: 6 }, // 기숙사 지관
-    { pool: ['w-squirrel', 'w-magpie'], pos: [-15, -129], roam: 6 }, // 글로벌 광장
+    { pool: SIG('w-ginkgo', 'w-magpie'), pos: [-15, -129], roam: 6 }, // 글로벌 광장 — 은행잎
     { pool: ['w-owl', 'w-hedgehog'], pos: [78, -611], roam: 6 }, // 일월수목원
     { pool: ['w-raccoon', 'w-hedgehog'], pos: [-139, -427], roam: 6 }, // 일월 공원
     { pool: ['w-rabbit', 'w-squirrel'], pos: [-348, -24], roam: 6 }, // 축구장

@@ -717,7 +717,7 @@ function rideToggle() {
   if (r.on) { toast(`🐾 ${r.name} 타기!${r.perk ? ` 특기: ${r.perk}` : ''} · 달리면(Shift) 빨라요 · R로 내리기`, 2.6); player.squashV = 5; }
   else if (r.off) toast('🐾 내렸어요', 1.2);
   else if (r.far) toast('펫 가까이 가서 R을 눌러 올라타세요', 1.8);
-  else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소·청룡·독수리·장산곶매·외대 부엉이·서울대 학·알바트로스를 데리고 다닐 때 R', 2.6);
+  else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소·청룡·독수리·장산곶매·외대 부엉이·서울대 학·은행잎·알바트로스를 데리고 다닐 때 R', 2.6);
   const b = document.querySelector('#tRide'); if (b) b.setAttribute('aria-pressed', String(!!pets.riding()));
 }
 function petting() { const u = charModels[charIndex] && charModels[charIndex].userData; return !!(u && u.pet && u.petT > 0); }
