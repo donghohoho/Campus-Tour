@@ -21,7 +21,7 @@ export const PETS = [
   { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
   { id: 'magpie', name: '까치', wild: true, color: 0x33384a, model: 'assets/pets/magpie.glb', h: 0.36, fly: true },
   { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8 },
-  { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b },
+  { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b, model: 'assets/pets/rooster.glb', h: 0.5, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0 },
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7 },
   { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6, fly: true },
