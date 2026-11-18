@@ -192,5 +192,16 @@ export const CAMPUSES = [
       { name: '대운동장', kind: 'place', pos: [64, 19], r: 35, note: 'OSM pitch "대운동장"' },
     ],
   },
-  soon('uos', '서울시립대학교', 'seoul'),
+  {
+    id: 'uos', name: '서울시립대학교', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/uos.json', terrain: 'hills', lighting: 'night', seed: 20261121,
+    outsideLabel: '캠퍼스 밖 · 전농동',
+    spawn: { at: [-404, 44], look: [-300, 70] }, // on 서울시립대로 at the main gate, looking in past the roundabout
+    landmarks: [
+      { name: '서울시립대 정문', kind: 'place', pos: [-385, 41], r: 15, note: '서울시립대로 끝 정문 — OSM에 정문 건물이 없어 표지만' },
+      { name: '하늘못', kind: 'place', pos: [182, 95], r: 20, note: 'OSM water "하늘못"' },
+      { name: '자주터', kind: 'place', pos: [-60, 70], r: 30, note: 'OSM park "자주터" — 중앙 잔디광장' },
+      { name: '배봉산보루', kind: 'place', pos: [383, -226], r: 30, note: 'OSM park — 캠퍼스 남동쪽 배봉산' },
+    ],
+  },
 ];
