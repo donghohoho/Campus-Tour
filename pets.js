@@ -14,20 +14,20 @@ export const PETS = [
   // wild: tamed on campus (wild-pets.js), never sold in the shop
   { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066, model: 'assets/pets/cat.glb', h: 0.42 },
   { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc, model: 'assets/pets/rabbit.glb', h: 0.42, rotY: Math.PI / 2 }, // model faces −x
-  { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a },
+  { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a, model: 'assets/pets/hedgehog.glb', h: 0.28 },
   { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74, model: 'assets/pets/raccoon.glb', h: 0.45 },
-  { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c },
+  { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c, model: 'assets/pets/owl.glb', h: 0.42, fly: true },
   { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d, model: 'assets/pets/squirrel.glb', h: 0.32, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
-  { id: 'magpie', name: '까치', wild: true, color: 0x33384a },
-  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf },
+  { id: 'magpie', name: '까치', wild: true, color: 0x33384a, model: 'assets/pets/magpie.glb', h: 0.36, fly: true },
+  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8 },
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b },
-  { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c },
+  { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0 },
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7 },
-  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6 },
+  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6, fly: true },
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75 },
-  { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6 },
-  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 0.6, rotY: Math.PI / 2 }, // model faces −x
+  { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6, fly: true },
+  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 0.6, rotY: Math.PI / 2, fly: true }, // model faces −x
 ];
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
@@ -85,7 +85,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
   }
   setName(name);
-  let placed = false, hopT = 0, holdT = 0; const pos = new THREE.Vector3();
+  let placed = false, hopT = 0, holdT = 0, lift = 0; const pos = new THREE.Vector3();
   // hold(s): stay put (facing the owner) for s seconds or until the owner walks off — used while being petted
   function hold(s) { holdT = s; }
   // exact: (x, z) is the spot itself (wild animals), not an owner to follow
@@ -99,9 +99,13 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz), k = 1 - Math.exp(-(d > 0.35 ? 4.5 : 1.5) * dt);
     pos.x += dx * k; pos.z += dz * k; const gy = terrainH(pos.x, pos.z); pos.y += ((Math.abs(y - gy) < 1.5 ? gy : y) - pos.y) * (1 - Math.exp(-10 * dt));
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
-    root.position.set(pos.x, pos.y + (walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0), pos.z);
+    // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
+    // Wild ones (exact) stay on the ground so they can be petted.
+    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? 0.9 : 1.7) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    root.position.set(pos.x, pos.y + lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0), pos.z);
+    body.rotation.z = fly ? Math.sin(hopT * 0.23) * 0.12 : 0; // a gentle bank while gliding
     const want = holdT > 0 ? Math.atan2(x - pos.x, z - pos.z) : d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
-    if (!action) model.scale.y = 1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03);
+    if (!action && !fly) model.scale.y = 1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03);
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
     if (plate && camRef) { const cd = camRef.position.distanceTo(root.position), o = Math.max(0, Math.min(1, (cd - 3.5) / 3)); plate.visible = o > 0.02; plate.material.opacity = o; }
   }
