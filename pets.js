@@ -12,7 +12,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 export const PETS = [
   { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
-  { id: 'sweetpotato', name: '고구마', price: 300, model: 'assets/pets/sweetpotato.glb', h: 0.45, color: 0xb5643c, fly: true }, // shop pet — floats along after you
+  { id: 'sweetpotato', name: '고구마', price: 300, model: 'assets/pets/sweetpotato.glb', h: 0.45, color: 0xb5643c, fly: true, flyH: 0.7 }, // flyH: how high it floats (default 2 m) // shop pet — floats along after you
   // wild: tamed on campus (wild-pets.js), never sold in the shop
   { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066, model: 'assets/pets/cat.glb', h: 0.42 },
   { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc, model: 'assets/pets/rabbit.glb', h: 0.42, rotY: Math.PI / 2 }, // model faces −x
@@ -113,7 +113,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
-    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? 1.0 : 2.0) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? Math.min(1, def.flyH || 2) * 0.6 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
     const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
     root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) * SIZE + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
     blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
