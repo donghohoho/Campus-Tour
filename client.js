@@ -85,6 +85,29 @@ const labels = [], gems = [], pals = [], clouds = [], fx = [], places = [], lamp
 let groundMat = null, lantern = null;
 let tufts = null, tcx = 1e9, tcz = 1e9, amph = null;
 
+// Even out the ground under roads and paths: the elevation data (SRTM, ~30 m cells) includes the tops of trees and
+// buildings, so a flat avenue (e.g. 연세대 백양로) came out bumpy. Nodes near a road move toward a wide blur of the
+// terrain (keeps the real slope, drops the lumps), fading out over ~18 m beside the road.
+function smoothRoads() {
+  const N = GN, blur = (src, r) => { const t = new Float32Array(N * N), o = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let s = 0, c = 0; for (let k = Math.max(0, i - r); k <= Math.min(N - 1, i + r); k++) { s += src[j * N + k]; c++; } t[j * N + i] = s / c; }
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let s = 0, c = 0; for (let k = Math.max(0, j - r); k <= Math.min(N - 1, j + r); k++) { s += t[k * N + i]; c++; } o[j * N + i] = s / c; } return o; };
+  const B = blur(blur(GH, 3), 3), W = new Float32Array(N * N), FADE = 18;
+  for (const r of D.roads) {
+    if (!r.p || r.p.length < 2) continue; const core = (r.w || 4) / 2 + 4;
+    for (let n = 0; n + 1 < r.p.length; n++) {
+      const [ax, az] = r.p[n], [bx, bz] = r.p[n + 1], L = Math.hypot(bx - ax, bz - az), steps = Math.max(1, Math.ceil(L / 4));
+      for (let k = 0; k <= steps; k++) {
+        const x = ax + ((bx - ax) * k) / steps, z = az + ((bz - az) * k) / steps, ci = Math.round((x + GHALF) / GSTEP), cj = Math.round((z + GHALF) / GSTEP), R = Math.ceil((core + FADE) / GSTEP);
+        for (let j = cj - R; j <= cj + R; j++) for (let i = ci - R; i <= ci + R; i++) {
+          if (i < 0 || j < 0 || i >= N || j >= N) continue; const d = Math.hypot(-GHALF + i * GSTEP - x, -GHALF + j * GSTEP - z), w = d <= core ? 1 : Math.max(0, 1 - (d - core) / FADE);
+          if (w > W[j * N + i]) W[j * N + i] = w;
+        }
+      }
+    }
+  }
+  for (let k = 0; k < N * N; k++) if (W[k] > 0) { const w = W[k] * W[k] * (3 - 2 * W[k]) * 0.9; GH[k] = GH[k] * (1 - w) + B[k] * w; }
+}
 function terrainH(x, z) {
   let fx = (x + GHALF) / GSTEP, fz = (z + GHALF) / GSTEP; fx = Math.min(GN - 1.001, Math.max(0, fx)); fz = Math.min(GN - 1.001, Math.max(0, fz));
   const i = fx | 0, j = fz | 0, a = fx - i, b = fz - j, k = j * GN + i;
@@ -114,6 +137,7 @@ function buildWorld(data) {
   const lmSet = (k) => new Set(LMK.filter((l) => l.kind === k).map((l) => l.name)), gateSet = lmSet('gate'), amphSet = lmSet('amphitheatre'), domeSet = lmSet('dome'), stadiumSet = lmSet('stadium');
   const look = new Map(LMK.filter((l) => l.wall || l.roof || l.model).map((l) => [l.name, l]));
   D = data; GN = D.grid.n; GSTEP = D.grid.step; GHALF = D.grid.half; GH = Float32Array.from(D.grid.h); HALF = D.half;
+  smoothRoads(); // SRTM is ~30 m and picks up trees/buildings → roads came out lumpy; ease the ground under them
   { const a = D.buildings.find((b) => amphSet.has(b.n)); if (a) {
     let minx = 1e9, maxx = -1e9, minz = 1e9, maxz = -1e9; for (const q of a.p) { minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]); minz = Math.min(minz, q[1]); maxz = Math.max(maxz, q[1]); }
     const W = maxx - minx, sx = minx + 0.61 * W, sz = minz + 0.3 * (maxz - minz); amph = { sx, sz, ri: 0.19 * W, ro: 0.52 * W, a0: (38 * Math.PI) / 180, a1: (201 * Math.PI) / 180, NT: 12, step: 0.38, by: terrainH(sx, sz) };
@@ -268,7 +292,7 @@ function buildWorld(data) {
       floodlight(m, l);
       m.position.set(-(box.min.x + box.max.x) / 2 - (l.shift || 0) * size.x, -box.min.y, -(box.min.z + box.max.z) / 2); const sc = new THREE.Group(); sc.add(m); sc.scale.setScalar(k); H.add(sc);
     }, undefined, () => console.warn('sculpture model failed', l.model));
-    for (const [fx, fr] of l.solids || []) { const lx = (fx - (l.shift || 0)) * s; addCircle(x + lx * ca, z + lx * sa, Math.max(0.6, fr * s), gy + (l.height || s)); }
+    for (const [fx, fr, fz = 0] of l.solids || []) { const lx = (fx - (l.shift || 0)) * s, lz = fz * s; addCircle(x + lx * ca - lz * sa, z + lx * sa + lz * ca, Math.max(0.6, fr * s), gy + (l.height || s)); } // [x, radius, z] as fractions of the model width
     places.push({ n: l.name, x, z, top: gy + (l.height || s * 0.9), r: 40 });
   }
   // named open spaces that the map data doesn't name (kind 'place', pos = centre, r = radius): sign + teleport target

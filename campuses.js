@@ -60,6 +60,7 @@ export const CAMPUSES = [
     outsideLabel: '캠퍼스 밖 · 신촌/창천동',
     spawn: { at: [-171, -852], look: [-150, -700], toward: '언더우드관 (501)' }, // 연세로 in front of the main gate, looking up 백양로 (gate = where 백양로 meets 연세로)
     landmarks: [
+      { name: '연세대학교 정문', kind: 'sculpture', pos: [-167, -834], yaw: 0, scale: 34, height: 6.2, model: 'assets/models/yonsei-sinchon-front-gate.glb', solids: [[-0.475, 0.028, -0.15], [-0.475, 0.028, -0.08], [-0.475, 0.028, -0.01], [0.475, 0.028, -0.15], [0.475, 0.028, -0.08], [0.475, 0.028, -0.01], [-0.22, 0.028, -0.11], [-0.22, 0.028, -0.03], [-0.22, 0.028, 0.05], [-0.22, 0.028, 0.13], [0.22, 0.028, -0.11], [0.22, 0.028, -0.03], [0.22, 0.028, 0.05], [0.22, 0.028, 0.13]], note: '직접 만든 3D 모델 (Tripo) — 돌기둥 4개, 가운데 두 기둥 사이로 연세로→백양로가 지나감; 위치는 사용자가 준 구글 지도 좌표(HW6P+3QQ)' },
       { name: '연세대학교 대운동장', kind: 'stadium', pos: [-468, -600], note: 'OSM leisure=pitch' },
       { name: '언더우드관 (501)', kind: 'building', pos: [-5, -144], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
       { name: '스팀슨관 (502)', kind: 'building', pos: [-52, -182], wall: 0xb9b3a3, roof: 0x5d6158, note: '석조 건물 — 색은 추정' },
