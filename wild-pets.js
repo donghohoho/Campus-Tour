@@ -75,8 +75,7 @@ export function initWildPets(G) {
   const tameRec = (sp) => (S.tame[sp] || (S.tame[sp] = { gauge: 0, state: 'wild', petId: null, t: 0 }));
   // pets.js pets trail a leader point by a fixed slot offset; aim the leader so the animal itself lands on (x, z)
   function drive(w, dt, yaw, moving) {
-    const bk = 1.3, sd = 0.7, lx = w.x + Math.sin(yaw) * bk - Math.cos(yaw) * sd, lz = w.z + Math.cos(yaw) * bk + Math.sin(yaw) * sd;
-    w.pet.update(dt, lx, G.terrainH(w.x, w.z), lz, yaw, moving);
+    w.pet.update(dt, w.x, G.terrainH(w.x, w.z), w.z, yaw, moving, true); // exactly at (w.x, w.z): turning to look at you no longer slides it around
   }
   function nearestWild(p) {
     let best = null, bd = NEAR; for (const w of wild) { const r = w.pet.root.position, d = Math.hypot(p.x - r.x, p.z - r.z); if (d < bd && Math.abs(p.y - r.y) < 2.5) { bd = d; best = w; } } return best;
@@ -149,7 +148,7 @@ export function initWildPets(G) {
   function patOwn(id) {
     if (!id || patWait(id) > 0) return false;
     const r = rec(id), k = dayKey(now()); if (r.day.key !== k) r.day = { key: k, got: 0 };
-    r.lastPat = now(); dirty = true; if (G.onPat) { const rt = G.pets.rootOf(id); G.onPat(rt && rt.position); }
+    r.lastPat = now(); dirty = true; if (G.pets.hold) G.pets.hold(id, 8); if (G.onPat) { const rt = G.pets.rootOf(id); G.onPat(rt && rt.position); } // the pet stays put while you pet it (you turn to it)
     const got = addBond(id, BOND.pat.bond, '쓰다듬기');
     const root = G.pets.rootOf(id); if (root) burst(heartTex, root.position, 5, 1.6, 0.35);
     if (!got) G.toast('오늘은 충분히 친해졌어요 — 내일 또 쓰다듬어 주세요', 2.2);

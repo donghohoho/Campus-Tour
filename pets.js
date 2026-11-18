@@ -80,23 +80,29 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
   }
   setName(name);
-  let placed = false, hopT = 0; const pos = new THREE.Vector3();
-  function update(dt, x, y, z, yaw, moving) {
+  let placed = false, hopT = 0, holdT = 0; const pos = new THREE.Vector3();
+  // hold(s): stay put (facing the owner) for s seconds or until the owner walks off — used while being petted
+  function hold(s) { holdT = s; }
+  // exact: (x, z) is the spot itself (wild animals), not an owner to follow
+  function update(dt, x, y, z, yaw, moving, exact) {
+    if (holdT > 0 && moving) holdT = 0; holdT = Math.max(0, holdT - dt);
     // aim for a spot behind and to the left of the owner
-    const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * (0.6 + 0.4 * scale), sd = sd0 * (0.6 + 0.4 * scale), tx = x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
+    const [bk0, sd0] = SLOTS[slot % SLOTS.length], bk = bk0 * (0.6 + 0.4 * scale), sd = sd0 * (0.6 + 0.4 * scale);
+    let tx = exact ? x : x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = exact ? z : z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
+    if (holdT > 0 && placed) { tx = pos.x; tz = pos.z; }
     if (!placed || Math.hypot(tx - pos.x, tz - pos.z) > 25) { pos.set(tx, y, tz); placed = true; }
     const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz), k = 1 - Math.exp(-(d > 0.35 ? 4.5 : 1.5) * dt);
     pos.x += dx * k; pos.z += dz * k; const gy = terrainH(pos.x, pos.z); pos.y += ((Math.abs(y - gy) < 1.5 ? gy : y) - pos.y) * (1 - Math.exp(-10 * dt));
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     root.position.set(pos.x, pos.y + (walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0), pos.z);
-    const want = d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
+    const want = holdT > 0 ? Math.atan2(x - pos.x, z - pos.z) : d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
     if (!action) model.scale.y = 1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03);
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
     if (plate && camRef) { const cd = camRef.position.distanceTo(root.position), o = Math.max(0, Math.min(1, (cd - 3.5) / 3)); plate.visible = o > 0.02; plate.material.opacity = o; }
   }
   function dispose() { setName(''); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
-  return { root, update, setName, dispose, type: def.id };
+  return { root, update, hold, setName, dispose, type: def.id };
 }
 
 export function initPets(G) {
@@ -214,6 +220,7 @@ export function initPets(G) {
   const owned = () => W.owned.map(({ id, type, name }) => ({ id, type, name }));
   const activeIds = () => W.actives.filter((id) => W.owned.some((o) => o.id === id));
   const rootOf = (id) => { const pt = pets.find((x) => x.id === id); return pt && pt.root; };
+  const hold = (id, s) => { const pt = pets.find((x) => x.id === id); if (pt && pt.hold) pt.hold(s); }; // being petted: stay where it is
   // a tamed wild pet joins the owned list (wild-pets.js). One per kind: returns null if this kind is already owned
   function adopt(type, name) {
     if (!petDef(type) || W.owned.some((o) => o.type === type)) return null;
@@ -222,5 +229,5 @@ export function initPets(G) {
     return o.id;
   }
   const ownsType = (type) => W.owned.some((o) => o.type === type);
-  return { adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  return { hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }
