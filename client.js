@@ -685,6 +685,33 @@ function runBlend(u, hs, dt) {
 }
 window.__runBlend = runBlend;
 // play the current character's petting motion, turned toward what is being petted
+// Sitting astride a ridden pet, posed on the character's own skeleton (no extra animation file): thighs forward and a
+// little apart, shins hanging down; the body is lowered so the hips rest on the seat. Characters without leg bones
+// (여자 2's long dress) just sit lower. sitReset() puts the legs back to rest before the mixer runs each frame, so
+// the walk/idle clips (or the rest pose) take over again when you get off.
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _I = new THREE.Quaternion();
+function sitBones(cmod) {
+  const u = cmod.userData; if (u.sitB !== undefined) return u.sitB;
+  const g = (n) => cmod.getObjectByName(n), B = { hips: g('hips'), legs: [] };
+  for (const [sd, s] of [['L', 1], ['R', -1]]) { const th = g('thigh.' + sd), sh = g('shin.' + sd), ft = g('foot.' + sd); if (th && sh && ft) B.legs.push({ s, th, sh, ft, r0: th.quaternion.clone(), r1: sh.quaternion.clone() }); }
+  return (u.sitB = B);
+}
+function sitReset(cmod) { const u = cmod && cmod.userData; if (!u || !u.sitW) return; for (const L of sitBones(cmod).legs) { L.th.quaternion.copy(L.r0); L.sh.quaternion.copy(L.r1); } }
+function aimBone(bone, child, want, w) {
+  bone.updateMatrixWorld(true); bone.getWorldPosition(_v1); child.getWorldPosition(_v2); _v2.sub(_v1).normalize();
+  _q.setFromUnitVectors(_v2, want); _q.slerpQuaternions(_I, _q, w); bone.getWorldQuaternion(_q2); _q2.premultiply(_q);
+  bone.parent.getWorldQuaternion(_q).invert(); bone.quaternion.copy(_q.multiply(_q2)); bone.updateMatrixWorld(true);
+}
+function sitPose(cmod, target, yaw, dt) {
+  if (!cmod) return; const u = cmod.userData; u.sitW = (u.sitW || 0) + (target - (u.sitW || 0)) * (1 - Math.exp(-8 * dt)); if (target === 0 && u.sitW < 0.01) u.sitW = 0;
+  const w = u.sitW; if (!w) return; const B = sitBones(cmod); pRoot.updateMatrixWorld(true);
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), lx = Math.cos(yaw), lz = -Math.sin(yaw); // forward, and the character's left
+  if (B.hips) { B.hips.getWorldPosition(_v3); const hipH = _v3.y - pRoot.position.y; pRoot.position.y -= Math.max(0, hipH - (B.legs.length ? 0.12 : 0.3)) * w; pRoot.updateMatrixWorld(true); }
+  for (const L of B.legs) {
+    aimBone(L.th, L.sh, _v3.set(fx * 0.72 + lx * L.s * 0.42, -0.55, fz * 0.72 + lz * L.s * 0.42).normalize(), w); // thigh: forward, apart, a bit down
+    aimBone(L.sh, L.ft, _v3.set(-fx * 0.2 + lx * L.s * 0.22, -1, -fz * 0.2 + lz * L.s * 0.22).normalize(), w); // shin: hanging down the pet's side
+  }
+}
 function rideToggle() {
   const r = pets.toggleRide();
   if (r.on) { toast(`🐾 ${r.name} 타기!${r.perk ? ` 특기: ${r.perk}` : ''} · 달리면(Shift) 빨라요 · R로 내리기`, 2.6); player.squashV = 5; }
@@ -879,11 +906,12 @@ function updatePlayer(dt, t) {
   const cmod = charModels[charIndex], anim = cmod && cmod.userData.mixer, pk = anim ? 0.35 : 1;
   if (anim) { const u = cmod.userData;
     if (u.pet) { if (!p.grounded) u.petT = 0; u.petT = Math.max(0, u.petT - dt); u.petW += ((u.petT > 0 ? 1 : 0) - u.petW) * (1 - Math.exp(-10 * dt)); u.pet.setEffectiveWeight(u.petW); } // petting: moving cancels it
-    const tw = pets.riding() ? 0 : (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); /* riding: the pet does the walking */ u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); u.mixer.update(dt); }
+    const tw = pets.riding() ? 0 : (p.grounded ? Math.min(1, hs / 1.0) : 0.55) * (1 - (u.petW || 0)); /* riding: the pet does the walking */ u.w += (tw - u.w) * (1 - Math.exp(-8 * dt)); runBlend(u, hs, dt); sitReset(cmod); u.mixer.update(dt); }
   const sway = pk * (p.grounded ? Math.sin(p.phase) * (0.035 + 0.035 * sf) * Math.min(1, hs / 1.5) : 0);
   pTilt.rotation.z += (sway + Math.sin(t * 0.9) * 0.008 - pTilt.rotation.z) * (1 - Math.exp(-14 * dt));
   pModel.rotation.y = MODEL_YAW + (p.grounded ? pk * Math.sin(p.phase) * 0.07 * Math.min(1, hs / 1.5) : 0);
   { const seat = pets.riding(); pRoot.position.set(p.pos.x, p.pos.y + (seat ? seat : bob), p.pos.z); if (seat) { pTilt.rotation.x = 0; pTilt.rotation.z = 0; } } pRoot.rotation.y = p.yaw; // riding: sit on the pet's back
+  sitPose(cmod, pets.riding() ? 1 : 0, p.yaw, dt);
   if (p.grounded && hs > 6) { p.runDust -= dt; if (p.runDust <= 0) { p.runDust = 0.11; spawnFx(dustTex, p.pos.x - dx * 0.3, p.pos.y + 0.12, p.pos.z - dz * 0.3, rr(-0.4, 0.4), 0.5, rr(-0.4, 0.4), 0.5, 0.35, 1.4); } }
 }
 const camPos = new THREE.Vector3(), dir = new THREE.Vector3();
