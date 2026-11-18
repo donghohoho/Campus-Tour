@@ -26,10 +26,10 @@ export const PETS = [
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b, model: 'assets/pets/rooster.glb', h: 0.5, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0, ride: 1.1, jump: 1.2, leap: 1.8, perk: '멀리뛰기' },
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7, ride: 0.85, run: 2.6, perk: '전력질주' },
-  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6, fly: true },
+  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 9.5, fall: 4 }, perk: '빠른 비행' }, // soar: up = climb speed, fall = glide sink speed (m/s)
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
-  { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6, fly: true },
-  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: true, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
+  { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
+  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
 ];
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
@@ -125,7 +125,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   }
   function dispose() { setName(''); blob.geometry.dispose(); blob.material.dispose(); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
-  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0, stats: { run: def.run || 2, jump: def.jump || 1, leap: def.leap || 1, soar: !!def.soar, perk: def.perk || '' } };
+  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0, stats: { run: def.run || 2, jump: def.jump || 1, leap: def.leap || 1, soar: def.soar || null, perk: def.perk || '' } };
 }
 
 export function initPets(G) {
