@@ -12,6 +12,7 @@
 //   name     title                                             desc     one line under the title
 //   target   goal in the kind's unit (m, s, count)             reward   coins, paid by the existing coin wallet (pets.js)
 //   campus/place   for kind 'visit': the place to stand in (same names as the map labels)
+//   places         for kind 'visit' instead of campus/place: { campusId: place } — one quest, its own spot on each campus
 //   minRarity      for kind 'collect': only items of this rarity or rarer count
 //   weight   optional draw weight (default 1)                  difficulty  optional, unused for now (future: easy/normal/hard boards)
 
@@ -31,10 +32,16 @@ export const TEMPLATES = [
   { id: 'walk-500', period: 'daily', type: 'explore', kind: 'distance', target: 500, reward: 30, name: '캠퍼스 산책', desc: '캠퍼스를 500m 걸어 보세요' },
   { id: 'walk-1500', period: 'daily', type: 'explore', kind: 'distance', target: 1500, reward: 60, name: '캠퍼스 한 바퀴', desc: '캠퍼스를 1.5km 걸어 보세요' },
   { id: 'visit-any-3', period: 'daily', type: 'explore', kind: 'visitAny', target: 3, reward: 40, name: '명소 탐방', desc: '이름이 있는 장소 3곳을 찾아가 보세요 (어느 캠퍼스든)' },
-  { id: 'visit-khu-amph', period: 'daily', type: 'explore', kind: 'visit', campus: 'khu-global', place: '노천극장', target: 1, reward: 35, name: '노천극장 가기', desc: '경희대 국제캠 노천극장에 가 보세요' },
-  { id: 'visit-khu-dome', period: 'daily', type: 'explore', kind: 'visit', campus: 'khu-global', place: '천문대', target: 1, reward: 35, name: '천문대 가기', desc: '경희대 국제캠 천문대에 가 보세요' },
-  { id: 'visit-khu-library', period: 'daily', type: 'explore', kind: 'visit', campus: 'khu-global', place: '중앙도서관', target: 1, reward: 30, name: '도서관 가기', desc: '경희대 국제캠 중앙도서관에 가 보세요' },
-  { id: 'visit-khu-plaza', period: 'daily', type: 'explore', kind: 'visit', campus: 'khu-global', place: '사색의 광장', target: 1, reward: 30, name: '사색의 광장 가기', desc: '경희대 국제캠 사색의 광장에 가 보세요' },
+  // campus-relative: `places` gives the spot on each campus, so the same quest works wherever you are
+  { id: 'visit-library', period: 'daily', type: 'explore', kind: 'visit', target: 1, reward: 30, name: '도서관 가기', desc: '지금 있는 캠퍼스의 도서관에 가 보세요',
+    places: { 'khu-global': '중앙도서관', 'korea-anam': '중앙도서관', 'snu-gwanak': '중앙도서관', 'yonsei-sinchon': '중앙도서관 (301)', sogang: '로욜라 도서관 1관', 'skku-seoul': '중앙학술정보관', 'skku-natural': '삼성학술정보관', 'hanyang-seoul': '백남학술정보관', 'khu-seoul': '경희대학교 중앙도서관', 'hufs-seoul': '도서관', uos: '중앙도서관' } },
+  { id: 'visit-food', period: 'daily', type: 'explore', kind: 'visit', target: 1, reward: 30, name: '학식 먹으러 가기', desc: '지금 있는 캠퍼스의 학생회관(식당)에 가 보세요',
+    places: { 'khu-global': '학생회관', 'korea-anam': '타이거플라자', 'snu-gwanak': '학생회관(63)', 'yonsei-sinchon': '학생회관 (207)', sogang: '곤자가 프라자', 'skku-seoul': '학생회관', 'skku-natural': '학생회관', 'hanyang-seoul': '학생회관', 'cau-seoul': '학생회관', 'khu-seoul': '학생회관', 'hufs-seoul': '국제학사(신학생회관)', uos: '학생회관' } },
+  { id: 'visit-icon', period: 'daily', type: 'explore', kind: 'visit', target: 1, reward: 35, name: '캠퍼스 명소 가기', desc: '지금 있는 캠퍼스의 대표 명소에 가 보세요',
+    places: { 'khu-global': '노천극장', 'korea-anam': '중앙광장', 'snu-gwanak': '자하연', 'yonsei-sinchon': '언더우드관 (501)', sogang: '알바트로스 공원', 'skku-seoul': '명륜당', 'skku-natural': '글로벌 광장', 'hanyang-seoul': '노천극장', 'cau-seoul': '청룡연못', 'khu-seoul': '평화의전당', 'hufs-seoul': '역사기념관', uos: '하늘못' } },
+  { id: 'visit-green', period: 'daily', type: 'explore', kind: 'visit', target: 1, reward: 30, name: '잔디밭에서 쉬어 가기', desc: '지금 있는 캠퍼스의 잔디 광장·운동장에 가 보세요',
+    places: { 'khu-global': '사색의 광장', 'korea-anam': '녹지운동장', 'snu-gwanak': '버들골', 'yonsei-sinchon': '연세대학교 대운동장', sogang: '서강대학교 대운동장', 'skku-seoul': '금잔디광장', 'skku-natural': '축구장', 'hanyang-seoul': '살곶이체육공원', 'cau-seoul': '중앙마당', 'khu-seoul': '선동호', 'hufs-seoul': '대운동장', uos: '자주터' } },
+  { id: 'visit-khu-dome', period: 'daily', type: 'explore', kind: 'visit', campus: 'khu-global', place: '천문대', target: 1, reward: 35, name: '천문대 가기', desc: '경희대 국제캠 천문대에 가 보세요', weight: 0.5 },
   // ── 수집: picking up collectibles (each item exists once per player, so the board skips these when too few are left) ──
   { id: 'collect-1', period: 'daily', type: 'collect', kind: 'collect', target: 1, reward: 40, name: '보물 찾기', desc: '수집품 1개를 찾아 주우세요' },
   { id: 'collect-2', period: 'daily', type: 'collect', kind: 'collect', target: 2, reward: 70, name: '보물 사냥꾼', desc: '수집품 2개를 찾아 주우세요' },

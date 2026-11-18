@@ -37,8 +37,8 @@ function draw(period, key, feasible) {
     if (out.length >= PERIODS[period].count) break;
     const pool = TEMPLATES.filter((t) => t.period === period && t.type === type && feasible(t)); if (!pool.length) continue;
     let r = rnd() * pool.reduce((s, t) => s + (t.weight || 1), 0), pick = pool[0]; for (const t of pool) { r -= t.weight || 1; if (r <= 0) { pick = t; break; } }
-    const { id, kind, name, desc, target, reward, campus, place, minRarity } = pick;
-    out.push({ id: `${period}:${key}:${id}`, tpl: id, period, day: key, type, kind, name, desc, target, reward, campus, place, minRarity, progress: 0, done: false, claimed: false, seen: [] });
+    const { id, kind, name, desc, target, reward, campus, place, places, minRarity } = pick;
+    out.push({ id: `${period}:${key}:${id}`, tpl: id, period, day: key, type, kind, name, desc, target, reward, campus, place, places, minRarity, progress: 0, done: false, claimed: false, seen: [] });
   }
   return out;
 }
@@ -80,6 +80,7 @@ export function initQuests(G) {
   const now = () => (anchor ? anchor.server + (performance.now() - anchor.perf) : Date.now()) + shift; // shift: tests only
 
   // make sure every period has a board for its current key; a key may only move forward (rolling the clock back changes nothing)
+  let here = null; // campus the player is on (reported with every place check)
   function ensure(quiet) {
     if (!clockReady) return; // no new board on an unverified clock
     let changed = false;
@@ -106,9 +107,10 @@ export function initQuests(G) {
   }
   // events reported by the other systems
   function onPlace(campus, place) {
+    here = campus;
     if (!G.started() || !place) { lastPlace = null; return; }
     const id = campus + '|' + place; if (id === lastPlace) return; lastPlace = id;
-    bump('visit', 1, (q) => q.campus === campus && q.place === place);
+    bump('visit', 1, (q) => (q.places ? q.places[campus] === place : q.campus === campus && q.place === place)); // places: the same quest on every campus (its own spot on each)
     for (const q of active()) if (q.kind === 'visitAny' && !q.done && !q.seen.includes(id)) { q.seen.push(id); bump('visitAny', 1, (x) => x === q); }
   }
   function event(name, data) {
@@ -167,7 +169,7 @@ export function initQuests(G) {
       const ds = document.createElement('p'); ds.textContent = q.desc;
       const bar = document.createElement('div'); bar.className = 'qTrack'; const fill = document.createElement('div'); fill.className = 'qFill'; fill.style.width = `${Math.min(100, (q.progress / q.target) * 100)}%`; bar.append(fill);
       const row = document.createElement('div'); row.className = 'qRow';
-      const pr = document.createElement('small'); pr.textContent = q.kind === 'visit' ? (q.done ? '도착 완료' : `📍 ${q.place}`) : `${fmtVal(q, q.progress)} / ${fmtVal(q, q.target)}`;
+      const pr = document.createElement('small'); pr.textContent = q.kind === 'visit' ? (q.done ? '도착 완료' : q.places ? (q.places[here] ? `📍 ${q.places[here]}` : '이 캠퍼스에는 없어요 · 다른 캠퍼스에서') : `📍 ${q.place}`) : `${fmtVal(q, q.progress)} / ${fmtVal(q, q.target)}`;
       const btn = document.createElement('button'); btn.type = 'button';
       if (q.claimed) { btn.textContent = '✅ 수령 완료'; btn.disabled = true; btn.className = 'got'; }
       else if (q.done) { btn.textContent = `보상 받기 🪙 ${q.reward}`; btn.className = 'claim'; btn.addEventListener('click', () => { btn.disabled = true; claim(q.id); }); }
