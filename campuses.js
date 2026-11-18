@@ -151,7 +151,19 @@ export const CAMPUSES = [
       { name: '중앙마당', kind: 'place', pos: [101, 216], r: 30, note: 'OSM park "중앙마당"' },
     ],
   },
-  soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
+  {
+    id: 'khu-seoul', name: '경희대학교 서울캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/khu-seoul.json', terrain: 'hills', lighting: 'night', seed: 20261119,
+    outsideLabel: '캠퍼스 밖 · 회기동',
+    spawn: { at: [78, -402], look: [73, -250] }, // on 경희대로 just outside the main gate, looking up the avenue toward 본관
+    landmarks: [
+      { name: '경희대학교 서울캠퍼스 정문', kind: 'place', pos: [77, -372], r: 18, note: '경희대로 끝 정문 — OSM에 정문 건물이 없어 표지만' },
+      { name: '본관', kind: 'building', pos: [-8, 8], wall: 0xece6d8, roof: 0x8a8578, note: '흰 석조 열주 건물 — 정문에서 올라오는 길 끝' },
+      { name: '평화의전당', kind: 'building', pos: [84, 167], wall: 0xb9b2a4, roof: 0x5d5a55, note: '고딕 석조 대강당' },
+      { name: '노천극장', kind: 'place', pos: [214, -49], r: 25, note: 'OSM 건물 "노천극장 무대"' },
+      { name: '선동호', kind: 'place', pos: [-156, -210], r: 20, note: 'OSM water "선동호"' },
+    ],
+  },
   {
     id: 'khu-global', name: '경희대학교 국제캠퍼스', region: 'gyeonggi', status: 'ready',
     data: 'assets/campuses/khu-global.json', terrain: 'hills', lighting: 'night', seed: 20261111,
