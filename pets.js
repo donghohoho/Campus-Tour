@@ -33,7 +33,7 @@ export const PETS = [
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
 
-export const MAX_WALK = 5; // pets that can walk with you at once
+export const MAX_WALK = 1; // pets that can walk with you at once (one: picking another swaps it in)
 // follow spots behind the owner: [metres back, metres to the side]
 const SLOTS = [[1.3, 0.7], [1.3, -0.7], [2.4, 1.2], [2.4, -1.2], [3.2, 0]];
 const EARN_EVERY = 6, EARN_AMOUNT = 1, NAME_MAX = 10, KEY = 'fm:wallet';
@@ -183,15 +183,15 @@ export function initPets(G) {
       nm.type = 'text'; nm.maxLength = NAME_MAX; nm.value = o.name; nm.setAttribute('aria-label', '펫 이름'); nm.spellcheck = false;
       nm.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') nm.blur(); }); nm.addEventListener('keyup', (e) => e.stopPropagation());
       nm.addEventListener('change', () => { o.name = clean(nm.value, NAME_MAX) || d.name; nm.value = o.name; save(); const pt = pets.find((x) => x.id === o.id); if (pt) pt.setName(o.name); });
-      const on = W.actives.includes(o.id), full = !on && W.actives.length >= MAX_WALK; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : full ? `최대 ${MAX_WALK}마리` : '데리고 다니기'; go.disabled = full;
-      go.addEventListener('click', () => { W.actives = on ? W.actives.filter((x) => x !== o.id) : [...W.actives, o.id].slice(0, MAX_WALK); save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
+      const on = W.actives.includes(o.id), full = !on && W.actives.length >= MAX_WALK; go.type = 'button'; go.className = on ? 'on' : ''; go.textContent = on ? '같이 다니는 중' : full ? '이 펫으로 바꾸기' : '데리고 다니기';
+      go.addEventListener('click', () => { W.actives = on ? W.actives.filter((x) => x !== o.id) : [...W.actives, o.id].slice(-MAX_WALK); /* over the limit: the newest one replaces the oldest */ save(); spawnActive(); render(); G.toast(on ? `${o.name}을(를) 쉬게 했어요` : `${o.name}와(과) 함께 걸어요 🐾`, 1.8); });
       li.append(sw, nm, go); if (G.petRow) G.petRow(li, o); mine.append(li); // wild-pets.js adds the bond chip
     }
   }
   function buy(d) {
     if (W.coins < d.price) return;
     W.coins -= d.price; const o = { id: Math.random().toString(36).slice(2, 10), type: d.id, name: d.name };
-    const before = sizeFor(countOf(d.id)); W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); if (sizeFor(countOf(d.id)) > before) setTimeout(() => G.toast(`✨ ${d.name} ${countOf(d.id)}마리! ${d.name}들이 ${sizeFor(countOf(d.id))}배로 커졌어요`, 3), 2700); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
+    const before = sizeFor(countOf(d.id)); W.owned.push(o); W.actives = [...W.actives, o.id].slice(-MAX_WALK); /* a new pet comes along right away (swapping out the current one) */ save(); flush(); if (sizeFor(countOf(d.id)) > before) setTimeout(() => G.toast(`✨ ${d.name} ${countOf(d.id)}마리! ${d.name}들이 ${sizeFor(countOf(d.id))}배로 커졌어요`, 3), 2700); spawnActive(); hud(); render(); G.toast(`${d.name}을(를) 데려왔어요! 이름을 지어 주세요 🐾`, 2.6);
     const inputs = $('#petMine').querySelectorAll('input'); const last = inputs[inputs.length - 1]; if (last) { last.focus(); last.select(); }
   }
   function show(on) {
@@ -248,16 +248,20 @@ export function initPets(G) {
   function adopt(type, name) {
     if (!petDef(type) || W.owned.some((o) => o.type === type)) return null;
     const o = { id: Math.random().toString(36).slice(2, 10), type, name: clean(name, NAME_MAX) || petDef(type).name };
-    W.owned.push(o); if (W.actives.length < MAX_WALK) W.actives.push(o.id); save(); flush(); spawnActive(); hud(); if (open) render();
+    W.owned.push(o); W.actives = [...W.actives, o.id].slice(-MAX_WALK); /* a new pet comes along right away (swapping out the current one) */ save(); flush(); spawnActive(); hud(); if (open) render();
     return o.id;
   }
   const ownsType = (type) => W.owned.some((o) => o.type === type);
   // riding (R): get on the first walking pet that can carry you (고라니·호랑이·사자·염소), or get off
-  function toggleRide() {
+  const nameOf = (pt) => { const o = W.owned.find((x) => x.id === pt.id); return (o && o.name) || (petDef(pt.type) || {}).name; };
+  // the closest rideable pet walking with you within r metres (for the "R 올라타기" prompt)
+  function nearRideable(pos, r = 4) { let best = null, bd = r; for (const pt of pets) if (pt.seat > 0) { const d = Math.hypot(pt.root.position.x - pos.x, pt.root.position.z - pos.z); if (d < bd) { bd = d; best = pt; } } return best && { id: best.id, name: nameOf(best) }; }
+  function toggleRide(pos) {
     if (rideId) { rideId = null; return { off: true }; }
-    const pt = pets.find((x) => x.seat > 0); if (!pt) return { none: true };
-    rideId = pt.id; const o = W.owned.find((x) => x.id === pt.id); return { on: true, name: (o && o.name) || (petDef(pt.type) || {}).name };
+    if (!pets.some((x) => x.seat > 0)) return { none: true };
+    const n = nearRideable(pos || G.player.pos); if (!n) return { far: true };
+    rideId = n.id; return { on: true, name: n.name };
   }
   const riding = () => { const pt = rideId && pets.find((x) => x.id === rideId); return pt ? pt.seat : 0; };
-  return { toggleRide, riding, hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  return { toggleRide, nearRideable, riding, hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

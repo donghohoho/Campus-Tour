@@ -30,6 +30,9 @@
       #counter { right: 16px; top: 16px; font-weight: 700; font-size: 15px; display: flex; gap: 8px; align-items: center; }
       #prompt { left: 50%; bottom: 84px; transform: translateX(-50%); font-weight: 600; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
       #prompt.show { opacity: 1; }
+      #ridePrompt { left: 50%; bottom: 84px; transform: translateX(-50%); font-weight: 600; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+      #ridePrompt.stack { bottom: 136px; } /* above the E prompt when both show */
+      #ridePrompt.show { opacity: 1; }
       #toast { left: 50%; top: 20%; white-space: nowrap; transform: translateX(-50%); font-weight: 700; font-size: 17px; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
       #toast.show { opacity: 1; }
       #hint { left: 50%; bottom: 20px; transform: translateX(-50%); font-size: 12.5px; color: #44564a; pointer-events: none; }
@@ -84,7 +87,7 @@
       #tRun[aria-pressed="true"] { background: #ffd98a; color: #1b2030; }
       #tAct { grid-area: act; background: rgba(255, 92, 138, 0.75); }
       #tChar { grid-area: char; width: 56px; height: 56px; font-size: 12px; }
-      body.touch #controls, body.touch #prompt, body.touch #hint, body.touch #attr { display: none !important; }
+      body.touch #controls, body.touch #prompt, body.touch #ridePrompt, body.touch #hint, body.touch #attr { display: none !important; }
       body.touch canvas#game { touch-action: none; }
       body.touch #mini { width: 112px; height: 112px; top: 64px; bottom: auto; right: 12px; }
       body.touch #counter { right: 12px; top: 12px; padding: 6px 10px; font-size: 13px; }
@@ -394,6 +397,7 @@
     <canvas id="mini" class="panel" width="190" height="190" aria-label="미니맵"></canvas>
     <div id="attr">지도 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> 기여자 · 지형 SRTM</div>
     <div id="prompt" class="panel"></div>
+    <div id="ridePrompt" class="panel"></div>
     <div id="toast" class="panel"></div>
     <div id="hint" class="panel hidden">화면을 클릭하면 마우스로 시점을 돌릴 수 있어요 · <kbd>M</kbd> 캠퍼스 변경</div>
     <div id="err" class="panel hidden"></div>

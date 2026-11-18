@@ -689,6 +689,7 @@ function rideToggle() {
   const r = pets.toggleRide();
   if (r.on) { toast(`🐾 ${r.name} 타기! 달리면(Shift) 2배 빨라요 · R로 내리기`, 2.4); player.squashV = 5; }
   else if (r.off) toast('🐾 내렸어요', 1.2);
+  else if (r.far) toast('펫 가까이 가서 R을 눌러 올라타세요', 1.8);
   else toast('탈 수 있는 펫이 없어요 — 고라니·호랑이·사자·염소를 데리고 다닐 때 R', 2.6);
   const b = document.querySelector('#tRide'); if (b) b.setAttribute('aria-pressed', String(!!pets.riding()));
 }
@@ -956,6 +957,11 @@ function updateWorld(dt, t) {
   if (item) { const R = coll.rarityOf(item); pr.innerHTML = `<kbd>E</kbd> 줍기 · <b style="color:${R.css}">${R.name}</b> 수집품`; pr.classList.add('show'); if (ePressed) coll.collect(item); }
   else if (wild) { pr.innerHTML = wildPets.promptWild(wild); pr.classList.add('show'); if (ePressed) wildPets.patWild(wild); }
   else if (nearPal && started) { pr.innerHTML = '<kbd>E</kbd> 쓰다듬기'; pr.classList.add('show'); if (ePressed && nearPal.happy <= 0) { nearPal.happy = 1.6; quests.event('pat'); for (let i = 0; i < 5; i++) spawnFx(heartTex, nearPal.x + rr(-0.4, 0.4), nearPal.g.position.y + 1.2, nearPal.z + rr(-0.4, 0.4), rr(-0.3, 0.3), rr(1.2, 2.2), rr(-0.3, 0.3), 1.1, 0.45, 0.3); } } else if (own) { pr.innerHTML = wildPets.promptOwn(own); pr.classList.add('show'); if (ePressed) wildPets.patOwn(own); } else pr.classList.remove('show');
+  { // R prompt above the E one: get on a rideable pet next to you, or get off
+    const rp = $('#ridePrompt'), seat = started && pets.riding(), nr = started && !seat && !petting() ? pets.nearRideable(p.pos, 3.5) : null;
+    if (seat) rp.innerHTML = '<kbd>R</kbd> 내리기'; else if (nr) { rp.textContent = ''; const k = document.createElement('kbd'); k.textContent = 'R'; rp.append(k, ` 올라타기 · ${nr.name}`); }
+    rp.classList.toggle('show', !!(seat || nr)); rp.classList.toggle('stack', pr.classList.contains('show'));
+  }
   ePressed = false;
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { scene.remove(f.sp); f.sp.material.dispose(); fx.splice(i, 1); continue; } f.sp.position.x += f.vx * dt; f.sp.position.y += f.vy * dt; f.sp.position.z += f.vz * dt; const k = f.life / f.max; f.sp.material.opacity = k; f.sp.scale.setScalar(Math.max(0.01, f.size + (1 - k) * f.grow)); }
   coll.update(dt, t); wildPets.update(dt); stamps.update(dt);
