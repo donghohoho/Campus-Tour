@@ -20,6 +20,12 @@ export const SPECIES = {
   // 경희대 국제캠의 명물 (spawn mostly at their own spots, below)
   'w-goat': { type: 'goat', name: '생대 염소', icon: '🐐', home: '생명과학대학 주변', sig: true, gain: 20, success: 0.75, cooldown: 2.5, note: '풀을 우물우물 씹고 있어요' },
   'w-rooster': { type: 'rooster', name: '생대 수탉', icon: '🐓', home: '생명과학대학 주변', sig: true, gain: 15, success: 0.65, cooldown: 3, note: '꼬끼오! 기세가 등등해요' },
+  // 다른 캠퍼스의 상징 동물 (where = 도감 배지에 쓰는 학교 이름)
+  'w-tiger': { type: 'tiger', name: '고대 호랑이', icon: '🐯', home: '고려대 중앙광장 · 녹지운동장', sig: true, where: '고려대', gain: 10, success: 0.5, cooldown: 3.5, note: '늠름하지만 쓰다듬으면 골골대요' },
+  'w-eagle': { type: 'eagle', name: '연세 독수리', icon: '🦅', home: '연세대 언더우드관 · 메타세쿼이아 숲', sig: true, where: '연세대', gain: 10, success: 0.5, cooldown: 3.5, note: '높은 곳에서 캠퍼스를 내려다봐요' },
+  'w-lion': { type: 'lion', name: '캠퍼스 사자', icon: '🦁', home: '한양대 노천극장 · 백남학술정보관, 경희대 서울캠 평화의전당', sig: true, where: '한양·경희', gain: 10, success: 0.5, cooldown: 3.5, note: '갈기를 쓰다듬어 주면 좋아해요' },
+  'w-albatross': { type: 'albatross', name: '서강 알바트로스', icon: '🪶', home: '서강대 알바트로스 공원 · 대운동장', sig: true, where: '서강대', gain: 12, success: 0.55, cooldown: 3, note: '날개를 활짝 펴는 걸 좋아해요' },
+  'w-dragon': { type: 'dragon', name: '중앙 청룡', icon: '🐉', home: '중앙대 청룡연못 · 중앙마당', sig: true, where: '중앙대', gain: 8, success: 0.45, cooldown: 4, note: '연못의 전설 — 쉽게 마음을 열지 않아요' },
   'w-gorani': { type: 'gorani', name: '예디대 고라니', icon: '🦌', home: '예술디자인대학 주변', sig: true, gain: 12, success: 0.55, cooldown: 3.5, note: '인기척에 쉽게 놀라요' },
 };
 
@@ -69,7 +75,7 @@ export const SPAWNS = {
   ],
   'korea-anam': [
     { pool: ['w-cat'], pos: [388, 36], roam: 6 }, // 정문 앞 — 정문 바로 안
-    { pool: SIG('w-cat', 'w-magpie'), pos: [288, 80], roam: 6 }, // 중앙광장 — 중앙광장 고양이
+    { pool: SIG('w-tiger', 'w-cat'), pos: [288, 80], roam: 7 }, // 중앙광장 — 고대 호랑이
     { pool: SIG('w-cat', 'w-squirrel'), pos: [80, 219], roam: 6 }, // 인촌기념관
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-84, 365], roam: 6 }, // 안암학사 남학생동 1동 — 기숙사 고양이
     { pool: ['w-squirrel', 'w-magpie'], pos: [-259, -447], roam: 6 }, // 애기능동산
@@ -77,7 +83,7 @@ export const SPAWNS = {
     { pool: ['w-duck', 'w-magpie'], pos: [-356, -262], roam: 6 }, // 육생비오톱 — 비오톱 물가
     { pool: ['w-magpie', 'w-squirrel'], pos: [-390, -361], roam: 6 }, // 하나스퀘어 쉼터
     { pool: ['w-owl', 'w-hedgehog'], pos: [-452, -404], roam: 6 }, // 진리마루
-    { pool: ['w-rabbit', 'w-squirrel'], pos: [-432, 411], roam: 6 }, // 녹지운동장
+    { pool: SIG('w-tiger', 'w-rabbit'), pos: [-432, 411], roam: 7 }, // 녹지운동장 — 고대 호랑이
   ],
   'snu-gwanak': [
     { pool: ['w-cat'], pos: [-516, 846], roam: 6 }, // 정문 앞 — 정문 바로 안
@@ -99,8 +105,8 @@ export const SPAWNS = {
     { pool: SIG('w-cat', 'w-squirrel'), pos: [31, 663], roam: 6 }, // 무악학사 4학사 — 기숙사 고양이
     { pool: SIG('w-squirrel', 'w-owl'), pos: [169, -122], roam: 6 }, // 청송대 — 청송대 다람쥐
     { pool: SIG('w-squirrel', 'w-hedgehog'), pos: [166, -134], roam: 6 }, // 청송대
-    { pool: ['w-owl', 'w-raccoon'], pos: [184, 830], roam: 6 }, // 메타세쿼이아 힐링숲
-    { pool: ['w-magpie', 'w-squirrel'], pos: [-11, -157], roam: 6 }, // 언더우드관
+    { pool: SIG('w-eagle', 'w-owl'), pos: [184, 830], roam: 6 }, // 메타세쿼이아 힐링숲 — 연세 독수리
+    { pool: SIG('w-eagle', 'w-magpie'), pos: [-11, -157], roam: 6 }, // 언더우드관 — 연세 독수리
     { pool: ['w-rabbit', 'w-squirrel'], pos: [-466, -596], roam: 6 }, // 연세대학교 대운동장
     { pool: ['w-hedgehog', 'w-magpie'], pos: [-100, -254], roam: 6 }, // 윤동주문학동산
   ],
@@ -109,9 +115,9 @@ export const SPAWNS = {
     { pool: SIG('w-cat', 'w-magpie'), pos: [191, -120], roam: 6 }, // 곤자가 프라자
     { pool: SIG('w-cat', 'w-squirrel'), pos: [59, -41], roam: 6 }, // 로욜라 도서관 1관
     { pool: SIG('w-cat', 'w-squirrel'), pos: [272, -86], roam: 6 }, // 곤자가 국제학사 — 기숙사 고양이
-    { pool: ['w-magpie', 'w-squirrel'], pos: [-223, -62], roam: 6 }, // 알바트로스 공원
+    { pool: SIG('w-albatross', 'w-magpie'), pos: [-223, -62], roam: 6 }, // 알바트로스 공원 — 서강 알바트로스
     { pool: ['w-squirrel', 'w-hedgehog'], pos: [-96, -116], roam: 6 }, // 본관
-    { pool: ['w-rabbit', 'w-squirrel'], pos: [14, -164], roam: 6 }, // 서강대학교 대운동장
+    { pool: SIG('w-albatross', 'w-rabbit'), pos: [14, -164], roam: 7 }, // 서강대학교 대운동장 — 서강 알바트로스
     { pool: ['w-owl', 'w-raccoon'], pos: [123, 183], roam: 6 }, // 노고산동체육공원
   ],
   'skku-seoul': [
@@ -141,16 +147,16 @@ export const SPAWNS = {
     { pool: SIG('w-magpie', 'w-squirrel'), pos: [12, -66], roam: 6 }, // 까치골 — 까치골 까치
     { pool: SIG('w-magpie', 'w-cat'), pos: [25, -61], roam: 6 }, // 까치골
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-193, 83], roam: 6 }, // 학생회관
-    { pool: SIG('w-cat', 'w-magpie'), pos: [-67, 35], roam: 6 }, // 백남학술정보관
+    { pool: SIG('w-lion', 'w-cat'), pos: [-67, 35], roam: 7 }, // 백남학술정보관 — 한양 사자
     { pool: SIG('w-cat', 'w-rabbit'), pos: [87, 202], roam: 6 }, // 제1학생생활관 — 기숙사 고양이
-    { pool: ['w-squirrel', 'w-hedgehog'], pos: [-98, -164], roam: 6 }, // 노천극장
+    { pool: SIG('w-lion', 'w-squirrel'), pos: [-98, -164], roam: 7 }, // 노천극장 — 한양 사자
     { pool: ['w-duck', 'w-magpie'], pos: [253, -254], roam: 6 }, // 살곶이체육공원
     { pool: ['w-owl', 'w-raccoon'], pos: [-40, 266], roam: 6 }, // 의대 계단강의동
   ],
   'cau-seoul': [
     { pool: ['w-cat'], pos: [155, 274], roam: 6 }, // 정문 앞 — 정문 바로 안
-    { pool: SIG('w-duck', 'w-magpie'), pos: [50, 152], roam: 6 }, // 청룡연못 — 청룡연못 오리
-    { pool: SIG('w-cat', 'w-squirrel'), pos: [102, 221], roam: 6 }, // 중앙마당
+    { pool: SIG('w-dragon', 'w-duck'), pos: [50, 152], roam: 6 }, // 청룡연못 — 중앙 청룡
+    { pool: SIG('w-dragon', 'w-cat'), pos: [102, 221], roam: 6 }, // 중앙마당 — 중앙 청룡
     { pool: SIG('w-cat', 'w-magpie'), pos: [43, 215], roam: 6 }, // 학생회관
     { pool: SIG('w-cat', 'w-rabbit'), pos: [7, -219], roam: 6 }, // 블루미르홀 — 기숙사 고양이
     { pool: ['w-squirrel', 'w-hedgehog'], pos: [-9, 43], roam: 6 }, // 서라벌홀
@@ -164,7 +170,7 @@ export const SPAWNS = {
     { pool: SIG('w-cat', 'w-squirrel'), pos: [-18, 20], roam: 6 }, // 본관 — 본관 고양이
     { pool: SIG('w-duck', 'w-magpie'), pos: [-153, -191], roam: 6 }, // 선동호 — 선동호 오리
     { pool: SIG('w-duck', 'w-hedgehog'), pos: [-141, -195], roam: 6 }, // 선동호
-    { pool: ['w-squirrel', 'w-magpie'], pos: [116, 176], roam: 6 }, // 평화의전당
+    { pool: SIG('w-lion', 'w-squirrel'), pos: [116, 176], roam: 7 }, // 평화의전당 — 경희 사자
     { pool: ['w-owl', 'w-raccoon'], pos: [-193, 81], roam: 6 }, // 공관
     { pool: ['w-rabbit', 'w-squirrel'], pos: [190, -230], roam: 6 }, // 대운동장
     { pool: ['w-hedgehog', 'w-raccoon'], pos: [205, -43], roam: 6 }, // 노천극장 무대

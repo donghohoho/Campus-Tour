@@ -12,17 +12,22 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 export const PETS = [
   { id: 'fox', name: '여우', price: 0, starter: true, model: 'assets/pets/fox.glb', h: 0.7, color: 0xf08a3c }, // everyone gets one
   // wild: tamed on campus (wild-pets.js), never sold in the shop
-  { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066 },
-  { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc },
+  { id: 'cat', name: '캠퍼스 고양이', wild: true, color: 0xd9a066, model: 'assets/pets/cat.glb', h: 0.42 },
+  { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc, model: 'assets/pets/rabbit.glb', h: 0.42, rotY: Math.PI / 2 }, // model faces −x
   { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a },
-  { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74 },
+  { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74, model: 'assets/pets/raccoon.glb', h: 0.45 },
   { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c },
-  { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d },
-  { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8 },
+  { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d, model: 'assets/pets/squirrel.glb', h: 0.32, rotY: -Math.PI / 2 }, // model faces +x
+  { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
   { id: 'magpie', name: '까치', wild: true, color: 0x33384a },
   { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf },
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b },
   { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c },
+  { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7 },
+  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.6 },
+  { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75 },
+  { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.6 },
+  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 0.6, rotY: Math.PI / 2 }, // model faces −x
 ];
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };
@@ -64,7 +69,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   let model = placeholder(def), mixer = null, action = null; body.add(model);
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
-    const m = cloneSkinned(g.scene); const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = (def.h || 0.6) / h;
+    const m = cloneSkinned(g.scene); if (def.rotY) { m.rotation.y = def.rotY; m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = (def.h || 0.6) / h;
     m.scale.setScalar(s); m.position.y = -box.min.y * s; m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
     body.remove(model); model = m; body.add(m);
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place

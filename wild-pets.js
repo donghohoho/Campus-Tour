@@ -248,7 +248,7 @@ export function initWildPets(G) {
       det.style.setProperty('--rc', def.sig ? '#f0b323' : '#7cc48a'); if (!m) det.classList.add('locked');
       const head = document.createElement('div'); head.className = 'cdHead'; const ic = document.createElement('span'); ic.className = 'cdIcon'; ic.textContent = def.icon;
       const tx = document.createElement('div'), badge = document.createElement('small'), nm = document.createElement('b'); badge.className = 'rBadge';
-      badge.textContent = (def.sig ? '경희 명물 · ' : '') + (own ? '보유' : m ? '만남' : '미발견'); nm.textContent = m ? def.name : '???'; tx.append(badge, nm); head.append(ic, tx);
+      badge.textContent = (def.sig ? `${def.where || '경희'} 명물 · ` : '') + (own ? '보유' : m ? '만남' : '미발견'); nm.textContent = m ? def.name : '???'; tx.append(badge, nm); head.append(ic, tx);
       const lines = [];
       lines.push(def.starter ? `🐾 ${def.home}` : `${m ? '📍 자주 나타나는 곳' : '힌트'}: ${def.home}`);
       if (!def.starter) lines.push(`길들이기 난이도 ${stars(def)} · 1회 +${def.gain} · 성공률 ${Math.round(def.success * 100)}% · 쿨다운 ${def.cooldown}초`);
