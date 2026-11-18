@@ -33,7 +33,7 @@ export const PETS = [
   { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', flyModel: 'assets/pets/crane-flap.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
   { id: 'ginkgo', name: '은행잎', wild: true, color: 0xd9a82b, model: 'assets/pets/ginkgo.glb', rotX: Math.PI / 2, len: 1.1, h: 0.2, fly: true, flyH: 0.9, ride: 0.06, stand: true, run: 2.2, soar: { up: 7, fall: 2.2 }, perk: '은행잎 비행' }, // stand: you ride it standing, the leaf right under your feet // 성균관대: the leaf laid flat like a magic carpet (rotX), sized by its length
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
-  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
+  { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, stand: true, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
 ];
 // 말랑이 (p1–p5) were sold in the shop and have been retired: owners get their price back in coins the next time the wallet loads
 const RETIRED = { p1: 150, p2: 250, p3: 400, p4: 550, p5: 750 };

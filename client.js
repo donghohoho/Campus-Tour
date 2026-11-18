@@ -670,7 +670,7 @@ const camTarget = new THREE.Vector3();
 let started = false, ready = false, camYaw = Math.PI, camPitch = 0.3, camDist = 3.4, camDistCur = 3.4, dragging = false, ePressed = false;
 
 // pet: a petting motion for that model (assets/anim, made from the 'Pet' clip of each character's petting GLB — same bones, model unchanged)
-const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1', pet: 'assets/anim/pet1.json', ride: 'assets/anim/ride1.json' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2', pet: 'assets/anim/pet2.json' },
+const CHARS = [{ url: 'assets/character.glb', h: 1.62, rigged: true, name: '여자 1', pet: 'assets/anim/pet1.json', ride: 'assets/anim/ride1.json' }, { url: 'assets/character2.glb', h: 1.74, rigged: true, yaw: -Math.PI / 2, name: '여자 2', pet: 'assets/anim/pet2.json', ride: 'assets/anim/ride2.json' },
   { url: 'assets/character3.glb', h: 1.65, rigged: true, name: '여자 3', pet: 'assets/anim/pet3.json' },
   { url: 'assets/character_m1.glb', h: 1.78, rigged: true, name: '남자 1' },
   { url: 'assets/character_m2.glb', h: 1.78, rigged: true, name: '남자 2' },
