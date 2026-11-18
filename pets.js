@@ -102,9 +102,9 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
   // flyModel: a second model in a flying pose, shown whenever the pet is up in the air (서울대 학)
-  let flyM = null, aloft = false;
-  if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); });
-  const showAloft = (on) => { if (!flyM || on === aloft) return; aloft = on; flyM.visible = on; model.visible = !on; };
+  let flyM = null, aloft = false, flyMix = null;
+  if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); if (g.animations.length) { flyMix = new THREE.AnimationMixer(flyM); flyMix.clipAction(g.animations[0]).play(); } }); // its wing-flap clip plays while aloft
+  const showAloft = (on, dt = 0) => { if (!flyM) return; if (on !== aloft) { aloft = on; flyM.visible = on; model.visible = !on; } if (on && flyMix) flyMix.update(dt); };
   let plate = null;
   function setName(n) {
     if (plate) { root.remove(plate); plate.material.map.dispose(); plate.material.dispose(); plate = null; } if (!n) return;
@@ -130,7 +130,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
     if (exact === 'ride') { // carrying its owner: exactly under them, facing where they face
       pos.set(x, y, z); placed = true; hopT += dt * (moving ? 10 : 2); body.position.y = moving ? Math.abs(Math.sin(hopT)) * 0.06 : 0; body.rotation.z = 0; lift = 0;
       let a = (yaw - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-14 * dt));
-      root.position.set(x, y - 0.03, z); if (plate) plate.visible = false; showAloft(y - terrainH(x, z) > 0.6); if (mixer) { action.timeScale = moving ? 1.6 : 0.4; mixer.update(dt); } return;
+      root.position.set(x, y - 0.03, z); if (plate) plate.visible = false; showAloft(y - terrainH(x, z) > 0.6, dt); if (mixer) { action.timeScale = moving ? 1.6 : 0.4; mixer.update(dt); } return;
     }
     let tx = exact ? x : x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = exact ? z : z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (holdT > 0 && placed) { tx = pos.x; tz = pos.z; }
@@ -140,7 +140,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
-    const fly = def.fly && !exact; showAloft(fly && lift > 0.5); lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    const fly = def.fly && !exact; showAloft(fly && lift > 0.5, dt); lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
     const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
     root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) * SIZE + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
     blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
