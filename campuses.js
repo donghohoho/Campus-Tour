@@ -125,7 +125,16 @@ export const CAMPUSES = [
       { name: '테니스장', kind: 'place', pos: [-358, -109], r: 20, note: 'OSM pitch "테니스장"' },
     ],
   },
-  soon('hanyang-seoul', '한양대학교 서울캠퍼스', 'seoul'),
+  {
+    id: 'hanyang-seoul', name: '한양대학교 서울캠퍼스', region: 'seoul', status: 'ready',
+    data: 'assets/campuses/hanyang-seoul.json', terrain: 'hills', lighting: 'night', seed: 20261121,
+    outsideLabel: '캠퍼스 밖 · 행당동/사근동',
+    spawn: { at: [-195, -88], look: [-150, -105] }, // on the road in from 애지문 (main gate), looking down into the campus
+    landmarks: [
+      { name: '노천극장', kind: 'place', pos: [-83, -153], r: 25, note: 'OSM 건물 "노천극장" — 원형 무대 연출은 경희대 전용이라 표지만' },
+      { name: '살곶이체육공원', kind: 'place', pos: [251, -259], r: 40, note: 'OSM park — 캠퍼스 남동쪽' },
+    ],
+  },
   soon('cau-seoul', '중앙대학교 서울캠퍼스', 'seoul'),
   soon('khu-seoul', '경희대학교 서울캠퍼스', 'seoul'),
   {
