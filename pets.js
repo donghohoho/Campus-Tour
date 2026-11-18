@@ -49,6 +49,7 @@ function loadGlb(url) {
   if (!glbCache.has(url)) glbCache.set(url, new Promise((res) => loader.load(url, (g) => res(g), undefined, () => res(null))));
   return glbCache.get(url);
 }
+const blobGeo = new THREE.PlaneGeometry(1, 1), blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t; })();
 const bodyG = new THREE.SphereGeometry(0.32, 14, 10), earG = new THREE.ConeGeometry(0.09, 0.26, 6), eyeG = new THREE.SphereGeometry(0.04, 6, 4), eyeM = new THREE.MeshBasicMaterial({ color: 0x1b1b1b });
 function placeholder(def) {
   const g = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ color: def.color || 0xffffff, emissive: def.color || 0xffffff, emissiveIntensity: 0.18 });
@@ -85,6 +86,9 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     plate.scale.set(w * 0.0046, 36 * 0.0046, 1); plate.position.y = (def.h || 0.7) + 0.2; root.add(plate);
   }
   setName(name);
+  // soft contact shadow under the pet (night scenes have few real shadows, so without it pets looked like they float)
+  const blob = new THREE.Mesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0.42, color: 0x000000 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.045; blob.renderOrder = 1; root.add(blob);
+  { const r = Math.max(0.28, (def.h || 0.6) * 0.55); blob.geometry = new THREE.PlaneGeometry(r * 2, r * 2); }
   let placed = false, hopT = 0, holdT = 0, lift = 0; const pos = new THREE.Vector3();
   // hold(s): stay put (facing the owner) for s seconds or until the owner walks off — used while being petted
   function hold(s) { holdT = s; }
@@ -102,14 +106,16 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
     const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? 0.9 : 1.7) : 0) - lift) * (1 - Math.exp(-3 * dt));
-    root.position.set(pos.x, pos.y + lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0), pos.z);
+    const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
+    root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
+    blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
     body.rotation.z = fly ? Math.sin(hopT * 0.23) * 0.12 : 0; // a gentle bank while gliding
     const want = holdT > 0 ? Math.atan2(x - pos.x, z - pos.z) : d > 0.2 ? Math.atan2(dx, dz) : yaw; let a = (want - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-8 * dt));
     if (!action && !fly) { const b = model.userData.s || 1; model.scale.y = b * (1 + Math.sin(hopT * 0.5) * (walking ? 0 : 0.03)); } // idle 'breathing' around the model's own scale (it used to reset y to 1 → tall and thin)
     if (mixer) { action.timeScale = walking ? 1 : 0.4; mixer.update(dt); }
     if (plate && camRef) { const cd = camRef.position.distanceTo(root.position), o = Math.max(0, Math.min(1, (cd - 3.5) / 3)); plate.visible = o > 0.02; plate.material.opacity = o; }
   }
-  function dispose() { setName(''); if (root.parent) root.parent.remove(root); }
+  function dispose() { setName(''); blob.geometry.dispose(); blob.material.dispose(); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
   return { root, update, hold, setName, dispose, type: def.id };
 }
