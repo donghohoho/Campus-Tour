@@ -18,7 +18,7 @@ export const PETS = [
   { id: 'rabbit', name: '산토끼', wild: true, color: 0xeee6dc, model: 'assets/pets/rabbit.glb', h: 0.42, rotY: Math.PI / 2 }, // model faces −x
   { id: 'hedgehog', name: '고슴도치', wild: true, color: 0x8a6f5a, model: 'assets/pets/hedgehog.glb', h: 0.28 },
   { id: 'raccoon', name: '너구리', wild: true, color: 0x7d7a74, model: 'assets/pets/raccoon.glb', h: 0.45 },
-  { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c, model: 'assets/pets/owl.glb', flyModel: 'assets/pets/owl-flap.glb', h: 0.42, fly: true },
+  { id: 'owl', name: '부엉이', wild: true, color: 0xb08a5c, model: 'assets/pets/owl.glb', flyModel: 'assets/pets/owl-flap.glb', flapSpeed: 2.2, h: 0.42, fly: true }, // flapSpeed: wing-flap clip speed ×
   { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d, model: 'assets/pets/squirrel.glb', h: 0.32, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
   { id: 'magpie', name: '까치', wild: true, color: 0x33384a, model: 'assets/pets/magpie.glb', h: 0.36, fly: true },
@@ -29,7 +29,7 @@ export const PETS = [
   { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle-rig.glb', clips: { ground: 'Walk_WingsFolded', air: 'Flap' }, h: 1.2, fly: true, ride: 0.8, run: 2.3, soar: { up: 9.5, fall: 4 }, perk: '빠른 비행' }, // soar: up = climb speed, fall = glide sink speed (m/s)
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
   { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle-rig.glb', clips: { ground: 'Walk_WingsFolded', air: 'Flap' }, tint: 0xc9a27a, h: 1.2, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
-  { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', flyModel: 'assets/pets/owl-flap.glb', h: 0.8, fly: true, ride: 1.5, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
+  { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', flyModel: 'assets/pets/owl-flap.glb', flapSpeed: 2.2, h: 0.8, fly: true, ride: 1.5, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
   { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', flyModel: 'assets/pets/crane-flap.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
   { id: 'ginkgo', name: '은행잎', wild: true, color: 0xd9a82b, model: 'assets/pets/ginkgo.glb', rotX: Math.PI / 2, len: 1.1, h: 0.2, fly: true, flyH: 0.9, ride: 0.06, stand: true, run: 2.2, soar: { up: 7, fall: 2.2 }, perk: '은행잎 비행' }, // stand: you ride it standing, the leaf right under your feet // 성균관대: the leaf laid flat like a magic carpet (rotX), sized by its length
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
@@ -106,7 +106,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
   });
   // flyModel: a second model in a flying pose, shown whenever the pet is up in the air (서울대 학)
   let flyM = null, aloft = false, flyMix = null;
-  if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); if (g.animations.length) { flyMix = new THREE.AnimationMixer(flyM); const flap = g.animations.reduce((b, c) => (c.tracks.filter((t) => t.times.length > 2).length > b.tracks.filter((t) => t.times.length > 2).length ? c : b)); flyMix.clipAction(flap).play(); } }); // the clip that moves the most bones (the wing flap) plays while aloft — a second, still clip would halve it
+  if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); if (g.animations.length) { flyMix = new THREE.AnimationMixer(flyM); const flap = g.animations.reduce((b, c) => (c.tracks.filter((t) => t.times.length > 2).length > b.tracks.filter((t) => t.times.length > 2).length ? c : b)); flyMix.clipAction(flap).setEffectiveTimeScale(def.flapSpeed || 1).play(); } }); // the clip that moves the most bones (the wing flap) plays while aloft — a second, still clip would halve it
   let airAct = null, airW = 0;
   const showAloft = (on, dt = 0) => { if (airAct) { airW += ((on ? 1 : 0) - airW) * (1 - Math.exp(-8 * dt)); airAct.setEffectiveWeight(airW); action.setEffectiveWeight(1 - airW); } if (!flyM) return; if (on !== aloft) { aloft = on; flyM.visible = on; model.visible = !on; } if (on && flyMix) flyMix.update(dt); };
   let plate = null;
