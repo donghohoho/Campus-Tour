@@ -877,6 +877,9 @@ function updateWorld(dt, t) {
 setPetCamera(camera);
 const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, player, terrainH, toast, touch: TOUCH, started: () => started, menuOpen: () => menuOpen, worldReady: () => worldReady, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
 const mp = initMultiplayer({ signFix: (s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
+    if (!northUp(campus) && +s.t === NORTH_UP_SINCE) { // converted while this campus was briefly (wrongly) flipped — e.g. khu-global, kept in this device's sign cache: undo
+      const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE - 1 };
+    }
     if (!northUp(campus) || campus.mirror || !(+s.t < NORTH_UP_SINCE)) return s;
     const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE }; // t moved up = marked as converted
   }, onEmote: (n, ch) => npcMimic('emote', ch), teleport: (x, z, name) => teleport(x, z, name), myPet: () => pets.current(), scene, player, pRoot, charSrc, camera, touch: TOUCH, charIndex: () => charIndex, terrainH, toast, started: () => started, menuOpen: () => menuOpen, lockPointer, releaseKeys: () => { for (const k in keys) keys[k] = false; dragging = false; } });
