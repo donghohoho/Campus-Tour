@@ -144,7 +144,12 @@ export function initCollection(G) {
     if (tab === 'pets') { if (G.petDex) G.petDex($('#petDex')); return; } // wild-pets.js draws the pet book
     const camps = Object.keys(ITEMS); if (!bookCampus || !ITEMS[bookCampus]) bookCampus = ITEMS[campusId] ? campusId : camps[0];
     const items = list(bookCampus), got = countIn(items), all = Object.values(ITEMS).flat();
-    const sub = $('#collSub'); sub.textContent = (G.campusName ? G.campusName(bookCampus) : bookCampus) + (bookCampus !== campusId ? ' · 지금 있는 캠퍼스에는 아직 수집품이 없어요' : '');
+    const sub = $('#collSub'), cname = (c) => (G.campusName ? G.campusName(c) : c); sub.replaceChildren();
+    if (camps.length > 1) { // campus picker: every campus's book, current campus first
+      const pick = document.createElement('select'); pick.id = 'collCampus'; pick.setAttribute('aria-label', '캠퍼스');
+      for (const c of [...camps].sort((a, b) => (b === campusId) - (a === campusId))) { const o = document.createElement('option'); o.value = c; o.textContent = `${cname(c)}${c === campusId ? ' (지금 여기)' : ''} · ${countIn(list(c))}/${list(c).length}`; o.selected = c === bookCampus; pick.append(o); }
+      pick.addEventListener('change', () => { bookCampus = pick.value; render(); }); pick.addEventListener('keydown', (e) => e.stopPropagation()); sub.append(pick);
+    } else sub.textContent = cname(bookCampus);
     $('#collProg').textContent = `${got} / ${items.length}` + (camps.length > 1 ? ` · 전체 ${countIn(all)} / ${all.length}` : '');
     $('#collBar').style.width = items.length ? `${(got / items.length) * 100}%` : '0';
     // filters: rarity (with found/total per tier) + found / not found
