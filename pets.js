@@ -30,7 +30,7 @@ export const PETS = [
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
   { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle.glb', tint: 0xb08868, h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
   { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', h: 0.8, fly: true, ride: 1.5, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
-  { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
+  { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', flyModel: 'assets/pets/crane-fly.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
   { id: 'ginkgo', name: '은행잎', wild: true, color: 0xd9a82b, model: 'assets/pets/ginkgo.glb', rotX: Math.PI / 2, len: 1.1, h: 0.2, fly: true, flyH: 0.9, ride: 0.06, stand: true, run: 2.2, soar: { up: 7, fall: 2.2 }, perk: '은행잎 비행' }, // stand: you ride it standing, the leaf right under your feet // 성균관대: the leaf laid flat like a magic carpet (rotX), sized by its length
   { id: 'albatross', name: '서강 알바트로스', wild: true, color: 0xa0522d, model: 'assets/pets/albatross.glb', h: 0.9, fly: true, ride: 0.8, run: 2.2, soar: { up: 6, fall: 1.4 }, perk: '긴 활공' },
   { id: 'dragon', name: '중앙 청룡', wild: true, color: 0x2b3550, model: 'assets/pets/dragon.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.05, run: 2.4, soar: { up: 7, fall: 3.5 }, perk: '하늘 날기' }, // soar: hold Space in the air to fly // model faces −x
@@ -75,13 +75,24 @@ export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
 export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   const def = petDef(type) || PETS[0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   let model = placeholder(def), mixer = null, action = null; model.scale.setScalar(SIZE); model.userData.s = SIZE; body.add(model);
+  // fit a loaded model to this pet: turn (rotX/rotY), scale to its height (or length), stand it on the ground, tint
+  const fit = (g) => {
+    const m = cloneSkinned(g.scene); if (def.rotY || def.rotX) { m.rotation.set(def.rotX || 0, def.rotY || 0, 0); m.updateMatrixWorld(true); }
+    const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = def.len ? (def.len * SIZE) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 1e-3) : ((def.h || 0.6) * SIZE) / h; // len: size by length (a flat leaf)
+    m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s;
+    if (def.len) { m.position.x = (-(box.min.x + box.max.x) / 2) * s; m.position.z = (-(box.min.z + box.max.z) / 2) * s; } /* flat rides: centred under you */
+    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(def.tint)); } } }); // tint: same model, another colour (장산곶매)
+    return m;
+  };
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
-    const m = cloneSkinned(g.scene); if (def.rotY || def.rotX) { m.rotation.set(def.rotX || 0, def.rotY || 0, 0); m.updateMatrixWorld(true); } const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = def.len ? (def.len * SIZE) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 1e-3) : ((def.h || 0.6) * SIZE) / h; // len: size by length (a flat leaf)
-    m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s; if (def.len) { m.position.x = -(box.min.x + box.max.x) / 2 * s; m.position.z = -(box.min.z + box.max.z) / 2 * s; } // flat rides: centred under you m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(def.tint)); } } }); // tint: same model, another colour (장산곶매)
-    body.remove(model); model = m; body.add(m);
+    const m = fit(g); body.remove(model); model = m; body.add(m);
     if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
+  // flyModel: a second model in a flying pose, shown whenever the pet is up in the air (서울대 학)
+  let flyM = null, aloft = false;
+  if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); });
+  const showAloft = (on) => { if (!flyM || on === aloft) return; aloft = on; flyM.visible = on; model.visible = !on; };
   let plate = null;
   function setName(n) {
     if (plate) { root.remove(plate); plate.material.map.dispose(); plate.material.dispose(); plate = null; } if (!n) return;
@@ -107,7 +118,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     if (exact === 'ride') { // carrying its owner: exactly under them, facing where they face
       pos.set(x, y, z); placed = true; hopT += dt * (moving ? 10 : 2); body.position.y = moving ? Math.abs(Math.sin(hopT)) * 0.06 : 0; body.rotation.z = 0; lift = 0;
       let a = (yaw - body.rotation.y) % (Math.PI * 2); if (a > Math.PI) a -= Math.PI * 2; if (a < -Math.PI) a += Math.PI * 2; body.rotation.y += a * (1 - Math.exp(-14 * dt));
-      root.position.set(x, y - 0.03, z); if (plate) plate.visible = false; if (mixer) { action.timeScale = moving ? 1.6 : 0.4; mixer.update(dt); } return;
+      root.position.set(x, y - 0.03, z); if (plate) plate.visible = false; showAloft(y - terrainH(x, z) > 0.6); if (mixer) { action.timeScale = moving ? 1.6 : 0.4; mixer.update(dt); } return;
     }
     let tx = exact ? x : x - Math.sin(yaw) * bk + Math.cos(yaw) * sd, tz = exact ? z : z - Math.cos(yaw) * bk - Math.sin(yaw) * sd;
     if (holdT > 0 && placed) { tx = pos.x; tz = pos.z; }
@@ -117,7 +128,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
-    const fly = def.fly && !exact; lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    const fly = def.fly && !exact; showAloft(fly && lift > 0.5); lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
     const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
     root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) * SIZE + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
     blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
