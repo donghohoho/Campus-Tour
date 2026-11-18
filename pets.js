@@ -48,6 +48,7 @@ export const SKINS = [
   { id: 'violet', name: '라벤더', tint: 0xc4a8ff, price: 150 },
   { id: 'night', name: '밤하늘', tint: 0x5a5f80, price: 200 },
   { id: 'ember', name: '노을', tint: 0xff8a5c, glow: 0x3a0f00, price: 200 },
+  { id: 'lionblue', name: '푸른 사자', tint: 0x5f9dff, glow: 0x081a3a, price: 250, only: ['lion'] }, // only: just for these pets
 ];
 const skinDef = (id) => SKINS.find((k) => k.id === id) || null;
 export const MAX_WALK = 1; // pets that can walk with you at once (one: picking another swaps it in)
@@ -200,7 +201,7 @@ export function initPets(G) {
     if (!Array.isArray(o.skins)) o.skins = []; // pets made before skins existed
     const row = document.createElement('div'); row.className = 'skinRow';
     const lab = document.createElement('small'); lab.textContent = '🎨 스킨'; row.append(lab);
-    for (const k of [null, ...SKINS]) {
+    for (const k of [null, ...SKINS.filter((x) => !x.only || x.only.includes(o.type))]) {
       const b = document.createElement('button'), id = k ? k.id : null, have = !k || o.skins.includes(id), on = (o.skin || null) === id;
       b.type = 'button'; b.className = 'skinChip' + (on ? ' on' : '') + (have ? '' : ' locked'); b.style.setProperty('--c', k ? '#' + k.tint.toString(16).padStart(6, '0') : '#ffffff');
       b.title = k ? `${k.name}${have ? '' : ` · 🪙 ${k.price}`}` : '기본'; b.setAttribute('aria-label', b.title); b.textContent = have ? (on ? '✓' : '') : '🪙';
