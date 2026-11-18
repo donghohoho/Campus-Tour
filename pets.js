@@ -21,7 +21,7 @@ export const PETS = [
   { id: 'squirrel', name: '다람쥐', wild: true, color: 0xb5651d, model: 'assets/pets/squirrel.glb', h: 0.32, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'duck', name: '오리', wild: true, color: 0xf6f3e8, model: 'assets/pets/duck.glb', h: 0.4 },
   { id: 'magpie', name: '까치', wild: true, color: 0x33384a, model: 'assets/pets/magpie.glb', h: 0.36, fly: true },
-  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8, ride: 0.95 },
+  { id: 'goat', name: '생대 염소', wild: true, color: 0xd8cfbf, model: 'assets/pets/goat.glb', h: 0.8, ride: 0.95, jump: 1.6 }, // jump: jump speed × while ridden (염소: ~2.5× as high)
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b, model: 'assets/pets/rooster.glb', h: 0.5, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0, ride: 1.1 },
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7, ride: 0.85 },
@@ -124,7 +124,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1) {
   }
   function dispose() { setName(''); blob.geometry.dispose(); blob.material.dispose(); if (root.parent) root.parent.remove(root); }
   root.scale.setScalar(scale);
-  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0 };
+  return { root, update, hold, setName, dispose, type: def.id, seat: def.ride ? def.ride * (scale || 1) : 0, jump: def.jump || 1 };
 }
 
 export function initPets(G) {
@@ -263,5 +263,6 @@ export function initPets(G) {
     rideId = n.id; return { on: true, name: n.name };
   }
   const riding = () => { const pt = rideId && pets.find((x) => x.id === rideId); return pt ? pt.seat : 0; };
-  return { toggleRide, nearRideable, riding, hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
+  const rideJump = () => { const pt = rideId && pets.find((x) => x.id === rideId); return pt ? pt.jump : 1; };
+  return { toggleRide, nearRideable, riding, rideJump, hold, adopt, ownsType, owned, activeIds, rootOf, addCoins, popCoin, metres: () => W.steps * STEP_LEN, walking: () => pets.length, steps: () => Math.floor(W.steps), useAccount, flush, update, current, open: () => open, worldChanged: () => { for (const pt of pets) pt.update(0, G.player.pos.x, G.player.pos.y, G.player.pos.z, G.player.yaw, false); } };
 }

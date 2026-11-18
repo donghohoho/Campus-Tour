@@ -856,7 +856,7 @@ function updatePlayer(dt, t) {
   p.vel.x += (dx * max - p.vel.x) * k; p.vel.z += (dz * max - p.vel.z) * k;
   if (len > 0) p.yaw += angDiff(p.yaw, Math.atan2(dx, dz)) * (1 - Math.exp(-13 * dt));
   p.jumpBuf -= dt; p.coyote = p.grounded ? 0.12 : p.coyote - dt;
-  if (p.jumpBuf > 0 && p.coyote > 0) { p.vel.y = 9.4; p.grounded = false; p.coyote = 0; p.jumpBuf = 0; p.squashV = 5; }
+  if (p.jumpBuf > 0 && p.coyote > 0) { p.vel.y = 9.4 * pets.rideJump(); /* riding a goat: a big leap */ p.grounded = false; p.coyote = 0; p.jumpBuf = 0; p.squashV = 5; }
   if (!p.grounded && p.vel.y > 0 && !keys.Space) p.vel.y -= 22 * dt;
   p.vel.y -= 26 * dt;
   const ox = p.pos.x, oz = p.pos.z; p.pos.x += p.vel.x * dt; p.pos.z += p.vel.z * dt; pushOut(p.pos, ox, oz);
