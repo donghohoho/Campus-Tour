@@ -26,9 +26,9 @@ export const PETS = [
   { id: 'rooster', name: '생대 수탉', wild: true, color: 0xc0392b, model: 'assets/pets/rooster.glb', h: 0.5, rotY: -Math.PI / 2 }, // model faces +x
   { id: 'gorani', name: '예디대 고라니', wild: true, color: 0xa6845c, model: 'assets/pets/gorani.glb', h: 1.0, ride: 1.1, jump: 1.2, leap: 1.8, perk: '멀리뛰기' },
   { id: 'tiger', name: '고대 호랑이', wild: true, color: 0xd9822b, model: 'assets/pets/tiger.glb', h: 0.7, ride: 0.85, run: 2.6, perk: '전력질주' },
-  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle.glb', h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 9.5, fall: 4 }, perk: '빠른 비행' }, // soar: up = climb speed, fall = glide sink speed (m/s)
+  { id: 'eagle', name: '연세 독수리', wild: true, color: 0x9aa39b, model: 'assets/pets/eagle-rig.glb', clips: { ground: 'Walk_WingsFolded', air: 'Flap' }, h: 1.2, fly: true, ride: 0.8, run: 2.3, soar: { up: 9.5, fall: 4 }, perk: '빠른 비행' }, // soar: up = climb speed, fall = glide sink speed (m/s)
   { id: 'lion', name: '캠퍼스 사자', wild: true, color: 0x9a7b55, model: 'assets/pets/lion.glb', h: 0.75, ride: 0.85, run: 2.3, jump: 1.25, perk: '올라운더' },
-  { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle.glb', tint: 0xb08868, h: 0.9, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
+  { id: 'hawk', name: '장산곶매', wild: true, color: 0x8a6a4a, model: 'assets/pets/eagle-rig.glb', clips: { ground: 'Walk_WingsFolded', air: 'Flap' }, tint: 0xc9a27a, h: 1.2, fly: true, ride: 0.8, run: 2.3, soar: { up: 8.5, fall: 2.6 }, perk: '매의 비행' }, // 시립대 마스코트: the eagle model, tinted brown
   { id: 'hufs-owl', name: '외대 부엉이', wild: true, color: 0x9a7650, model: 'assets/pets/owl.glb', flyModel: 'assets/pets/owl-flap.glb', h: 0.8, fly: true, ride: 1.5, run: 2.2, soar: { up: 7, fall: 2 }, perk: '조용한 비행' }, // 외대 마스코트: the owl model, rideable size
   { id: 'crane', name: '서울대 학', wild: true, color: 0xdfe3e6, model: 'assets/pets/crane.glb', flyModel: 'assets/pets/crane-flap.glb', h: 1.0, rotY: -Math.PI / 2, fly: true, ride: 1.0, run: 2.2, soar: { up: 6.5, fall: 1.8 }, perk: '우아한 활공' }, // model faces +x
   { id: 'ginkgo', name: '은행잎', wild: true, color: 0xd9a82b, model: 'assets/pets/ginkgo.glb', rotX: Math.PI / 2, len: 1.1, h: 0.2, fly: true, flyH: 0.9, ride: 0.06, stand: true, run: 2.2, soar: { up: 7, fall: 2.2 }, perk: '은행잎 비행' }, // stand: you ride it standing, the leaf right under your feet // 성균관대: the leaf laid flat like a magic carpet (rotX), sized by its length
@@ -99,12 +99,16 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
   if (def.model) loadGlb(def.model).then((g) => {
     if (!g || !root.parent) return;
     const m = fit(g); body.remove(model); model = m; m.visible = !aloft; body.add(m); // (the flying model may already be showing)
-    if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
+    const named = (n) => g.animations.find((c) => c.name === n);
+    if (def.clips && named(def.clips.ground) && named(def.clips.air)) { // one rig, two clips: walking on the ground, flapping in the air (독수리)
+      mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(named(def.clips.ground)); airAct = mixer.clipAction(named(def.clips.air)); action.play(); airAct.play(); airAct.setEffectiveWeight(0);
+    } else if (g.animations.length) { const clip = g.animations[0].clone(); clip.tracks = clip.tracks.filter((t) => !t.name.startsWith('root.')); mixer = new THREE.AnimationMixer(m); action = mixer.clipAction(clip); action.play(); } // walk in place
   });
   // flyModel: a second model in a flying pose, shown whenever the pet is up in the air (서울대 학)
   let flyM = null, aloft = false, flyMix = null;
   if (def.flyModel) loadGlb(def.flyModel).then((g) => { if (!g || !root.parent) return; flyM = fit(g); flyM.visible = false; body.add(flyM); if (g.animations.length) { flyMix = new THREE.AnimationMixer(flyM); const flap = g.animations.reduce((b, c) => (c.tracks.filter((t) => t.times.length > 2).length > b.tracks.filter((t) => t.times.length > 2).length ? c : b)); flyMix.clipAction(flap).play(); } }); // the clip that moves the most bones (the wing flap) plays while aloft — a second, still clip would halve it
-  const showAloft = (on, dt = 0) => { if (!flyM) return; if (on !== aloft) { aloft = on; flyM.visible = on; model.visible = !on; } if (on && flyMix) flyMix.update(dt); };
+  let airAct = null, airW = 0;
+  const showAloft = (on, dt = 0) => { if (airAct) { airW += ((on ? 1 : 0) - airW) * (1 - Math.exp(-8 * dt)); airAct.setEffectiveWeight(airW); action.setEffectiveWeight(1 - airW); } if (!flyM) return; if (on !== aloft) { aloft = on; flyM.visible = on; model.visible = !on; } if (on && flyMix) flyMix.update(dt); };
   let plate = null;
   function setName(n) {
     if (plate) { root.remove(plate); plate.material.map.dispose(); plate.material.dispose(); plate = null; } if (!n) return;
@@ -140,7 +144,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
     const walking = d > 0.35 || moving; hopT += dt * (walking ? 9 : 2.2);
     // flying pets (def.fly) glide after their owner ~1.7 m up, bobbing; they come down a little while being petted.
     // Wild ones (exact) stay on the ground so they can be petted.
-    const fly = def.fly && !exact; showAloft(fly && lift > 0.5, dt); lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
+    const fly = def.fly && !exact; showAloft(fly && lift > 0.5, dt); if (airAct && !fly) showAloft(false, dt); lift += ((fly ? (holdT > 0 ? (def.flyH || 2) * 0.5 : def.flyH || 2) : 0) - lift) * (1 - Math.exp(-3 * dt));
     const up = lift + (fly ? Math.sin(hopT * 0.35) * 0.12 * Math.min(1, lift) : walking && !action ? Math.abs(Math.sin(hopT)) * 0.12 : 0);
     root.position.set(pos.x, pos.y - 0.03, pos.z); body.position.y = up; if (plate) plate.position.y = (def.h || 0.7) * SIZE + 0.2 + up; // root on the ground (a hair into it, so feet never hover), the body rises
     blob.scale.setScalar(1 / (1 + up * 0.5)); blob.material.opacity = 0.42 / (1 + up * 0.8); // contact shadow stays on the ground, smaller and fainter the higher it flies
