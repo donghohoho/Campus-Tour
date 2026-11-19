@@ -70,7 +70,7 @@ function applyLighting(L) {
 
 // ── shared helpers ─────────────────────────────────────────────────────────
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler(), C = new THREE.Color();
-function instanced(geo, mat, n, cast = true) { const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = cast; m.receiveShadow = true; m.count = 0; m.frustumCulled = false; world.add(m); return m; }
+function instanced(geo, mat, n, cast = true) { const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = cast && !LOW; /* phones: no shadows from the thousands of trees/props — the shadow pass drew them all again */ m.receiveShadow = true; m.count = 0; m.frustumCulled = false; world.add(m); return m; }
 function put(m, x, y, z, sx, sy, sz, ry = 0, color = null, rx = 0, rz = 0) { Q.setFromEuler(E.set(rx, ry, rz)); M4.compose(V.set(x, y, z), Q, S.set(sx, sy, sz)); m.setMatrixAt(m.count, M4); if (color) m.setColorAt(m.count, color); m.count++; }
 const flat = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
 function canvasTex(draw, w = 64, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
@@ -320,7 +320,7 @@ function buildWorld(data) {
   }
   // ── trees: woods, parks, campus lawns and street trees ──
   {
-    const N = LOW ? 700 : 3000, trunk = instanced(new THREE.CylinderGeometry(0.22, 0.34, 1, 6).translate(0, 0.5, 0), flat(0x7a5a3c), N), pine = instanced(new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0), flat(0xffffff), N * 3), round = instanced(new THREE.IcosahedronGeometry(1, 1), flat(0xffffff), N * 3);
+    const N = LOW ? 700 : 3000, trunk = instanced(new THREE.CylinderGeometry(0.22, 0.34, 1, 6).translate(0, 0.5, 0), flat(0x7a5a3c), N), pine = instanced(new THREE.ConeGeometry(1, 1, 7).translate(0, 0.5, 0), flat(0xffffff), N * 3), round = instanced(new THREE.IcosahedronGeometry(1, LOW ? 0 : 1), flat(0xffffff), N * 3); /* phones: 20-triangle canopies (were 80 × 3 per tree — the single biggest cost) */
     const greens = [0x3f8f4a, 0x4c9c4f, 0x2f7d47, 0x5aa850, 0x6fb24a, 0x7fb85a];
     const okTree = (x, z) => { for (const [ox, oz] of [[0, 0], [2.6, 0], [-2.6, 0], [0, 2.6], [0, -2.6]]) if (cls(x + ox, z + oz) > 2) return false; return true; };
     let placed = 0;
@@ -481,7 +481,7 @@ const SNOW = (() => {
   };
 })();
 function makeSnowman() {
-  const S = SNOW, g = S.g, body = new THREE.Group(), mesh = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; body.add(m); return m; };
+  const S = SNOW, g = S.g, body = new THREE.Group(), mesh = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = !LOW; body.add(m); return m; };
   const k = 0.92 + Math.random() * 0.16; body.scale.setScalar(k);
   mesh(g.b0, S.snow, 0, 0.42, 0).scale.set(1, 0.92, 1); mesh(g.b1, S.snow, 0, 1.0, 0); mesh(g.b2, S.snow, 0, 1.46, 0);
   for (const sx of [-1, 1]) mesh(g.dot, S.coal, sx * 0.085, 1.52, 0.215);
@@ -1092,4 +1092,4 @@ function frame(now) {
   if (started) { updatePlayer(dt, time); mp.update(dt); pets.update(dt); quests.update(dt); } else { camYaw += dt * 0.1; pRoot.position.copy(player.pos); pRoot.rotation.y = player.yaw; }
   updateCamera(dt); updateWorld(dt, time); renderer.render(scene, camera); requestAnimationFrame(frame);
 }
-window.__game = { stamps, playPet, chars: () => charModels, npcs: () => npcs, coll, quests, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };
+window.__game = { renderer, scene, stamps, playPet, chars: () => charModels, npcs: () => npcs, coll, quests, wildPets, npcCount: () => npcs.length, npcDbg: () => npcs.map((n) => ({ x: +n.x.toFixed(1), z: +n.z.toFixed(1), goal: n.goal, wait: +n.wait.toFixed(1), wave: n.wave.visible })), mp, pets, stick, touch: TOUCH, setTouchRun: (v) => { touchRun = v; }, switchCampus, campus: () => campus && campus.id, worldReady: () => worldReady, renderer, openMenu, menuOpen: () => menuOpen, setChar, charIndex: () => charIndex, charModels, step: (n) => { for (let i = 0; i < n; i++) { time += 1 / 60; updatePlayer(1 / 60, time); updateCamera(1 / 60); updateWorld(1 / 60, time); } }, press: () => { player.jumpBuf = 0.14; }, player, keys, gems, pals, places, buildings, terrainH, cls, insideBuilding, solidAt, cam: () => ({ camYaw, camPitch, camDist, camDistCur }), setCam: (y, p, d) => { camYaw = y; camPitch = p; if (d) camDist = d; }, started: () => started, ready: () => ready };

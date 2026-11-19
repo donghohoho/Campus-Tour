@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { createPet } from './pets.js';
 import { SPECIES, SPAWNS, RESPAWN_SEC, BOND, stageOf, DEX_EXTRA } from './wild-pets-data.js';
 
-const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 3.2, BAR_R = 7; // NEAR: E-to-pet range (pets are drawn 2× — pets.js SIZE)
+const KEY = 'fm:petBond', SEEN_MAX = 300, NEAR = 3.2, BAR_R = 7, WILD_R = 70; // NEAR: E-to-pet range (pets are drawn 2× — pets.js SIZE)
 const $ = (s) => document.querySelector(s);
 const dayKey = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(0, 10);
 
@@ -63,7 +63,7 @@ export function initWildPets(G) {
     const pool = (sp.pool || [sp.species]).map((e) => (Array.isArray(e) ? e : [e, 1])).filter(([k, wt]) => SPECIES[k] && wt > 0); if (!pool.length) return;
     let r = Math.random() * pool.reduce((a, [, wt]) => a + wt, 0), id = pool[0][0]; for (const [k, wt] of pool) { r -= wt; if (r <= 0) { id = k; break; } } // weighted: signature animals win at their spots
     const def = SPECIES[id];
-    const pet = createPet(def.type, `야생 ${def.name}`, G.terrainH, 0, 1); G.scene.add(pet.root);
+    const pet = createPet(def.type, `야생 ${def.name}`, G.terrainH, 0, 1, null, { shadow: false }); G.scene.add(pet.root); // wild ones: blob shadow only
     const [hx, hz] = G.toWorld ? G.toWorld(sp.pos[0], sp.pos[1]) : sp.pos; // spots are in the map file's frame
     const w = { key, sp: id, def, home: [hx, hz], roam: sp.roam || 6, x: hx, z: hz, tx: hx, tz: hz, timer: Math.random() * 3, yaw: 0, cd: 0, msg: '', msgT: 0, pet };
     wild.push(w); drive(w, 0, Math.random() * 6.283, false); // placed at its spot right away (far ones aren't animated)
@@ -172,8 +172,10 @@ export function initWildPets(G) {
     for (const w of wild) {
       w.cd = Math.max(0, w.cd - dt); w.msgT -= dt;
       const d = Math.hypot(p.x - w.x, p.z - w.z);
-      if (d < 4) { w.yaw = Math.atan2(p.x - w.x, p.z - w.z); drive(w, dt, w.yaw, false); } // someone close: stop and look at them
-      else if (d < 150) {
+      const vis = d < WILD_R; if (w.pet.root.visible !== vis) w.pet.root.visible = vis; // far away: not drawn, not animated (they were all drawn everywhere — most of the triangles on screen)
+      if (!vis) { /* resting */ }
+      else if (d < 4) { w.yaw = Math.atan2(p.x - w.x, p.z - w.z); drive(w, dt, w.yaw, false); } // someone close: stop and look at them
+      else {
         if ((w.timer -= dt) <= 0) { const a = Math.random() * 6.283, r = Math.random() * w.roam; w.tx = w.home[0] + Math.cos(a) * r; w.tz = w.home[1] + Math.sin(a) * r; w.timer = 3 + Math.random() * 4; }
         const dx = w.tx - w.x, dz = w.tz - w.z, dd = Math.hypot(dx, dz), moving = dd > 0.3;
         if (moving) { const nx = w.x + (dx / dd) * 0.9 * dt, nz = w.z + (dz / dd) * 0.9 * dt; if (G.walkable(nx, nz) && !G.solidAt(nx, G.terrainH(nx, nz) + 0.5, nz)) { w.x = nx; w.z = nz; } else w.timer = 0; }

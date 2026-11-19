@@ -85,7 +85,7 @@ function placeholder(def) {
 // name tags fade out when the camera is close (your own pets walk between you and the camera)
 let camRef = null; export const setPetCamera = (c) => { camRef = c; };
 export const sizeFor = (count) => (count >= 6 ? 2 : count >= 3 ? 1.5 : 1);
-export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null) {
+export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null, opts = {}) {
   const def = petDef(type) || PETS[0], sk = skinDef(skin), root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   let model = placeholder(def), mixer = null, action = null; model.scale.setScalar(SIZE); model.userData.s = SIZE; body.add(model);
   // fit a loaded model to this pet: turn (rotX/rotY), scale to its height (or length), stand it on the ground, tint
@@ -94,7 +94,7 @@ export function createPet(type, name, terrainH, slot = 0, scale = 1, skin = null
     const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y || 1, s = def.len ? (def.len * SIZE) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z, 1e-3) : ((def.h || 0.6) * SIZE) / h; // len: size by length (a flat leaf)
     m.scale.setScalar(s); m.userData.s = s; m.position.y = -box.min.y * s;
     if (def.len) { m.position.x = (-(box.min.x + box.max.x) / 2) * s; m.position.z = (-(box.min.z + box.max.z) / 2) * s; } /* flat rides: centred under you */
-    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint || sk) { o.material = o.material.clone(); if (def.tint) o.material.color.multiply(new THREE.Color(def.tint)); if (sk) { o.material.color.multiply(new THREE.Color(sk.tint)); if (sk.glow && o.material.emissive) o.material.emissive.setHex(sk.glow); } } } }); // tint: same model, another colour (장산곶매); sk: the owner's skin
+    m.traverse((o) => { if (o.isMesh) { o.castShadow = opts.shadow !== false; if (o.isSkinnedMesh) o.frustumCulled = false; if (def.tint || sk) { o.material = o.material.clone(); if (def.tint) o.material.color.multiply(new THREE.Color(def.tint)); if (sk) { o.material.color.multiply(new THREE.Color(sk.tint)); if (sk.glow && o.material.emissive) o.material.emissive.setHex(sk.glow); } } } }); // tint: same model, another colour (장산곶매); sk: the owner's skin
     return m;
   };
   if (def.model) loadGlb(def.model).then((g) => {
