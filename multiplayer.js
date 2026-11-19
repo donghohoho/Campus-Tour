@@ -259,7 +259,7 @@ export function initMultiplayer(G) {
   }
   function pickChar(i) { return G.charSrc[i] ? i : G.charSrc.findIndex(Boolean); }
   function makeModel(av) {
-    if (av.model) { av.body.remove(av.model); av.model = null; av.mixer = null; }
+    if (av.model) { av.body.remove(av.model); av.model = null; av.mixer = null; av.rideAct = null; }
     const ci = pickChar(av.char); av.shownChar = av.char; const src = G.charSrc[ci]; if (!src) return;
     const m = cloneSkinned(src.model); m.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
     av.model = m; av.body.add(m);
@@ -366,6 +366,7 @@ export function initMultiplayer(G) {
     n.on('st', (d, peer) => {
       if (!Array.isArray(d) || d.length < 6) return; const av = getAvatar(peer);
       const t = av.t; t.x = num(d[0]); t.y = num(d[1]); t.z = num(d[2]); t.yaw = num(d[3]); t.sp = Math.min(12, Math.abs(num(d[4]))); const ch = num(d[5]) | 0; if (ch >= 0 && ch < 16) av.char = ch;
+      av.seat = Math.max(0, Math.min(3, num(d[6]) || 0)); av.stand = d[7] === 1; // riding (older clients send neither)
       if (!av.has) { av.has = true; Object.assign(av.cur, t); av.root.visible = true; }
       av.seen = now;
     });
@@ -409,7 +410,7 @@ export function initMultiplayer(G) {
   const tmp = new THREE.Vector3();
   function update(dt) {
     now += dt;
-    if (net) { sendAcc += dt; if (sendAcc >= 1 / SEND_HZ) { sendAcc = 0; const p = G.player; net.send('st', [+p.pos.x.toFixed(2), +p.pos.y.toFixed(2), +p.pos.z.toFixed(2), +p.yaw.toFixed(3), +p.speed.toFixed(2), G.charIndex()]); } }
+    if (net) { sendAcc += dt; if (sendAcc >= 1 / SEND_HZ) { sendAcc = 0; const p = G.player; net.send('st', [+p.pos.x.toFixed(2), +p.pos.y.toFixed(2), +p.pos.z.toFixed(2), +p.yaw.toFixed(3), +p.speed.toFixed(2), G.charIndex(), ...(G.ride ? G.ride() : [0, 0])]); /* + [seat height, ridden standing] while riding a pet */ } }
     const sig = G.charIndex() + '|' + JSON.stringify(G.myPet()); if (sig !== update.lastSig) { update.lastSig = sig; if (net) net.send('hi', hello()); }
     if (myBubble && (myBubbleT -= dt) <= 0) { disposeSprite(myBubble); myBubble = null; }
     if (myEmote) { myEmote.position.y += dt * 0.4; if ((myEmoteT -= dt) <= 0) { disposeSprite(myEmote); myEmote = null; } }
@@ -423,6 +424,8 @@ export function initMultiplayer(G) {
       if (Math.hypot(t.x - c.x, t.z - c.z) > 30) Object.assign(c, t); // teleport / respawn
       c.x += (t.x - c.x) * k; c.y += (t.y - c.y) * k; c.z += (t.z - c.z) * k; c.yaw += angDiff(c.yaw, t.yaw) * k; c.sp += (t.sp - c.sp) * k;
       av.root.position.set(c.x, c.y, c.z); av.body.rotation.y = c.yaw;
+      av.rideW = (av.rideW || 0) + ((av.seat && !av.stand ? 1 : 0) - (av.rideW || 0)) * (1 - Math.exp(-8 * dt));
+      av.body.position.y = av.seat ? av.seat - (av.stand ? 0 : 0.7 * av.rideW) : 0; // on its pet's back (seated riders drop to the seat)
       const d = tmp.set(c.x, c.y, c.z).distanceTo(cam); av.dist = d; av.root.visible = d < SHOW_DIST * 2.5; list.push(av);
       if (av.bubble && (av.bubbleT -= dt) <= 0) { disposeSprite(av.bubble); av.bubble = null; }
       if (av.emote) { av.emote.position.y += dt * 0.4; if ((av.emoteT -= dt) <= 0) { disposeSprite(av.emote); av.emote = null; } }
@@ -432,9 +435,10 @@ export function initMultiplayer(G) {
       const full = i < MAX_MODELS && av.dist < SHOW_DIST;
       if (full && (!av.model || av.shownChar !== av.char)) makeModel(av);
       if (av.model) av.model.visible = full;
-      for (const pt of av.pets || []) { pt.root.visible = full; if (full) pt.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5); }
+      (av.pets || []).forEach((pt, k) => { pt.root.visible = full; if (full) pt.update(dt, av.cur.x, av.cur.y, av.cur.z, av.cur.yaw, av.cur.sp > 0.5, av.seat && k === 0 ? 'ride' : undefined); }); // the ridden pet carries them
       if (av.plate) av.plate.visible = av.dist < 60;
-      if (full && av.mixer) { const tw = Math.min(1, av.cur.sp / 1.0); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); if (window.__runBlend) window.__runBlend(av, av.cur.sp, dt); else { av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; } av.mixer.update(dt); }
+      if (full && av.mixer) { const src = G.charSrc[pickChar(av.char)]; if (src && src.ride && !av.rideAct) { av.rideAct = av.mixer.clipAction(src.ride); av.rideAct.play(); av.rideAct.setEffectiveWeight(0); } if (av.rideAct) av.rideAct.setEffectiveWeight(av.rideW || 0);
+        const tw = Math.min(1, av.cur.sp / 1.0) * (av.seat ? 0 : 1); av.w += (tw - av.w) * (1 - Math.exp(-8 * dt)); if (window.__runBlend) window.__runBlend(av, av.cur.sp, dt); else { av.action.setEffectiveWeight(av.w); av.action.timeScale = 0.9 + Math.min(av.cur.sp, 9) * 0.23; } av.mixer.update(dt); }
     });
     for (const g of signGroup.children) { const h = g.userData.halo; if (h) { const k = 2.3 + Math.sin(now * 2.2 + g.position.x) * 0.25; h.scale.set(k, k, 1); } } // stars twinkle
     if (listOpen && (listT -= dt) <= 0) { listT = 0.5; renderList(); }

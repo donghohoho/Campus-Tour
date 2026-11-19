@@ -741,7 +741,7 @@ function loadChar(i) {
       const clip = inPlace(walkSrc), mixer = new THREE.AnimationMixer(m), action = mixer.clipAction(clip); action.play(); action.setEffectiveWeight(0); holder.userData = { mixer, action, w: 0 };
       if (runSrc) { const run = mixer.clipAction(inPlace(runSrc)); run.play(); run.setEffectiveWeight(0); holder.userData.run = run; } // optional run cycle, blended in with speed
       if (CHARS[i].pet) fetch(CHARS[i].pet).then((r) => r.json()).then((j) => { const c = inPlace(THREE.AnimationClip.parse(j)), a = mixer.clipAction(c); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.setEffectiveWeight(0); Object.assign(holder.userData, { pet: a, petW: 0, petT: 0 }); }).catch(() => {}); // petting motion (optional)
-      if (CHARS[i].ride) fetch(CHARS[i].ride).then((r) => r.json()).then((j) => { const a = mixer.clipAction(inPlace(THREE.AnimationClip.parse(j))); a.play(); a.setEffectiveWeight(0); Object.assign(holder.userData, { ride: a, rideW: 0 }); }).catch(() => {}); // riding pose (optional; otherwise the legs are bent in code)
+      if (CHARS[i].ride) fetch(CHARS[i].ride).then((r) => r.json()).then((j) => { const rc = inPlace(THREE.AnimationClip.parse(j)), a = mixer.clipAction(rc); a.play(); a.setEffectiveWeight(0); Object.assign(holder.userData, { ride: a, rideW: 0 }); if (charSrc[i]) charSrc[i].ride = rc; }).catch(() => {}); /* charSrc.ride: other players' avatars use it too */ // riding pose (optional; otherwise the legs are bent in code)
     }
     charSrc[i] = { model: m, clip: holder.userData.action ? holder.userData.action.getClip() : null, run: holder.userData.run ? holder.userData.run.getClip() : null };
     holder.add(m); holder.visible = false; pModel.add(holder); charModels[i] = holder; res();
@@ -1021,7 +1021,7 @@ const pets = initPets({ petRow: (li, o) => wildPets.decorate(li, o), scene, play
 // smoothed roads), so on load each one is set back onto the surface under it — the ground, or the roof / stage it
 // stood on (searched from a little above where it was, and never from below the ground)
 const settleSign = (s) => { const x = +s.x, z = +s.z; if (!Number.isFinite(x) || !Number.isFinite(z)) return s; const feet = Math.max((+s.y || 0) + 1.5, terrainH(x, z) + 0.5); return { ...s, y: groundAt(x, z, feet) }; };
-const mp = initMultiplayer({ busy: () => petting(), signFix: (s0) => settleSign(((s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
+const mp = initMultiplayer({ busy: () => petting(), ride: () => { const rs = pets.rideStats(); return rs ? [+pets.riding().toFixed(2), rs.stand ? 1 : 0] : [0, 0]; }, signFix: (s0) => settleSign(((s) => { // a sign saved in the old unflipped frame (campus newly shown north-up): move it to the matching spot
     if (!northUp(campus) && +s.t === NORTH_UP_SINCE) { // converted while this campus was briefly (wrongly) flipped — e.g. khu-global, kept in this device's sign cache: undo
       const z = -(+s.z); return { ...s, z, y: groundAt(+s.x, z, 1e4), yaw: Math.PI - (+s.yaw || 0), t: NORTH_UP_SINCE - 1 };
     }
